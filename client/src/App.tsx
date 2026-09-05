@@ -57,13 +57,15 @@ import BalanceSheetPage from './pages/reports/BalanceSheetPage';
 import ProfitLossPage from './pages/reports/ProfitLossPage';
 import BudgetReportPage from './pages/reports/BudgetReportPage';
 import VerifyPage from './pages/reports/VerifyPage';
-import IntegrityPage from './pages/IntegrityPage';
 
 // Customer Portal
 import PortalApp from './pages/portal/PortalApp';
 
 // Live Monitor (full-screen, no shell)
 import MonitorPage from './pages/MonitorPage';
+
+// System Integrity (10-check live audit)
+import IntegrityPage from './pages/IntegrityPage';
 
 export function App() {
   return (
@@ -159,7 +161,7 @@ export function App() {
         {/* ── System Ledger Audit (/verify) ── */}
         <Route path="verify" element={<VerifyPage />} />
 
-        {/* ── System Integrity Report (/integrity) ── */}
+        {/* ── System Integrity (10-check live audit) ── */}
         <Route path="integrity" element={<IntegrityPage />} />
       </Route>
 
