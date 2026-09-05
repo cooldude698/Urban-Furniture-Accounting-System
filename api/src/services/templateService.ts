@@ -363,6 +363,37 @@ export class TemplateService {
         return res.rows;
       }
 
+      case 'balance_sheet': {
+        const res = await pool.query(`
+          SELECT 
+            a.name AS item,
+            CASE 
+              WHEN a.type IN ('cash', 'bank') THEN 'Current Assets (Cash & Bank)'
+              WHEN a.name ILIKE '%debtor%' OR a.name ILIKE '%receivable%' THEN 'Current Assets (Receivables)'
+              WHEN a.name ILIKE '%input tax%' OR a.name ILIKE '%advance%' THEN 'Current Assets (Tax & Advances)'
+              WHEN a.type = 'asset' THEN 'Non-Current Assets (Fixed Assets)'
+              WHEN a.name ILIKE '%creditor%' OR a.name ILIKE '%payable%' THEN 'Current Liabilities (Payables)'
+              WHEN a.type = 'liability' THEN 'Non-Current Liabilities'
+              WHEN a.type = 'capital' THEN 'Shareholders’ Equity'
+              ELSE 'Other Accounts'
+            END AS classification,
+            ABS(v.balance)::numeric(14,2) AS amount,
+            '0.00' AS prior
+          FROM v_trial_balance v
+          JOIN accounts a ON a.id = v.account_id
+          WHERE a.type IN ('asset', 'liability', 'bank', 'capital', 'cash')
+          ORDER BY 
+            CASE 
+              WHEN a.type IN ('cash', 'bank') THEN 1
+              WHEN a.type = 'asset' THEN 2
+              WHEN a.type = 'liability' THEN 3
+              WHEN a.type = 'capital' THEN 4
+              ELSE 5
+            END, a.name ASC
+        `);
+        return res.rows;
+      }
+
       default:
         return [];
     }

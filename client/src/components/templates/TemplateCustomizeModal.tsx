@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Calculator,
+  Scale,
 } from 'lucide-react';
 import api from '../../lib/axios';
 import { BusinessTemplateDetail, UserTemplateItem } from '../../types/template';
@@ -32,6 +33,8 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
   onSavedSuccess,
 }) => {
   if (!isOpen || !template) return null;
+
+  const cols = template.structure?.columns || [];
 
   // Configuration State
   const [templateName, setTemplateName] = useState<string>(
@@ -137,16 +140,80 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
     });
   };
 
-  const handleAddRow = () => {
-    const emptyRow: Record<string, any> = {};
-    for (const c of template.structure?.columns || []) {
-      emptyRow[c.key] = c.type === 'currency' || c.type === 'number' ? '0.00' : '';
+  const handleAddRow = (type: 'item' | 'header' | 'total' = 'item') => {
+    const newRow: Record<string, any> = {};
+    for (let i = 0; i < cols.length; i++) {
+      const c = cols[i];
+      if (i === 0) {
+        newRow[c.key] = type === 'header' ? 'NEW SECTION' : type === 'total' ? 'TOTAL NEW SECTION' : 'New Line Item';
+      } else {
+        newRow[c.key] = type === 'header' ? '' : '0.00';
+      }
     }
-    setRows(prev => [...prev, emptyRow]);
+    if (type === 'header') newRow.classification = 'Header';
+    if (type === 'total') newRow.classification = 'Total';
+    setRows(prev => [...prev, newRow]);
   };
 
   const handleDeleteRow = (idx: number) => {
     setRows(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  // Balance Sheet Equation Check
+  const isBalanceSheet = template.slug.includes('balance-sheet') || /Assets\s*=\s*Liabilities/i.test(template.formulaNotes || '');
+
+  const balanceStats = React.useMemo(() => {
+    if (!isBalanceSheet) return null;
+    const numCol = cols.find(c => c.type === 'currency' || c.type === 'number');
+    if (!numCol) return null;
+
+    let totalAssets = 0;
+    let totalLiabilitiesAndEquity = 0;
+
+    for (const r of rows) {
+      const item = String(r[cols[0]?.key] || r.item || '').trim();
+      const val = parseFloat(String(r[numCol.key] || '0')) || 0;
+
+      if (/TOTAL\s+ASSETS/i.test(item)) {
+        totalAssets = val;
+      } else if (/TOTAL\s+LIABILITIES\s+&/i.test(item) || /TOTAL\s+LIABILITIES\s+AND\s+STOCKHOLDERS/i.test(item)) {
+        totalLiabilitiesAndEquity = val;
+      }
+    }
+
+    const diff = Math.abs(totalAssets - totalLiabilitiesAndEquity);
+    const isBalanced = totalAssets > 0 && diff < 0.01;
+
+    return {
+      totalAssets,
+      totalLiabilitiesAndEquity,
+      diff,
+      isBalanced,
+      colKey: numCol.key,
+      colLabel: numCol.label,
+    };
+  }, [isBalanceSheet, cols, rows]);
+
+  const handleAutoCheckBalance = () => {
+    if (!balanceStats) return;
+    setRows(prev =>
+      prev.map(r => {
+        const item = String(r[cols[0]?.key] || r.item || '').trim();
+        if (/Check/i.test(item)) {
+          return {
+            ...r,
+            [balanceStats.colKey]: balanceStats.diff.toFixed(2),
+          };
+        }
+        return r;
+      })
+    );
+    setStatusMsg({
+      type: balanceStats.isBalanced ? 'success' : 'error',
+      text: balanceStats.isBalanced
+        ? `Balance Sheet is balanced! Assets (${currency}${balanceStats.totalAssets.toLocaleString('en-IN', { minimumFractionDigits: 2 })}) = Liabilities & Equity (${currency}${balanceStats.totalLiabilitiesAndEquity.toLocaleString('en-IN', { minimumFractionDigits: 2 })}).`
+        : `Balance difference: ${currency}${balanceStats.diff.toLocaleString('en-IN', { minimumFractionDigits: 2 })} (Total Assets: ${currency}${balanceStats.totalAssets.toLocaleString('en-IN', { minimumFractionDigits: 2 })} vs Liabilities & Equity: ${currency}${balanceStats.totalLiabilitiesAndEquity.toLocaleString('en-IN', { minimumFractionDigits: 2 })})`,
+    });
   };
 
   // Export File Handlers
@@ -264,8 +331,6 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
       setSaving(false);
     }
   };
-
-  const cols = template.structure?.columns || [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
@@ -419,37 +484,94 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
 
           {/* Table Customization */}
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
               <div>
                 <h3 className="text-xs font-bold uppercase tracking-wider text-brown-800">
                   2. Spreadsheet Rows & Customization
                 </h3>
                 <p className="text-[11px] text-brown-500">
-                  Edit cell values directly or add rows. Formulas will calculate in exports.
+                  Edit cell values directly, add custom sections, or update totals.
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={handleAddRow}
-                className="px-2.5 py-1 text-xs font-semibold rounded-[6px] bg-brown-100 hover:bg-brown-200 text-brown-800 border border-brown-300 transition-colors flex items-center gap-1.5 shadow-2xs"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Add Row</span>
-              </button>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => handleAddRow('item')}
+                  className="px-2.5 py-1 text-xs font-semibold rounded-[6px] bg-white hover:bg-gray-100 text-black border border-gray-300 transition-colors flex items-center gap-1 shadow-2xs"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Item</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddRow('header')}
+                  className="px-2.5 py-1 text-xs font-semibold rounded-[6px] bg-white hover:bg-gray-100 text-black border border-gray-300 transition-colors flex items-center gap-1 shadow-2xs"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Section Header</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddRow('total')}
+                  className="px-2.5 py-1 text-xs font-semibold rounded-[6px] bg-white hover:bg-gray-100 text-black border border-gray-300 transition-colors flex items-center gap-1 shadow-2xs"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>+ Total Row</span>
+                </button>
+                {isBalanceSheet && balanceStats && (
+                  <button
+                    type="button"
+                    onClick={handleAutoCheckBalance}
+                    className={`px-3 py-1 text-xs font-bold rounded-[6px] border transition-colors flex items-center gap-1.5 shadow-2xs ${
+                      balanceStats.isBalanced
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                        : 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'
+                    }`}
+                  >
+                    <Scale className="w-3.5 h-3.5" />
+                    <span>Check Balance</span>
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Interactive Table Container */}
-            <div className="border border-brown-300 rounded-[8px] overflow-hidden bg-surface shadow-2xs">
-              <div className="overflow-x-auto max-h-72">
-                <table className="w-full text-left border-collapse text-xs">
+            {/* Balance Sheet Equation Bar */}
+            {isBalanceSheet && balanceStats && (
+              <div className="mb-3 p-2.5 bg-white border border-gray-300 rounded-[8px] flex flex-wrap items-center justify-between gap-2 text-xs shadow-2xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-black uppercase tracking-wider text-[11px]">
+                    Accounting Equation:
+                  </span>
+                  <span className="font-mono text-gray-700 font-medium">
+                    Assets ({currency}{balanceStats.totalAssets.toLocaleString('en-IN', { minimumFractionDigits: 2 })}) = Liabilities & Equity ({currency}{balanceStats.totalLiabilitiesAndEquity.toLocaleString('en-IN', { minimumFractionDigits: 2 })})
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                      balanceStats.isBalanced
+                        ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                        : 'bg-amber-100 text-amber-900 border border-amber-300'
+                    }`}
+                  >
+                    {balanceStats.isBalanced ? '✓ Equation Balanced (Diff: ₹0.00)' : `Check Diff: ${currency}${balanceStats.diff.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Interactive Table Container - White background, black font */}
+            <div className="border border-gray-300 rounded-[8px] overflow-hidden bg-white shadow-xs">
+              <div className="overflow-x-auto max-h-80">
+                <table className="w-full text-left border-collapse text-xs bg-white">
                   <thead>
-                    <tr className="bg-brown-900 text-cream font-semibold">
-                      <th className="p-2 w-8 text-center">#</th>
+                    <tr className="bg-white text-black font-bold border-y-2 border-black">
+                      <th className="p-2 w-8 text-center text-black font-bold">#</th>
                       {cols.map((col, i) => (
                         <th
                           key={i}
-                          className={`p-2.5 whitespace-nowrap text-[11px] tracking-wide ${
+                          className={`p-2.5 whitespace-nowrap text-[11px] uppercase tracking-wide text-black font-bold ${
                             col.type === 'currency' || col.type === 'number'
                               ? 'text-right'
                               : 'text-left'
@@ -461,40 +583,71 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
                       <th className="p-2 w-8 text-center"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-brown-100">
-                    {rows.map((row, rIdx) => (
-                      <tr key={rIdx} className="hover:bg-brown-50/50">
-                        <td className="p-2 text-center text-brown-400 font-mono text-[10px]">
-                          {rIdx + 1}
-                        </td>
-                        {cols.map((col, cIdx) => {
-                          const val = row[col.key] ?? '';
-                          const isNum = col.type === 'currency' || col.type === 'number';
-                          return (
-                            <td key={cIdx} className="p-1 whitespace-nowrap">
-                              <input
-                                type={isNum ? 'text' : 'text'}
-                                value={val}
-                                onChange={e => handleCellChange(rIdx, col.key, e.target.value)}
-                                className={`w-full px-2 py-1 rounded bg-transparent hover:bg-surface focus:bg-surface border border-transparent focus:border-brown-300 outline-none text-brown-900 text-xs ${
-                                  isNum ? 'text-right font-mono font-medium' : 'text-left'
-                                }`}
-                              />
-                            </td>
-                          );
-                        })}
-                        <td className="p-1 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteRow(rIdx)}
-                            className="p-1 text-brown-400 hover:text-red-600 rounded"
-                            title="Remove Row"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                  <tbody className="divide-y divide-gray-100">
+                    {rows.map((row, rIdx) => {
+                      const firstVal = String(row[cols[0]?.key] || row.item || row.component || '');
+                      const isHeader = row.classification === 'Header' || /^[A-Z\s&’',()-]{3,}:?$/.test(firstVal.trim()) || firstVal.trim().endsWith(':');
+                      const isSubtotal = row.classification === 'Subtotal' || /^TOTAL\s/i.test(firstVal.trim()) || /^Total\s/i.test(firstVal.trim());
+                      const isGrandTotal = row.classification === 'Total' || /TOTAL\s+ASSETS/i.test(firstVal) || /TOTAL\s+LIABILITIES/i.test(firstVal);
+                      const isCheck = row.classification === 'Check' || /Check/i.test(firstVal);
+
+                      const borderTopClass = (isGrandTotal || isSubtotal) ? 'border-t border-black' : '';
+                      const borderBottomClass = isGrandTotal 
+                        ? 'border-b-[3px] border-b-black' 
+                        : isSubtotal || isHeader
+                          ? 'border-b border-black' 
+                          : 'border-b border-gray-100';
+
+                      const rowBgClass = isHeader 
+                        ? 'bg-gray-50/80' 
+                        : 'bg-white hover:bg-gray-50/60';
+
+                      return (
+                        <tr key={rIdx} className={`${rowBgClass} ${borderTopClass} ${borderBottomClass}`}>
+                          <td className="p-2 text-center text-gray-400 font-mono text-[10px]">
+                            {rIdx + 1}
+                          </td>
+                          {cols.map((col, cIdx) => {
+                            const val = row[col.key] ?? '';
+                            const isNum = col.type === 'currency' || col.type === 'number';
+                            const isFirstCol = cIdx === 0;
+                            const textStyle = isHeader
+                              ? 'font-bold uppercase tracking-wider text-black'
+                              : isGrandTotal
+                                ? 'font-bold text-black'
+                                : isSubtotal
+                                  ? 'font-semibold text-black'
+                                  : isCheck
+                                    ? 'italic text-gray-700'
+                                    : 'font-normal text-black';
+
+                            return (
+                              <td key={cIdx} className="p-1 whitespace-nowrap">
+                                <input
+                                  type="text"
+                                  value={val}
+                                  onChange={e => handleCellChange(rIdx, col.key, e.target.value)}
+                                  placeholder={isHeader && isFirstCol ? 'SECTION HEADER' : ''}
+                                  className={`w-full px-2 py-1 rounded bg-transparent hover:bg-white focus:bg-white border border-transparent hover:border-gray-300 focus:border-black outline-none text-xs transition-colors ${
+                                    isNum ? 'text-right font-mono tabular-nums font-medium' : 'text-left'
+                                  } ${textStyle}`}
+                                />
+                              </td>
+                            );
+                          })}
+                          <td className="p-1 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteRow(rIdx)}
+                              className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors"
+                              title="Remove Row"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -502,9 +655,9 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
 
             {/* Formula Hint */}
             {template.formulaNotes && (
-              <div className="mt-2 text-[11px] text-amber-900 bg-amber-50/60 p-2 rounded border border-amber-200/60 flex items-center gap-1.5">
-                <Calculator className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                <span>Formula Rules: {template.formulaNotes}</span>
+              <div className="mt-2 text-[11px] text-gray-800 bg-white p-2.5 rounded border border-gray-300 flex items-center gap-2 shadow-2xs">
+                <Calculator className="w-3.5 h-3.5 text-black shrink-0" />
+                <span><strong>Accounting Logic:</strong> {template.formulaNotes}</span>
               </div>
             )}
           </div>

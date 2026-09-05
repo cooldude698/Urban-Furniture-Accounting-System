@@ -86,24 +86,38 @@ export class TemplateExportService {
 
     // Column Headers
     xmlRows.push(`
-      <Row ss:Height="20">
+      <Row ss:Height="22">
         ${cols.map(c => `<Cell ss:StyleID="ColHeaderStyle"><Data ss:Type="String">${escapeXml(c.label)}</Data></Cell>`).join('')}
       </Row>
     `);
 
     // Data Rows
     for (const r of rows) {
+      const itemVal = String(r[cols[0]?.key] || r.item || r.component || '');
+      const isHeader = r.classification === 'Header' || /^[A-Z\s&’',()-]{3,}:?$/.test(itemVal.trim()) || itemVal.trim().endsWith(':');
+      const isTotal = r.classification === 'Total' || r.classification === 'Subtotal' || /TOTAL\s/i.test(itemVal) || /^Total\s/i.test(itemVal);
+
       const cellXml = cols.map(c => {
         const val = r[c.key];
         const isNum = c.type === 'currency' || c.type === 'number';
         const numVal = parseFloat(String(val || '0'));
+
+        if (isHeader) {
+          return `<Cell ss:StyleID="SectionHeaderStyle"><Data ss:Type="String">${escapeXml(String(val ?? ''))}</Data></Cell>`;
+        }
+        if (isTotal && isNum && !isNaN(numVal)) {
+          return `<Cell ss:StyleID="TotalNumberStyle"><Data ss:Type="Number">${numVal.toFixed(2)}</Data></Cell>`;
+        }
+        if (isTotal) {
+          return `<Cell ss:StyleID="TotalTextStyle"><Data ss:Type="String">${escapeXml(String(val ?? ''))}</Data></Cell>`;
+        }
         if (isNum && !isNaN(numVal)) {
           return `<Cell ss:StyleID="NumberCellStyle"><Data ss:Type="Number">${numVal.toFixed(2)}</Data></Cell>`;
         }
         return `<Cell ss:StyleID="TextCellStyle"><Data ss:Type="String">${escapeXml(String(val ?? ''))}</Data></Cell>`;
       }).join('');
 
-      xmlRows.push(`<Row ss:Height="18">${cellXml}</Row>`);
+      xmlRows.push(`<Row ss:Height="${isHeader ? '22' : isTotal ? '20' : '18'}">${cellXml}</Row>`);
     }
 
     // Formula / Note footer
@@ -128,41 +142,73 @@ export class TemplateExportService {
  <Styles>
   <Style ss:ID="Default" ss:Name="Normal">
    <Alignment ss:Vertical="Center"/>
-   <Font ss:FontName="Segoe UI" ss:Size="10" ss:Color="#26211C"/>
+   <Font ss:FontName="Segoe UI" ss:Size="10" ss:Color="#000000"/>
+   <Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/>
   </Style>
   <Style ss:ID="HeaderStyle">
-   <Font ss:FontName="Segoe UI" ss:Size="14" ss:Bold="1" ss:Color="#FFFFFF"/>
-   <Interior ss:Color="#3E2723" ss:Pattern="Solid"/>
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Font ss:FontName="Segoe UI" ss:Size="14" ss:Bold="1" ss:Color="#000000"/>
+   <Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="2" ss:Color="#000000"/>
+   </Borders>
   </Style>
   <Style ss:ID="SubheaderStyle">
-   <Font ss:FontName="Segoe UI" ss:Size="9" ss:Italic="1" ss:Color="#4E342E"/>
-   <Interior ss:Color="#EFEBE9" ss:Pattern="Solid"/>
-   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
+   <Font ss:FontName="Segoe UI" ss:Size="9" ss:Italic="1" ss:Color="#333333"/>
+   <Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Left" ss:Vertical="Center"/>
   </Style>
   <Style ss:ID="ColHeaderStyle">
-   <Font ss:FontName="Segoe UI" ss:Size="10" ss:Bold="1" ss:Color="#FFFFFF"/>
-   <Interior ss:Color="#5D4037" ss:Pattern="Solid"/>
+   <Font ss:FontName="Segoe UI" ss:Size="10" ss:Bold="1" ss:Color="#000000"/>
+   <Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/>
    <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>
    <Borders>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#3E2723"/>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#000000"/>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#000000"/>
+   </Borders>
+  </Style>
+  <Style ss:ID="SectionHeaderStyle">
+   <Font ss:FontName="Segoe UI" ss:Size="10" ss:Bold="1" ss:Color="#000000"/>
+   <Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/>
+   <Borders>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#000000"/>
    </Borders>
   </Style>
   <Style ss:ID="TextCellStyle">
-   <Font ss:FontName="Segoe UI" ss:Size="9.5" ss:Color="#26211C"/>
+   <Font ss:FontName="Segoe UI" ss:Size="9.5" ss:Color="#000000"/>
+   <Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/>
    <Borders>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E0E0E0"/>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E5E5E5"/>
    </Borders>
   </Style>
   <Style ss:ID="NumberCellStyle">
-   <Font ss:FontName="Consolas" ss:Size="9.5" ss:Color="#26211C"/>
+   <Font ss:FontName="Consolas" ss:Size="9.5" ss:Color="#000000"/>
+   <Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/>
    <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
    <Borders>
-    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E0E0E0"/>
+    <Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#E5E5E5"/>
+   </Borders>
+  </Style>
+  <Style ss:ID="TotalTextStyle">
+   <Font ss:FontName="Segoe UI" ss:Size="10" ss:Bold="1" ss:Color="#000000"/>
+   <Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/>
+   <Borders>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#000000"/>
+    <Border ss:Position="Bottom" ss:LineStyle="Double" ss:Weight="2" ss:Color="#000000"/>
+   </Borders>
+  </Style>
+  <Style ss:ID="TotalNumberStyle">
+   <Font ss:FontName="Consolas" ss:Size="10" ss:Bold="1" ss:Color="#000000"/>
+   <Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/>
+   <Alignment ss:Horizontal="Right" ss:Vertical="Center"/>
+   <Borders>
+    <Border ss:Position="Top" ss:LineStyle="Continuous" ss:Weight="1" ss:Color="#000000"/>
+    <Border ss:Position="Bottom" ss:LineStyle="Double" ss:Weight="2" ss:Color="#000000"/>
    </Borders>
   </Style>
   <Style ss:ID="NoteStyle">
-   <Font ss:FontName="Segoe UI" ss:Size="8.5" ss:Italic="1" ss:Color="#795548"/>
+   <Font ss:FontName="Segoe UI" ss:Size="8.5" ss:Italic="1" ss:Color="#555555"/>
+   <Interior ss:Color="#FFFFFF" ss:Pattern="Solid"/>
   </Style>
  </Styles>
  <Worksheet ss:Name="${escapeXml(template.name.slice(0, 31))}">
@@ -183,21 +229,57 @@ export class TemplateExportService {
     const cols = template.structure.columns;
 
     const rowsHtml = rows
-      .map(
-        (r, idx) => `
-        <tr style="background-color: ${idx % 2 === 0 ? '#FFFFFF' : '#FAF7F2'};">
-          ${cols
-            .map(c => {
+      .map((r) => {
+        const itemVal = String(r[cols[0]?.key] || r.item || r.component || '');
+        const isHeader = r.classification === 'Header' || /^[A-Z\s&’',()-]{3,}:?$/.test(itemVal.trim()) || itemVal.trim().endsWith(':');
+        const isSubtotal = r.classification === 'Subtotal' || /^TOTAL\s/i.test(itemVal.trim()) || /^Total\s/i.test(itemVal.trim());
+        const isGrandTotal = r.classification === 'Total' || /TOTAL\s+ASSETS/i.test(itemVal) || /TOTAL\s+LIABILITIES\s+&/i.test(itemVal) || /TOTAL\s+LIABILITIES\s+AND\s+STOCKHOLDERS/i.test(itemVal);
+        const isCheck = r.classification === 'Check' || /Check/i.test(itemVal);
+
+        if (isHeader) {
+          return `
+            <tr style="background-color: #FFFFFF;">
+              <td colspan="${cols.length}" style="padding: 12px 6px 4px 6px; font-weight: 800; font-size: 11px; text-transform: uppercase; color: #000000; border-bottom: 1px solid #000000;">
+                ${escapeXml(itemVal)}
+              </td>
+            </tr>
+          `;
+        }
+
+        const trStyle = isGrandTotal 
+          ? 'background-color: #FFFFFF; font-weight: 700;' 
+          : isSubtotal 
+            ? 'background-color: #FFFFFF; font-weight: 600;' 
+            : isCheck 
+              ? 'background-color: #FFFFFF; font-style: italic; color: #444444;' 
+              : 'background-color: #FFFFFF;';
+
+        const rowBorderTop = (isGrandTotal || isSubtotal) ? 'border-top: 1px solid #000000;' : '';
+        const rowBorderBottom = isGrandTotal 
+          ? 'border-bottom: 3px double #000000;' 
+          : isSubtotal 
+            ? 'border-bottom: 1px solid #000000;' 
+            : 'border-bottom: 1px solid #E5E5E5;';
+
+        return `
+          <tr style="${trStyle}">
+            ${cols.map((c, colIdx) => {
+              const val = r[c.key] ?? '';
               const isNum = c.type === 'currency' || c.type === 'number';
-              const val = r[c.key] ?? '—';
-              return `<td style="padding: 8px 10px; border-bottom: 1px solid #E6E0D8; font-size: 11px; ${
-                isNum ? 'text-align: right; font-family: monospace; font-weight: 500;' : 'text-align: left;'
-              }">${escapeXml(String(val))}</td>`;
-            })
-            .join('')}
-        </tr>
-      `
-      )
+              const textIndent = (colIdx === 0 && !isHeader && !isSubtotal && !isGrandTotal && !isCheck) ? 'padding-left: 18px;' : '';
+              return `
+                <td style="padding: 6px 8px; ${rowBorderTop} ${rowBorderBottom} ${textIndent} font-size: 11px; color: #000000; ${
+                  isNum 
+                    ? 'text-align: right; font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, monospace; font-variant-numeric: tabular-nums;' 
+                    : 'text-align: left;'
+                }">
+                  ${escapeXml(String(val || '—'))}
+                </td>
+              `;
+            }).join('')}
+          </tr>
+        `;
+      })
       .join('');
 
     return `
@@ -210,7 +292,7 @@ export class TemplateExportService {
           @page { size: A4 landscape; margin: 12mm; }
           body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-            color: #2D241E;
+            color: #000000;
             background: #FFFFFF;
             margin: 0;
             padding: 14px;
@@ -218,58 +300,64 @@ export class TemplateExportService {
           .header {
             display: flex;
             justify-content: space-between;
-            align-items: flex-start;
-            border-bottom: 2px solid #4A3A34;
-            padding-bottom: 12px;
+            align-items: flex-end;
+            border-bottom: 2px solid #000000;
+            padding-bottom: 10px;
             margin-bottom: 16px;
           }
           .brand {
-            font-size: 20px;
+            font-size: 22px;
             font-weight: 800;
-            color: #3E2723;
+            color: #000000;
             letter-spacing: -0.5px;
           }
           .subtitle {
-            font-size: 12px;
-            color: #6D4C41;
-            margin-top: 2px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #222222;
+            margin-top: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
           }
           .doc-meta {
             text-align: right;
             font-size: 11px;
-            color: #5D4037;
+            color: #333333;
+            line-height: 1.5;
           }
           table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 16px;
+            background-color: #FFFFFF;
           }
           th {
-            background-color: #3E2723;
-            color: #FAF7F2;
-            padding: 8px 10px;
+            background-color: #FFFFFF;
+            color: #000000;
+            padding: 8px 8px;
             font-size: 11px;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            border-top: 1px solid #000000;
+            border-bottom: 1px solid #000000;
           }
           .footer {
-            margin-top: 20px;
+            margin-top: 24px;
             padding-top: 10px;
-            border-top: 1px dashed #BCAAA4;
+            border-top: 1px solid #000000;
             display: flex;
             justify-content: space-between;
             font-size: 10px;
-            color: #795548;
+            color: #444444;
           }
           .formula-box {
-            background-color: #EFEBE9;
-            border-left: 3px solid #6D4C41;
+            background-color: #F8F9FA;
+            border-left: 3px solid #000000;
             padding: 8px 12px;
             font-size: 11px;
-            color: #3E2723;
+            color: #111111;
             margin-top: 12px;
-            border-radius: 0 4px 4px 0;
           }
           @media print {
             .no-print { display: none; }
@@ -280,12 +368,12 @@ export class TemplateExportService {
         <div class="header">
           <div>
             <div class="brand">${escapeXml(businessName)}</div>
-            <div class="subtitle">${escapeXml(template.name)} • ${escapeXml(template.profession)}</div>
+            <div class="subtitle">${escapeXml(template.name)}</div>
           </div>
           <div class="doc-meta">
-            <div>Financial Year: <strong>${escapeXml(config.financialYear || '2026-27')}</strong></div>
+            <div>Financial Period: <strong>${escapeXml(config.financialYear || '2026-27')}</strong></div>
             <div>Date: <strong>${new Date().toLocaleDateString('en-IN')}</strong></div>
-            <div>Source: <em>${escapeXml(template.sourceType)}</em></div>
+            <div>Standard: <em>${escapeXml(template.sourceType)}</em></div>
           </div>
         </div>
 

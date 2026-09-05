@@ -129,15 +129,15 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
               </span>
             </div>
 
-            <div className="border border-brown-300 rounded-[8px] overflow-hidden bg-surface shadow-2xs">
-              <div className="overflow-x-auto max-h-64">
-                <table className="w-full text-left border-collapse text-xs">
+            <div className="border border-gray-300 rounded-[8px] overflow-hidden bg-white shadow-xs">
+              <div className="overflow-x-auto max-h-72">
+                <table className="w-full text-left border-collapse text-xs bg-white">
                   <thead>
-                    <tr className="bg-brown-900 text-cream font-semibold">
+                    <tr className="bg-white text-black font-bold border-y-2 border-black">
                       {cols.map((col, i) => (
                         <th
                           key={i}
-                          className={`p-2.5 whitespace-nowrap text-[11px] tracking-wide ${
+                          className={`p-2.5 whitespace-nowrap text-[11px] uppercase tracking-wide text-black ${
                             col.type === 'currency' || col.type === 'number'
                               ? 'text-right'
                               : 'text-left'
@@ -148,32 +148,62 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-brown-100">
-                    {previewRows.map((row, rIdx) => (
-                      <tr
-                        key={rIdx}
-                        className={rIdx % 2 === 0 ? 'bg-surface' : 'bg-brown-50/40 hover:bg-brown-100/50'}
-                      >
-                        {cols.map((col, cIdx) => {
-                          const val = row[col.key];
-                          const isNumeric = col.type === 'currency' || col.type === 'number';
-                          return (
+                  <tbody className="divide-y divide-gray-100">
+                    {previewRows.map((row, rIdx) => {
+                      const firstVal = String(row[cols[0]?.key] || row.item || row.component || '');
+                      const isHeader = row.classification === 'Header' || /^[A-Z\s&’',()-]{3,}:?$/.test(firstVal.trim()) || firstVal.trim().endsWith(':');
+                      const isSubtotal = row.classification === 'Subtotal' || /^TOTAL\s/i.test(firstVal.trim()) || /^Total\s/i.test(firstVal.trim());
+                      const isGrandTotal = row.classification === 'Total' || /TOTAL\s+ASSETS/i.test(firstVal) || /TOTAL\s+LIABILITIES/i.test(firstVal);
+                      const isCheck = row.classification === 'Check' || /Check/i.test(firstVal);
+
+                      if (isHeader) {
+                        return (
+                          <tr key={rIdx} className="bg-white border-b border-black">
                             <td
-                              key={cIdx}
-                              className={`p-2.5 whitespace-nowrap text-brown-800 ${
-                                isNumeric
-                                  ? 'text-right font-mono font-medium'
-                                  : 'text-left font-sans'
-                              }`}
+                              colSpan={cols.length}
+                              className="px-3 pt-3 pb-1 font-bold text-[11.5px] uppercase tracking-wider text-black"
                             >
-                              {col.type === 'currency' && val !== undefined && val !== null && !String(val).startsWith('₹')
-                                ? `₹${parseFloat(String(val) || '0').toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
-                                : String(val ?? '—')}
+                              {firstVal}
                             </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
+                          </tr>
+                        );
+                      }
+
+                      const borderTopClass = (isGrandTotal || isSubtotal) ? 'border-t border-black' : '';
+                      const borderBottomClass = isGrandTotal 
+                        ? 'border-b-[3px] border-b-black font-bold' 
+                        : isSubtotal 
+                          ? 'border-b border-black font-semibold' 
+                          : 'border-b border-gray-100';
+
+                      return (
+                        <tr
+                          key={rIdx}
+                          className={`bg-white hover:bg-gray-50/80 transition-colors ${borderTopClass} ${borderBottomClass}`}
+                        >
+                          {cols.map((col, cIdx) => {
+                            const val = row[col.key];
+                            const isNumeric = col.type === 'currency' || col.type === 'number';
+                            const isFirstCol = cIdx === 0;
+                            const indentClass = isFirstCol && !isHeader && !isSubtotal && !isGrandTotal && !isCheck ? 'pl-6' : 'pl-3';
+                            return (
+                              <td
+                                key={cIdx}
+                                className={`py-2 pr-3 whitespace-nowrap text-black text-xs ${indentClass} ${
+                                  isNumeric
+                                    ? 'text-right font-mono tabular-nums'
+                                    : 'text-left'
+                                } ${isGrandTotal ? 'font-bold' : isSubtotal ? 'font-semibold' : isCheck ? 'italic text-gray-700' : 'font-normal'}`}
+                              >
+                                {col.type === 'currency' && val !== undefined && val !== null && val !== '' && !String(val).startsWith('₹') && !String(val).startsWith('$')
+                                  ? `₹${parseFloat(String(val) || '0').toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                                  : String(val ?? '—')}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
