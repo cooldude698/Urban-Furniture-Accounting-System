@@ -54,13 +54,35 @@ async function main() {
 
   // Step 3: Post a new invoice and re-verify
   console.log('Step 3: Creating and Confirming a new customer invoice (₹4,500.00)...');
+  const custRes = await pool.query<{ id: number }>(
+    `INSERT INTO contacts (name, type, email)
+     VALUES ('Urban Living Studios', 'customer', 'finance@urbanliving.local')
+     ON CONFLICT DO NOTHING
+     RETURNING id`
+  );
+  let customerId = custRes.rows[0]?.id;
+  if (!customerId) {
+    const existing = await pool.query<{ id: number }>(
+      "SELECT id FROM contacts WHERE name = 'Urban Living Studios'"
+    );
+    customerId = existing.rows[0].id;
+  }
+
+  const prodRes = await pool.query<{ id: number }>(
+    `INSERT INTO products (sku, name, type, sales_price, cost_price, tax_rate)
+     VALUES ('OAK-WOOD-PLK', 'Oak Wood Planks', 'goods', 7500.00, 5000.00, 0.00)
+     ON CONFLICT (sku) DO UPDATE SET name = EXCLUDED.name
+     RETURNING id`
+  );
+  const productId = prodRes.rows[0].id;
+
   const invoice = await InvoiceService.createInvoice({
-    customerId: 4,
+    customerId,
     invoiceDate: '2026-09-05',
     dueDate: '2026-10-05',
     lines: [
       {
-        productId: 1,
+        productId,
         qty: '1',
         unitPrice: '4500.00',
         taxRate: '0.00',

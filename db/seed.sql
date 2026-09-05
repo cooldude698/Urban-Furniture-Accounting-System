@@ -52,7 +52,8 @@ INSERT INTO doc_sequences (code, prefix, use_year, padding, current_number) VALU
   ('INV',  'Inv',  true,  4, 0),
   ('SO',   'SO',   true,  4, 0),
   ('JE',   'JE',   true,  4, 0),
-  ('PAY',  'PAY',  true,  4, 0);
+  ('PAY',  'PAY',  true,  4, 0)
+ON CONFLICT (code) DO NOTHING;
 
 -- ============================================================
 -- Admin user
