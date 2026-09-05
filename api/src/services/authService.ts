@@ -36,12 +36,25 @@ export class AuthService {
       type: argon2.argon2id,
     });
 
-    // Signup creates role='accountant' ONLY. Never admin, never contact.
+    // Determine role: admin, accountant, or user (portal contact)
+    let role: string = input.role || 'accountant';
+    let contactId: number | null = null;
+
+    if (role === 'user' || role === 'contact') {
+      role = 'contact';
+      // Create a customer contact record for the portal user
+      const contactRes = await pool.query(
+        `INSERT INTO contacts (name, email, type) VALUES ($1, $2, 'customer') RETURNING id`,
+        [input.full_name, input.email]
+      );
+      contactId = contactRes.rows[0].id;
+    }
+
     const result = await pool.query<UserPayload>(
-      `INSERT INTO users (login_id, email, full_name, password_hash, role)
-       VALUES ($1, $2, $3, $4, 'accountant')
+      `INSERT INTO users (login_id, email, full_name, password_hash, role, contact_id)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, login_id, email, full_name, role, contact_id`,
-      [input.login_id, input.email, input.full_name, passwordHash]
+      [input.login_id, input.email, input.full_name, passwordHash, role, contactId]
     );
 
     return result.rows[0];

@@ -24,12 +24,11 @@ export default function CreateUser() {
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [key]: e.target.value }));
 
-  // Validation rules directly from wireframe notes:
-  // 1. Login Id between 6-12 chars
+  // Feature 1: Login Id unique, between 6-12 characters
   const isLoginIdValid = form.loginId.length >= 6 && form.loginId.length <= 12;
-  // 2. Email valid format
+  // Feature 2: Email unique & valid format
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
-  // 3. Password > 8 characters, lowercase, uppercase, and special character
+  // Feature 3: Password unique, > 8 characters, lowercase, uppercase, and special character
   const hasLower = /[a-z]/.test(form.password);
   const hasUpper = /[A-Z]/.test(form.password);
   const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(form.password);
@@ -62,7 +61,7 @@ export default function CreateUser() {
       return;
     }
     if (!isPasswordValid) {
-      setError('Password must contain a lowercase, uppercase, special character, and be more than 8 characters.');
+      setError('Password must be greater than 8 characters and contain a lowercase, uppercase, and special character.');
       return;
     }
     if (!doPasswordsMatch) {
@@ -72,7 +71,10 @@ export default function CreateUser() {
 
     setLoading(true);
     try {
-      const backendRole = form.role === 'Administrator' ? 'admin' : 'accountant';
+      // Feature 4: Role Privileges
+      // Administrator -> 'admin' (all access rights across system)
+      // User -> 'contact' (customer portal access only; invoices/bills in paid/unpaid status & dues payment)
+      const backendRole = form.role === 'Administrator' ? 'admin' : 'contact';
       await api.post('/api/auth/signup', {
         login_id: form.loginId.trim(),
         loginId: form.loginId.trim(),
@@ -94,240 +96,202 @@ export default function CreateUser() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.pageWrapper}>
-        {/* Left Column: Form Card with Create User header */}
-        <div style={styles.leftCol}>
-          <h2 style={styles.pageTitle}>Create User</h2>
+      <div style={{ width: '100%', maxWidth: 490 }}>
+        <h2 style={styles.pageTitle}>Create User</h2>
 
-          <div style={styles.card}>
-            {/* App LoGo box matching wireframe */}
-            <div style={styles.appLogoBox}>
-              <div style={styles.logoBadge}>UF</div>
-              <div style={styles.logoTextCol}>
-                <span style={styles.appLogoText}>App LoGo</span>
-                <span style={styles.appLogoSub}>Urban Furniture</span>
+        <div style={styles.card}>
+          {/* App LoGo box matching wireframe */}
+          <div style={styles.appLogoBox}>
+            <div style={styles.logoBadge}>UF</div>
+            <div style={styles.logoTextCol}>
+              <span style={styles.appLogoText}>App LoGo</span>
+              <span style={styles.appLogoSub}>Urban Furniture</span>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} style={styles.form} noValidate>
+            {/* Name */}
+            <div style={styles.row}>
+              <label htmlFor="name" style={styles.rowLabel}>
+                Name
+              </label>
+              <div style={styles.inputContainer}>
+                <input
+                  id="name"
+                  type="text"
+                  value={form.name}
+                  onChange={set('name')}
+                  required
+                  style={styles.lineInput}
+                />
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} style={styles.form} noValidate>
-              {/* Name */}
-              <div style={styles.row}>
-                <label htmlFor="name" style={styles.rowLabel}>
-                  Name
-                </label>
-                <div style={styles.inputContainer}>
+            {/* Login id */}
+            <div style={styles.row}>
+              <label htmlFor="loginId" style={styles.rowLabel}>
+                Login id
+              </label>
+              <div style={styles.inputContainer}>
+                <input
+                  id="loginId"
+                  type="text"
+                  autoComplete="username"
+                  value={form.loginId}
+                  onChange={set('loginId')}
+                  required
+                  minLength={6}
+                  maxLength={12}
+                  style={styles.lineInput}
+                />
+              </div>
+            </div>
+
+            {/* E-mail id */}
+            <div style={styles.row}>
+              <label htmlFor="email" style={styles.rowLabel}>
+                E-mail id
+              </label>
+              <div style={styles.inputContainer}>
+                <input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  value={form.email}
+                  onChange={set('email')}
+                  required
+                  style={styles.lineInput}
+                />
+              </div>
+            </div>
+
+            {/* Role: User | Administrator */}
+            <div style={styles.row}>
+              <label style={styles.rowLabel}>
+                Role
+              </label>
+              <div style={styles.radioGroup}>
+                <label style={styles.radioOption}>
                   <input
-                    id="name"
-                    type="text"
-                    value={form.name}
-                    onChange={set('name')}
-                    required
-                    style={styles.lineInput}
+                    type="radio"
+                    name="role"
+                    value="User"
+                    checked={form.role === 'User'}
+                    onChange={() => setForm(f => ({ ...f, role: 'User' }))}
+                    style={styles.radioInput}
                   />
-                </div>
-              </div>
-
-              {/* Login id */}
-              <div style={styles.row}>
-                <label htmlFor="loginId" style={styles.rowLabel}>
-                  Login id
+                  <span style={styles.radioText}>User</span>
                 </label>
-                <div style={styles.inputContainer}>
+
+                <label style={styles.radioOption}>
                   <input
-                    id="loginId"
-                    type="text"
-                    autoComplete="username"
-                    value={form.loginId}
-                    onChange={set('loginId')}
-                    required
-                    minLength={6}
-                    maxLength={12}
-                    style={styles.lineInput}
+                    type="radio"
+                    name="role"
+                    value="Administrator"
+                    checked={form.role === 'Administrator'}
+                    onChange={() => setForm(f => ({ ...f, role: 'Administrator' }))}
+                    style={styles.radioInput}
                   />
-                </div>
-              </div>
-
-              {/* E-mail id */}
-              <div style={styles.row}>
-                <label htmlFor="email" style={styles.rowLabel}>
-                  E-mail id
+                  <span style={styles.radioText}>Administrator</span>
                 </label>
-                <div style={styles.inputContainer}>
-                  <input
-                    id="email"
-                    type="email"
-                    autoComplete="email"
-                    value={form.email}
-                    onChange={set('email')}
-                    required
-                    style={styles.lineInput}
-                  />
-                </div>
               </div>
+            </div>
 
-              {/* Role: User | Administrator radio buttons */}
-              <div style={styles.row}>
-                <label style={styles.rowLabel}>
-                  Role
-                </label>
-                <div style={styles.radioGroup}>
-                  <label style={styles.radioOption}>
-                    <input
-                      type="radio"
-                      name="role"
-                      value="User"
-                      checked={form.role === 'User'}
-                      onChange={() => setForm(f => ({ ...f, role: 'User' }))}
-                      style={styles.radioInput}
-                    />
-                    <span style={styles.radioText}>User</span>
-                  </label>
-
-                  <label style={styles.radioOption}>
-                    <input
-                      type="radio"
-                      name="role"
-                      value="Administrator"
-                      checked={form.role === 'Administrator'}
-                      onChange={() => setForm(f => ({ ...f, role: 'Administrator' }))}
-                      style={styles.radioInput}
-                    />
-                    <span style={styles.radioText}>Administrator</span>
-                  </label>
-                </div>
-              </div>
-
-              {/* Password */}
-              <div style={styles.row}>
-                <label htmlFor="password" style={styles.rowLabel}>
-                  Password
-                </label>
-                <div style={styles.inputContainer}>
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    autoComplete="new-password"
-                    value={form.password}
-                    onChange={set('password')}
-                    required
-                    minLength={8}
-                    style={styles.lineInput}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    style={styles.toggleBtn}
-                    tabIndex={-1}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Re-Enter Password */}
-              <div style={styles.row}>
-                <label htmlFor="confirmPassword" style={styles.rowLabel}>
-                  Re-Enter Password
-                </label>
-                <div style={styles.inputContainer}>
-                  <input
-                    id="confirmPassword"
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    autoComplete="new-password"
-                    value={form.confirmPassword}
-                    onChange={set('confirmPassword')}
-                    required
-                    style={styles.lineInput}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    style={styles.toggleBtn}
-                    tabIndex={-1}
-                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                  </button>
-                </div>
-              </div>
-
-              {error && (
-                <div role="alert" style={styles.errorBox}>
-                  <p style={styles.errorText}>{error}</p>
-                </div>
-              )}
-
-              {/* Wireframe Button Row: Create | Cancel */}
-              <div style={styles.btnRow}>
-                <button
-                  type="submit"
-                  disabled={loading || !isFormValid}
-                  onMouseEnter={() => setCreateHover(true)}
-                  onMouseLeave={() => setCreateHover(false)}
-                  style={{
-                    ...styles.wireframeBtn,
-                    background: createHover ? 'var(--brown-900, #4A3A34)' : 'transparent',
-                    color: createHover ? 'var(--cream, #F9F2E4)' : 'var(--brown-900, #4A3A34)',
-                    opacity: loading || !isFormValid ? 0.6 : 1,
-                    cursor: loading || !isFormValid ? 'not-allowed' : 'pointer',
-                  }}
-                >
-                  {loading ? 'Creating…' : 'Create'}
-                </button>
-
+            {/* Password */}
+            <div style={styles.row}>
+              <label htmlFor="password" style={styles.rowLabel}>
+                Password
+              </label>
+              <div style={styles.inputContainer}>
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  value={form.password}
+                  onChange={set('password')}
+                  required
+                  minLength={8}
+                  style={styles.lineInput}
+                />
                 <button
                   type="button"
-                  onClick={() => navigate('/login')}
-                  onMouseEnter={() => setCancelHover(true)}
-                  onMouseLeave={() => setCancelHover(false)}
-                  style={{
-                    ...styles.wireframeBtn,
-                    background: cancelHover ? 'var(--brown-900, #4A3A34)' : 'transparent',
-                    color: cancelHover ? 'var(--cream, #F9F2E4)' : 'var(--brown-900, #4A3A34)',
-                    cursor: 'pointer',
-                  }}
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={styles.toggleBtn}
+                  tabIndex={-1}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  Cancel
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
+            </div>
 
-        {/* Right Column: Wireframe Notes */}
-        <div style={styles.rightCol}>
-          <div style={styles.notesSection}>
-            <p style={styles.notesHeader}>For create user page check creds as follows</p>
-            <ol style={styles.rulesList}>
-              <li style={styles.ruleItem}>Login Id should be unique and must be between 6-12 characters</li>
-              <li style={styles.ruleItem}>Email should not be a duplicate in database</li>
-              <li style={styles.ruleItem}>Password must be unique and must contain a small case, a large case and a special character and must have more than 8 characters</li>
-            </ol>
-          </div>
-
-          <div style={{ ...styles.notesSection, marginTop: 40 }}>
-            <p style={styles.notesHeader}>Role</p>
-            <div style={styles.roleDescList}>
-              <p style={styles.roleDescItem}>
-                <strong style={styles.roleTitle}>Admin -</strong> Have all access rights
-              </p>
-              <p style={styles.roleDescItem}>
-                <strong style={styles.roleTitle}>User -</strong> can only see his invoices/bills in paid/unpaid status and can directly pay his dues from portal
-              </p>
-              <div style={styles.roleDescItem}>
-                <p style={{ margin: 0 }}>
-                  <strong style={styles.roleTitle}>Accountant -</strong> Create Master data, record Transactions and View reports.
-                </p>
-                <p style={{ margin: '4px 0 0 0', paddingLeft: 12 }}>
-                  Can manage customers/vendors, access accounting dashboard, create journal entries,
-                </p>
-                <p style={{ margin: '2px 0 0 0', paddingLeft: 12 }}>
-                  Can create and manage invoices, bills, and payments
-                </p>
+            {/* Re-Enter Password */}
+            <div style={styles.row}>
+              <label htmlFor="confirmPassword" style={styles.rowLabel}>
+                Re-Enter Password
+              </label>
+              <div style={styles.inputContainer}>
+                <input
+                  id="confirmPassword"
+                  type={showConfirmPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  value={form.confirmPassword}
+                  onChange={set('confirmPassword')}
+                  required
+                  style={styles.lineInput}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  style={styles.toggleBtn}
+                  tabIndex={-1}
+                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
               </div>
             </div>
-          </div>
+
+            {error && (
+              <div role="alert" style={styles.errorBox}>
+                <p style={styles.errorText}>{error}</p>
+              </div>
+            )}
+
+            {/* Wireframe Button Row: Create | Cancel */}
+            <div style={styles.btnRow}>
+              <button
+                type="submit"
+                disabled={loading || !isFormValid}
+                onMouseEnter={() => setCreateHover(true)}
+                onMouseLeave={() => setCreateHover(false)}
+                style={{
+                  ...styles.wireframeBtn,
+                  background: createHover ? 'var(--brown-900, #4A3A34)' : 'transparent',
+                  color: createHover ? 'var(--cream, #F9F2E4)' : 'var(--brown-900, #4A3A34)',
+                  opacity: loading || !isFormValid ? 0.6 : 1,
+                  cursor: loading || !isFormValid ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {loading ? 'Creating…' : 'Create'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => navigate('/login')}
+                onMouseEnter={() => setCancelHover(true)}
+                onMouseLeave={() => setCancelHover(false)}
+                style={{
+                  ...styles.wireframeBtn,
+                  background: cancelHover ? 'var(--brown-900, #4A3A34)' : 'transparent',
+                  color: cancelHover ? 'var(--cream, #F9F2E4)' : 'var(--brown-900, #4A3A34)',
+                  cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
@@ -341,25 +305,9 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     background: 'var(--cream, #F9F2E4)',
-    padding: '36px 24px',
+    padding: '36px 20px',
     fontFamily: 'var(--font-body, "DM Sans", sans-serif)',
   } as React.CSSProperties,
-  pageWrapper: {
-    display: 'flex',
-    flexDirection: 'row' as const,
-    alignItems: 'flex-start',
-    justifyContent: 'center',
-    gap: 48,
-    width: '100%',
-    maxWidth: 1040,
-    flexWrap: 'wrap' as const,
-  },
-  leftCol: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    width: '100%',
-    maxWidth: 490,
-  },
   pageTitle: {
     fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
     fontWeight: 700,
@@ -525,50 +473,5 @@ const styles = {
     letterSpacing: '0.04em',
     textAlign: 'center' as const,
     transition: 'all 150ms ease',
-  } as React.CSSProperties,
-  rightCol: {
-    flex: '1 1 360px',
-    maxWidth: 480,
-    paddingTop: 48,
-  } as React.CSSProperties,
-  notesSection: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-  },
-  notesHeader: {
-    fontFamily: 'var(--font-body, "DM Sans", sans-serif)',
-    fontSize: 15,
-    fontWeight: 700,
-    color: 'var(--brown-900, #4A3A34)',
-    margin: '0 0 12px 0',
-  } as React.CSSProperties,
-  rulesList: {
-    margin: 0,
-    paddingLeft: 20,
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 8,
-  } as React.CSSProperties,
-  ruleItem: {
-    fontFamily: 'var(--font-body, "DM Sans", sans-serif)',
-    fontSize: 13,
-    color: 'var(--brown-800, #5C463B)',
-    lineHeight: 1.45,
-  } as React.CSSProperties,
-  roleDescList: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 12,
-  },
-  roleDescItem: {
-    fontFamily: 'var(--font-body, "DM Sans", sans-serif)',
-    fontSize: 13,
-    color: 'var(--brown-800, #5C463B)',
-    margin: 0,
-    lineHeight: 1.45,
-  } as React.CSSProperties,
-  roleTitle: {
-    color: 'var(--brown-900, #4A3A34)',
-    fontWeight: 700,
   } as React.CSSProperties,
 };
