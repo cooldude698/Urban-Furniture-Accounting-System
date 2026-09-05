@@ -73,12 +73,24 @@ export default function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
+  const [selectedNavModule, setSelectedNavModule] = useState<string | null>(null);
   const headerRef = useRef<HTMLElement | null>(null);
 
   // Close mega menu on route change
   useEffect(() => {
     setIsMegaMenuOpen(false);
+    setSelectedNavModule(null);
   }, [location.pathname]);
+
+  const handleNavModuleClick = (menuName: string) => {
+    if (isMegaMenuOpen && selectedNavModule === menuName) {
+      setIsMegaMenuOpen(false);
+      setSelectedNavModule(null);
+    } else {
+      setSelectedNavModule(menuName);
+      setIsMegaMenuOpen(true);
+    }
+  };
 
   const isAuthenticated = localStorage.getItem('urban_logged_in') === 'true';
 
@@ -154,7 +166,10 @@ export default function AppShell() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 24, height: '100%' }}>
             <NavLink
               to="/dashboard"
-              onClick={() => setIsMegaMenuOpen(false)}
+              onClick={() => {
+                setIsMegaMenuOpen(false);
+                setSelectedNavModule(null);
+              }}
               style={{
                 fontFamily: 'var(--font-display)',
                 fontWeight: 700,
@@ -181,22 +196,25 @@ export default function AppShell() {
               }}
             >
               {navModules.map((menuName) => {
-                const isActive = location.pathname.startsWith(`/${menuName.toLowerCase()}`);
+                const isCurrentRoute = location.pathname.startsWith(`/${menuName.toLowerCase()}`);
+                const isSelected = isMegaMenuOpen && selectedNavModule === menuName;
 
                 return (
                   <button
                     key={menuName}
                     type="button"
-                    onClick={() => setIsMegaMenuOpen((prev) => !prev)}
+                    onClick={() => handleNavModuleClick(menuName)}
                     style={{
                       fontFamily: 'var(--font-body)',
-                      fontWeight: isActive || isMegaMenuOpen ? 700 : 500,
+                      fontWeight: isSelected || isCurrentRoute ? 700 : 500,
                       fontSize: 14,
-                      color: isActive || isMegaMenuOpen ? 'var(--brown-900)' : 'var(--brown-700)',
-                      background: isMegaMenuOpen ? 'rgba(235, 215, 190, 0.3)' : 'transparent',
+                      color: isSelected || isCurrentRoute ? 'var(--brown-900)' : 'var(--brown-700)',
+                      background: isSelected ? 'rgba(235, 215, 190, 0.45)' : 'transparent',
                       border: 'none',
-                      borderBottom: isActive
+                      borderBottom: isCurrentRoute
                         ? '2px solid var(--brown-900)'
+                        : isSelected
+                        ? '2px solid var(--brown-600)'
                         : '2px solid transparent',
                       padding: '0 14px',
                       height: '100%',
@@ -209,15 +227,15 @@ export default function AppShell() {
                       borderRadius: '6px 6px 0 0',
                       whiteSpace: 'nowrap',
                     }}
-                    title="Open navigation menu"
+                    title={`Open ${menuName} menu`}
                   >
                     <span>{menuName}</span>
                     <ChevronDown
                       size={13}
                       style={{
-                        transform: isMegaMenuOpen ? 'rotate(180deg)' : 'none',
+                        transform: isSelected ? 'rotate(180deg)' : 'none',
                         transition: 'transform 150ms ease-out',
-                        opacity: 0.7,
+                        opacity: isSelected ? 1 : 0.6,
                       }}
                     />
                   </button>
@@ -229,7 +247,10 @@ export default function AppShell() {
           {/* Unified 4-Column Mega Menu matching wireframe */}
           <MegaMenu
             isOpen={isMegaMenuOpen}
-            onClose={() => setIsMegaMenuOpen(false)}
+            onClose={() => {
+              setIsMegaMenuOpen(false);
+              setSelectedNavModule(null);
+            }}
           />
 
           {/* Right Header Controls */}
