@@ -4,7 +4,6 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { ArrowLeft, Box, RotateCcw, AlertCircle, FileText, CheckCircle, Clock, LogIn } from 'lucide-react';
-import { BrandLogo } from '../../components/ui/BrandLogo';
 import { formatINR } from '../../lib/money';
 
 interface InvoiceLineItem {
@@ -377,65 +376,37 @@ export const PortalProductViewerPage: React.FC = () => {
   const hasModel = Boolean(product.model_url);
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: 'var(--cream)',
-        color: 'var(--brown-900)',
-        display: 'flex',
-        flexDirection: 'column',
-        fontFamily: 'var(--font-body)',
-      }}
-    >
-      {/* ── Top Header ── */}
-      <header
-        style={{
-          backgroundColor: 'var(--brown-900)',
-          color: 'var(--cream)',
-          borderBottom: '1px solid rgba(74, 58, 52, 0.35)',
-          padding: '0 32px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          height: 56,
-          position: 'sticky',
-          top: 0,
-          zIndex: 40,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          <BrandLogo size={30} variant="light" badge={true} subtitle="Showroom 3D Viewer" />
-        </div>
-
+    <div style={{ width: '100%', fontFamily: 'var(--font-body)' }}>
+      {/* ── Breadcrumb / Back Navigation ── */}
+      <div style={{ marginBottom: 20 }}>
         <button
           onClick={() => navigate('/portal/catalogue')}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
-            padding: '6px 14px',
+            padding: '8px 14px',
             borderRadius: 'var(--radius-sm)',
-            backgroundColor: 'rgba(255,255,255,0.1)',
-            border: '1px solid rgba(255,255,255,0.18)',
-            color: 'var(--cream)',
-            fontSize: 12,
+            backgroundColor: 'var(--surface)',
+            border: '1px solid rgba(208, 174, 146, 0.4)',
+            color: 'var(--brown-800)',
+            fontSize: 13,
             fontWeight: 600,
             fontFamily: 'var(--font-display)',
             cursor: 'pointer',
+            boxShadow: 'var(--shadow-sm)',
+            transition: 'all 120ms ease',
           }}
         >
           <ArrowLeft size={14} />
           Back to Catalogue
         </button>
-      </header>
+      </div>
 
       {/* ── Main Two-Column Layout ── */}
-      <main
+      <div
         style={{
-          maxWidth: 1360,
-          margin: '0 auto',
           width: '100%',
-          padding: '32px 32px 64px',
           display: 'flex',
           flexWrap: 'wrap',
           gap: 32,
@@ -942,7 +913,7 @@ export const PortalProductViewerPage: React.FC = () => {
             </div>
           )}
         </div>
-      </main>
+      </div>
     </div>
   );
 };

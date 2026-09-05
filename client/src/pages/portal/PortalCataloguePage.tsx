@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, NavLink } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import Decimal from 'decimal.js';
-import { Box, Eye, Sparkles, LogIn, SlidersHorizontal, Search, Check, ShoppingBag } from 'lucide-react';
-import { BrandLogo } from '../../components/ui/BrandLogo';
+import { Box, Eye, Sparkles, SlidersHorizontal, Search, Check, ShoppingBag, ArrowLeft } from 'lucide-react';
 import { formatINR } from '../../lib/money';
 import { RoomArrangerDrawer, ROOM_PRESETS, type ArrangedItem, type RoomPreset } from './RoomArrangerDrawer';
+import { usePortalAuth } from './PortalAuthGuard';
 
 export interface CatalogueProduct {
   id: number;
@@ -24,6 +24,7 @@ type CategoryFilter = (typeof CATEGORIES)[number];
 
 export const PortalCataloguePage: React.FC = () => {
   const navigate = useNavigate();
+  const { user: currentUser } = usePortalAuth();
   const [products, setProducts] = useState<CatalogueProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +33,6 @@ export const PortalCataloguePage: React.FC = () => {
   const [maxPrice, setMaxPrice] = useState<number>(100000);
   const [onlyInStock, setOnlyInStock] = useState(false);
   const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
-  const [currentUser, setCurrentUser] = useState<{ full_name: string; login_id: string } | null>(null);
 
   // Room Arranger & Budget Wallet State
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -53,16 +53,6 @@ export const PortalCataloguePage: React.FC = () => {
   }, [arrangedItems]);
 
   useEffect(() => {
-    // Check if user is logged in
-    fetch('/api/portal/me')
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.data?.user) {
-          setCurrentUser(json.data.user);
-        }
-      })
-      .catch(() => {});
-
     // Fetch catalogue
     fetch('/api/portal/catalogue')
       .then((res) => {
@@ -171,173 +161,9 @@ export const PortalCataloguePage: React.FC = () => {
   });
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: 'var(--cream)',
-        color: 'var(--brown-900)',
-        display: 'flex',
-        flexDirection: 'column',
-        fontFamily: 'var(--font-body)',
-      }}
-    >
-      {/* ── Top Portal Header ── */}
-      <header
-        style={{
-          backgroundColor: 'var(--brown-900)',
-          color: 'var(--cream)',
-          borderBottom: '1px solid rgba(74, 58, 52, 0.35)',
-          boxShadow: 'var(--shadow-sm)',
-          padding: '0 32px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          position: 'sticky',
-          top: 0,
-          zIndex: 40,
-          height: 56,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          <BrandLogo size={32} variant="light" badge={true} subtitle="Customer Portal Surface" />
-
-          {/* Navigation links */}
-          <nav
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              padding: 4,
-              borderRadius: 10,
-              backgroundColor: 'rgba(255,255,255,0.08)',
-              border: '1px solid rgba(255,255,255,0.12)',
-            }}
-          >
-            <NavLink
-              to="/portal/catalogue"
-              style={{
-                padding: '6px 14px',
-                fontSize: 12,
-                fontFamily: 'var(--font-display)',
-                fontWeight: 700,
-                borderRadius: 7,
-                textDecoration: 'none',
-                backgroundColor: 'var(--cream)',
-                color: 'var(--brown-900)',
-              }}
-            >
-              Catalogue
-            </NavLink>
-            <NavLink
-              to="/portal/invoices"
-              style={({ isActive }) => ({
-                padding: '6px 14px',
-                fontSize: 12,
-                fontFamily: 'var(--font-display)',
-                fontWeight: 700,
-                borderRadius: 7,
-                textDecoration: 'none',
-                backgroundColor: isActive ? 'var(--cream)' : 'transparent',
-                color: isActive ? 'var(--brown-900)' : 'var(--brown-300)',
-              })}
-            >
-              Customer Invoices
-            </NavLink>
-            <NavLink
-              to="/portal/payments"
-              style={({ isActive }) => ({
-                padding: '6px 14px',
-                fontSize: 12,
-                fontFamily: 'var(--font-display)',
-                fontWeight: 700,
-                borderRadius: 7,
-                textDecoration: 'none',
-                backgroundColor: isActive ? 'var(--cream)' : 'transparent',
-                color: isActive ? 'var(--brown-900)' : 'var(--brown-300)',
-              })}
-            >
-              Payment Logs
-            </NavLink>
-            <NavLink
-              to="/portal/bills"
-              style={({ isActive }) => ({
-                padding: '6px 14px',
-                fontSize: 12,
-                fontFamily: 'var(--font-display)',
-                fontWeight: 700,
-                borderRadius: 7,
-                textDecoration: 'none',
-                backgroundColor: isActive ? 'var(--cream)' : 'transparent',
-                color: isActive ? 'var(--brown-900)' : 'var(--brown-300)',
-              })}
-            >
-              Vendor Bills
-            </NavLink>
-          </nav>
-        </div>
-
-        {/* User or Sign in */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          {currentUser ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: '50%',
-                  background: 'var(--brown-700)',
-                  color: 'var(--cream)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  fontFamily: 'var(--font-display)',
-                }}
-              >
-                {currentUser.full_name ? currentUser.full_name[0].toUpperCase() : 'U'}
-              </div>
-              <span
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: 'var(--cream)',
-                  fontFamily: 'var(--font-display)',
-                }}
-              >
-                {currentUser.full_name}
-              </span>
-            </div>
-          ) : (
-            <button
-              onClick={() => navigate('/portal/login')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '6px 14px',
-                borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'rgba(255,255,255,0.12)',
-                border: '1px solid rgba(255,255,255,0.2)',
-                color: 'var(--cream)',
-                fontSize: 12,
-                fontWeight: 600,
-                fontFamily: 'var(--font-display)',
-                cursor: 'pointer',
-                transition: 'all 120ms ease',
-              }}
-            >
-              <LogIn size={14} />
-              Portal Sign In
-            </button>
-          )}
-        </div>
-      </header>
-
-      {/* ── Main Container ── */}
-      <main style={{ maxWidth: 1280, margin: '0 auto', width: '100%', padding: '36px 32px 64px' }}>
-        {/* Header section */}
-        <div style={{ marginBottom: 28 }}>
+    <div style={{ width: '100%', fontFamily: 'var(--font-body)' }}>
+      {/* Header section */}
+      <div style={{ marginBottom: 28 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -1020,7 +846,6 @@ export const PortalCataloguePage: React.FC = () => {
             })}
           </div>
         )}
-
         {/* ── Floating Room Arranger Bar at Bottom Right ── */}
         <div
           style={{
@@ -1088,7 +913,6 @@ export const PortalCataloguePage: React.FC = () => {
           onLoadPreset={handleLoadPreset}
           currentUser={currentUser}
         />
-      </main>
     </div>
   );
 };

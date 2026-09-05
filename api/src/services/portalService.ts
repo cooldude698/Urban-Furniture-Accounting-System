@@ -174,7 +174,7 @@ export class PortalService {
 
     // Role check: Contact users only
     if (user.role !== 'contact' || !user.contact_id) {
-      throw new Error('This portal is restricted to customer contacts only');
+      throw new Error('This portal is restricted to customer contacts only (e.g. clientuf). Internal staff (admin/accountant) must use the main app at /login.');
     }
 
     const valid = await argon2.verify(user.password_hash, password);

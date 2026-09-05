@@ -61,6 +61,18 @@ services:
     depends_on:
       - api
 
+  ner:
+    build:
+      context: ./ner
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./ner:/app
+    environment:
+      - PORT=8000
+
 volumes:
   db_data:
   api_node_modules:
