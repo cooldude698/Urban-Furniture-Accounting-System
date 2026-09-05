@@ -3,21 +3,26 @@ import { VoiceBillParser, ParsedSlots, SupportedLanguage } from './voiceBillPars
 import { InvoiceService } from './invoiceService';
 import Decimal from 'decimal.js';
 
-export interface NerEntity {
-  label: 'CUSTOMER_NAME' | 'PHONE' | 'PRODUCT' | 'QTY' | 'PRICE' | 'DISCOUNT';
-  text: string;
-  start: number;
-  end: number;
-  confidence: number;
+export interface OllamaLineItem {
+  product: string | null;
+  qty: number | null;
+  price: number | null;
+  discount_percent: number | null;
+}
+
+export interface OllamaExtractionResult {
+  customer_name: string | null;
+  phone: string | null;
+  line_items: OllamaLineItem[];
 }
 
 export interface SlotSourceMeta {
-  customerName?: 'model' | 'deterministic';
-  phone?: 'model' | 'deterministic';
-  productName?: 'model' | 'deterministic';
-  qty?: 'model' | 'deterministic';
-  unitPrice?: 'model' | 'deterministic';
-  discountPercent?: 'model' | 'deterministic';
+  customerName?: 'llm' | 'deterministic';
+  phone?: 'llm' | 'deterministic';
+  productName?: 'llm' | 'deterministic';
+  qty?: 'llm' | 'deterministic' | 'agreement';
+  unitPrice?: 'llm' | 'deterministic' | 'agreement';
+  discountPercent?: 'llm' | 'deterministic' | 'agreement';
 }
 
 export interface DraftLineItem {
@@ -32,8 +37,11 @@ export interface DraftLineItem {
   lineTotal: string;
   isPriceAssumed?: boolean;
   isQtyAssumed?: boolean;
-  qtySource?: 'model' | 'deterministic';
-  priceSource?: 'model' | 'deterministic';
+  qtyNeedsReview?: boolean;
+  priceNeedsReview?: boolean;
+  discountNeedsReview?: boolean;
+  qtySource?: 'llm' | 'deterministic' | 'agreement';
+  priceSource?: 'llm' | 'deterministic' | 'agreement';
 }
 
 export interface VoiceBillSession {
@@ -56,6 +64,7 @@ export interface VoiceBillSession {
   isPriceAssumed?: boolean;
   isQtyAssumed?: boolean;
   confidenceNotes?: { en: string[]; hi: string[] };
+  disagreementWarnings?: { en: string[]; hi: string[] };
   slotSources?: SlotSourceMeta;
 }
 
@@ -233,32 +242,76 @@ export class VoiceBillService {
   }
 
   /**
-   * Calls the internal NER microservice (timeout 1500ms).
-   * Gracefully degrades to null if unreachable or on error.
+   * Calls the locally-hosted Ollama LLM service for slot extraction.
+   * Prompts Ollama with the exact extraction schema, temperature 0.1, format: "json".
+   * Retries once on JSON parse error. Gracefully degrades to null if unreachable or on error.
    */
-  static async callNerService(text: string): Promise<NerEntity[] | null> {
-    const nerUrl = process.env.NER_SERVICE_URL || 'http://ner:8000';
+  static async callOllamaExtraction(text: string, isRetry = false): Promise<OllamaExtractionResult | null> {
+    const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://ollama:11434';
+    const model = process.env.OLLAMA_MODEL || 'qwen2.5:7b';
+    const timeoutMs = parseInt(process.env.OLLAMA_TIMEOUT_MS || '20000', 10);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1500);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    const baseSystemPrompt = `You are a billing assistant that extracts structured data from a customer's message, which may be in English, Hindi, or a mix of both. Extract the following fields if present: customer_name, phone (10 digits), and a list of line_items, each with product, qty, price, and discount_percent. Return ONLY valid JSON in this exact shape, with no explanation, no markdown formatting, no extra text:
+
+{
+  "customer_name": string or null,
+  "phone": string or null,
+  "line_items": [
+    { "product": string or null, "qty": number or null, "price": number or null, "discount_percent": number or null }
+  ]
+}
+
+Rules:
+1. If a field is not mentioned or unclear, use null — do not guess or invent values.
+2. If the product name is informal or misspelled, return it as-is; do not try to correct it.
+3. Units of count (e.g. piece, pieces, pcs, pc, units, items, पीस, नग) are NOT product names. If a message contains only a quantity and a unit (e.g. "two pieces", "2 pcs", "दो पीस"), extract the qty and set product to null.`;
+
+    const systemPrompt = isRetry
+      ? `${baseSystemPrompt}\n\nReturn ONLY the JSON object, nothing else.`
+      : baseSystemPrompt;
 
     try {
-      const res = await fetch(`${nerUrl}/extract`, {
+      const res = await fetch(`${ollamaUrl}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({
+          model,
+          prompt: text,
+          system: systemPrompt,
+          format: 'json',
+          stream: false,
+          options: {
+            temperature: 0.1,
+          },
+        }),
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
 
       if (!res.ok) {
-        console.warn(`NER service returned status ${res.status}`);
+        console.warn(`Ollama returned status ${res.status}`);
         return null;
       }
-      const data = (await res.json()) as { entities: NerEntity[] };
-      return data.entities || [];
+
+      const body = (await res.json()) as { response?: string };
+      if (!body.response) return null;
+
+      try {
+        const parsed = JSON.parse(body.response) as OllamaExtractionResult;
+        return parsed;
+      } catch (parseErr) {
+        if (!isRetry) {
+          console.warn('Ollama JSON parse failed on first attempt, retrying once with explicit instruction...');
+          return await this.callOllamaExtraction(text, true);
+        }
+        console.warn('Ollama JSON parse failed twice, falling back 100% to deterministic parser.');
+        return null;
+      }
     } catch (err: any) {
       clearTimeout(timeoutId);
-      console.warn(`NER service call skipped (${err.message || 'timeout'}), using deterministic parser fallback.`);
+      console.warn(`Ollama service call skipped (${err.message || 'timeout'}), using deterministic parser fallback.`);
       return null;
     }
   }
@@ -317,104 +370,121 @@ export class VoiceBillService {
       console.warn('Failed to query products for parser:', err);
     }
 
-    // 2. Call NER Microservice (Model-first)
-    const CONFIDENCE_THRESHOLD = 0.60;
-    const nerEntities = await this.callNerService(text);
+    // 2. Call Ollama LLM Extraction (Model-first)
+    const llmResult = await this.callOllamaExtraction(text);
 
-    // 3. Run Deterministic Parser (Mandatory fallback & verification)
+    // 3. Run Deterministic Parser (Mandatory fallback & verification cross-check)
     const detParsed: ParsedSlots = VoiceBillParser.parse(text, knownProductNames);
 
     // 4. Hybrid Arbitration: Combine model predictions with deterministic parser
     const parsed: ParsedSlots = { ...detParsed };
     const slotSources: SlotSourceMeta = {};
+    const disagreementWarningsEn: string[] = [];
+    const disagreementWarningsHi: string[] = [];
 
     if (!session.slotSources) {
       session.slotSources = {};
     }
 
-    if (nerEntities && nerEntities.length > 0) {
-      const customerStopWords = ['customer', 'client', 'name', 'naam', 'कस्टमर', 'ग्राहक', 'नाम'];
-      const nerCustomer = nerEntities.find(
-        e => e.label === 'CUSTOMER_NAME' && e.confidence >= CONFIDENCE_THRESHOLD && !customerStopWords.includes(e.text.toLowerCase().trim())
-      );
-      const nerPhone = nerEntities.find(e => e.label === 'PHONE' && e.confidence >= CONFIDENCE_THRESHOLD);
-      const productStopWords = ['product', 'item', 'उत्पाद', 'चीज़'];
-      const nerProduct = nerEntities.find(
-        e => e.label === 'PRODUCT' && e.confidence >= CONFIDENCE_THRESHOLD && !productStopWords.includes(e.text.toLowerCase().trim())
-      );
-      const nerQty = nerEntities.find(e => e.label === 'QTY' && e.confidence >= CONFIDENCE_THRESHOLD);
-      const nerPrice = nerEntities.find(e => e.label === 'PRICE' && e.confidence >= CONFIDENCE_THRESHOLD);
-      const nerDiscount = nerEntities.find(e => e.label === 'DISCOUNT' && e.confidence >= CONFIDENCE_THRESHOLD);
-
-      // CUSTOMER_NAME: Prefer NER model (contextual understanding)
-      if (nerCustomer) {
-        parsed.customerName = VoiceBillParser.capitalizeWords(nerCustomer.text);
+    if (llmResult) {
+      // 1. CUSTOMER_NAME: Accept LLM's extraction as-is (contextual understanding)
+      if (llmResult.customer_name && llmResult.customer_name.trim() !== '') {
+        parsed.customerName = VoiceBillParser.capitalizeWords(llmResult.customer_name.trim());
         parsed.isNameInferred = false;
-        slotSources.customerName = 'model';
+        slotSources.customerName = 'llm';
       } else if (detParsed.customerName) {
         slotSources.customerName = 'deterministic';
       }
 
-      // PRODUCT: Prefer NER model (contextual understanding)
-      if (nerProduct) {
-        parsed.productName = nerProduct.text;
-        slotSources.productName = 'model';
-      } else if (detParsed.productName) {
+      // 2. PRODUCT: Accept LLM's line item product as-is (excluding standalone counter units)
+      const countUnits = new Set(['piece', 'pieces', 'pcs', 'pc', 'unit', 'units', 'item', 'items', 'nos', 'no', 'पीस', 'नग', 'टुकड़ा', 'टुकड़े']);
+      const llmItem = llmResult.line_items && llmResult.line_items.length > 0 ? llmResult.line_items[0] : null;
+      if (llmItem && llmItem.product && llmItem.product.trim() !== '' && !countUnits.has(llmItem.product.trim().toLowerCase())) {
+        parsed.productName = llmItem.product.trim();
+        slotSources.productName = 'llm';
+      } else if (detParsed.productName && !countUnits.has(detParsed.productName.trim().toLowerCase())) {
         slotSources.productName = 'deterministic';
       }
 
-      // PHONE: If NER extracted valid 10 digits, use model; else fallback
-      if (nerPhone) {
-        const cleanDigits = nerPhone.text.replace(/\D/g, '');
+      // 3. PHONE: Validate exactly 10 digits; if not, cross-check deterministic parser regex
+      if (llmResult.phone) {
+        const cleanDigits = llmResult.phone.replace(/\D/g, '');
         const tenDigits = cleanDigits.slice(-10);
         if (tenDigits.length === 10) {
           parsed.phone = tenDigits;
-          slotSources.phone = 'model';
+          slotSources.phone = 'llm';
         } else if (detParsed.phone) {
+          parsed.phone = detParsed.phone;
           slotSources.phone = 'deterministic';
         }
       } else if (detParsed.phone) {
         slotSources.phone = 'deterministic';
       }
 
-      // QTY: Prefer deterministic parser on disagreement (money-critical field)
-      if (detParsed.quantity !== undefined) {
+      // 4. QTY: Cross-check against deterministic parser (money-critical field)
+      const llmQty = llmItem?.qty;
+      if (detParsed.quantity !== undefined && llmQty !== null && llmQty !== undefined) {
+        if (detParsed.quantity === llmQty) {
+          parsed.quantity = detParsed.quantity;
+          slotSources.qty = 'agreement';
+        } else {
+          // Disagreement: Deterministic parser wins
+          parsed.quantity = detParsed.quantity;
+          parsed.qtyNeedsReview = true;
+          slotSources.qty = 'deterministic';
+          disagreementWarningsEn.push(`Quantity ${detParsed.quantity} (please double-check)`);
+          disagreementWarningsHi.push(`मात्रा ${detParsed.quantity} (कृपया पुनः जांचें)`);
+        }
+      } else if (detParsed.quantity !== undefined) {
         parsed.quantity = detParsed.quantity;
         slotSources.qty = 'deterministic';
-      } else if (nerQty) {
-        const parsedNum = VoiceBillParser.parseNumberToken(nerQty.text);
-        if (parsedNum !== null && parsedNum > 0 && parsedNum < 100) {
-          parsed.quantity = Math.round(parsedNum);
-          parsed.isQtyAssumed = false;
-          slotSources.qty = 'model';
-        }
+      } else if (llmQty !== null && llmQty !== undefined && llmQty > 0) {
+        parsed.quantity = llmQty;
+        slotSources.qty = 'llm';
       }
 
-      // PRICE: Prefer deterministic parser on disagreement (money-critical field)
-      if (detParsed.unitPrice !== undefined) {
+      // 5. PRICE: Cross-check against deterministic parser (money-critical field)
+      const llmPrice = llmItem?.price;
+      if (detParsed.unitPrice !== undefined && llmPrice !== null && llmPrice !== undefined) {
+        if (detParsed.unitPrice === llmPrice) {
+          parsed.unitPrice = detParsed.unitPrice;
+          slotSources.unitPrice = 'agreement';
+        } else {
+          // Disagreement: Deterministic parser wins
+          parsed.unitPrice = detParsed.unitPrice;
+          parsed.priceNeedsReview = true;
+          slotSources.unitPrice = 'deterministic';
+          disagreementWarningsEn.push(`Price ₹${detParsed.unitPrice} (please double-check)`);
+          disagreementWarningsHi.push(`कीमत ₹${detParsed.unitPrice} (कृपया पुनः जांचें)`);
+        }
+      } else if (detParsed.unitPrice !== undefined) {
         parsed.unitPrice = detParsed.unitPrice;
         slotSources.unitPrice = 'deterministic';
-      } else if (nerPrice) {
-        const cleanP = nerPrice.text.replace(/[₹,\s]/g, '');
-        const parsedP = parseFloat(cleanP) || VoiceBillParser.parseNumberToken(nerPrice.text);
-        if (parsedP !== null && !isNaN(parsedP) && parsedP > 0) {
-          parsed.unitPrice = parsedP;
-          parsed.isPriceAssumed = false;
-          slotSources.unitPrice = 'model';
-        }
+      } else if (llmPrice !== null && llmPrice !== undefined && llmPrice > 0) {
+        parsed.unitPrice = llmPrice;
+        slotSources.unitPrice = 'llm';
       }
 
-      // DISCOUNT: Prefer deterministic parser on disagreement (money-critical field)
-      if (detParsed.discountPercent !== undefined) {
+      // 6. DISCOUNT: Cross-check against deterministic parser (money-critical field)
+      const llmDiscount = llmItem?.discount_percent;
+      if (detParsed.discountPercent !== undefined && llmDiscount !== null && llmDiscount !== undefined) {
+        if (detParsed.discountPercent === llmDiscount) {
+          parsed.discountPercent = detParsed.discountPercent;
+          slotSources.discountPercent = 'agreement';
+        } else {
+          // Disagreement: Deterministic parser wins
+          parsed.discountPercent = detParsed.discountPercent;
+          parsed.discountNeedsReview = true;
+          slotSources.discountPercent = 'deterministic';
+          disagreementWarningsEn.push(`Discount ${detParsed.discountPercent}% (please double-check)`);
+          disagreementWarningsHi.push(`छूट ${detParsed.discountPercent}% (कृपया पुनः जांचें)`);
+        }
+      } else if (detParsed.discountPercent !== undefined) {
         parsed.discountPercent = detParsed.discountPercent;
         slotSources.discountPercent = 'deterministic';
-      } else if (nerDiscount) {
-        const cleanD = nerDiscount.text.replace(/[%]/g, '').trim();
-        const parsedD = parseFloat(cleanD);
-        if (!isNaN(parsedD) && parsedD >= 0 && parsedD <= 100) {
-          parsed.discountPercent = parsedD;
-          slotSources.discountPercent = 'model';
-        }
+      } else if (llmDiscount !== null && llmDiscount !== undefined && llmDiscount >= 0 && llmDiscount <= 100) {
+        parsed.discountPercent = llmDiscount;
+        slotSources.discountPercent = 'llm';
       }
     } else {
       // 100% deterministic fallback
@@ -426,6 +496,13 @@ export class VoiceBillService {
       if (detParsed.discountPercent !== undefined) slotSources.discountPercent = 'deterministic';
     }
 
+    if (disagreementWarningsEn.length > 0 || disagreementWarningsHi.length > 0) {
+      session.disagreementWarnings = {
+        en: disagreementWarningsEn,
+        hi: disagreementWarningsHi,
+      };
+    }
+
     Object.assign(session.slotSources, slotSources);
 
     // 5. Handle slot updates (e.g. "change quantity to 4")
@@ -434,6 +511,7 @@ export class VoiceBillService {
         if (session.lineItems.length > 0) {
           session.lineItems[session.lineItems.length - 1].qty = parsed.quantity;
           session.lineItems[session.lineItems.length - 1].isQtyAssumed = false;
+          session.lineItems[session.lineItems.length - 1].qtyNeedsReview = false;
           session.lineItems[session.lineItems.length - 1].qtySource = 'deterministic';
           session.isQtyAssumed = false;
           session.lastUpdateNote = lang === 'hi' ? parsed.updateNote?.hi : parsed.updateNote?.en;
@@ -442,6 +520,7 @@ export class VoiceBillService {
         if (session.lineItems.length > 0) {
           session.lineItems[session.lineItems.length - 1].unitPrice = parsed.unitPrice;
           session.lineItems[session.lineItems.length - 1].isPriceAssumed = false;
+          session.lineItems[session.lineItems.length - 1].priceNeedsReview = false;
           session.lineItems[session.lineItems.length - 1].priceSource = 'deterministic';
           session.isPriceAssumed = false;
           session.lastUpdateNote = lang === 'hi' ? parsed.updateNote?.hi : parsed.updateNote?.en;
@@ -500,6 +579,9 @@ export class VoiceBillService {
             lineTotal: '0.00',
             isQtyAssumed: parsed.isQtyAssumed,
             isPriceAssumed: parsed.isPriceAssumed,
+            qtyNeedsReview: parsed.qtyNeedsReview,
+            priceNeedsReview: parsed.priceNeedsReview,
+            discountNeedsReview: parsed.discountNeedsReview,
             qtySource: slotSources.qty,
             priceSource: slotSources.unitPrice,
           };
@@ -512,16 +594,21 @@ export class VoiceBillService {
           if (parsed.quantity) {
             currentItem.qty = parsed.quantity;
             currentItem.isQtyAssumed = parsed.isQtyAssumed;
+            currentItem.qtyNeedsReview = parsed.qtyNeedsReview;
             currentItem.qtySource = slotSources.qty;
           }
           if (parsed.unitPrice) {
             currentItem.unitPrice = parsed.unitPrice;
             currentItem.isPriceAssumed = parsed.isPriceAssumed;
+            currentItem.priceNeedsReview = parsed.priceNeedsReview;
             currentItem.priceSource = slotSources.unitPrice;
           } else if (!currentItem.unitPrice || currentItem.unitPrice === 0) {
             currentItem.unitPrice = parseFloat(matchRes.matchedProduct.salesPrice) || 0;
           }
-          if (parsed.discountPercent !== undefined) currentItem.discountPercent = parsed.discountPercent;
+          if (parsed.discountPercent !== undefined) {
+            currentItem.discountPercent = parsed.discountPercent;
+            currentItem.discountNeedsReview = parsed.discountNeedsReview;
+          }
           currentItem.taxRate = parseFloat(matchRes.matchedProduct.taxRate) || 0;
         }
       } else if (matchRes.candidates.length > 0) {
@@ -555,6 +642,9 @@ export class VoiceBillService {
             lineTotal: '0.00',
             isQtyAssumed: parsed.isQtyAssumed,
             isPriceAssumed: parsed.isPriceAssumed,
+            qtyNeedsReview: parsed.qtyNeedsReview,
+            priceNeedsReview: parsed.priceNeedsReview,
+            discountNeedsReview: parsed.discountNeedsReview,
             qtySource: slotSources.qty,
             priceSource: slotSources.unitPrice,
           };
@@ -568,11 +658,13 @@ export class VoiceBillService {
         if (parsed.quantity && !parsed.isUpdate) {
           lastItem.qty = parsed.quantity;
           lastItem.isQtyAssumed = parsed.isQtyAssumed;
+          lastItem.qtyNeedsReview = parsed.qtyNeedsReview;
           lastItem.qtySource = slotSources.qty;
         }
         if (parsed.unitPrice && !parsed.isUpdate) {
           lastItem.unitPrice = parsed.unitPrice;
           lastItem.isPriceAssumed = parsed.isPriceAssumed;
+          lastItem.priceNeedsReview = parsed.priceNeedsReview;
           lastItem.priceSource = slotSources.unitPrice;
         }
         if (parsed.discountPercent !== undefined) lastItem.discountPercent = parsed.discountPercent;

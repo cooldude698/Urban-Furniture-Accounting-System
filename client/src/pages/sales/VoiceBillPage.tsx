@@ -30,8 +30,11 @@ interface DraftLineItem {
   lineTotal: string;
   isPriceAssumed?: boolean;
   isQtyAssumed?: boolean;
-  qtySource?: 'model' | 'deterministic';
-  priceSource?: 'model' | 'deterministic';
+  qtyNeedsReview?: boolean;
+  priceNeedsReview?: boolean;
+  discountNeedsReview?: boolean;
+  qtySource?: 'llm' | 'deterministic' | 'agreement';
+  priceSource?: 'llm' | 'deterministic' | 'agreement';
 }
 
 interface VoiceBillSession {
@@ -54,13 +57,14 @@ interface VoiceBillSession {
   isPriceAssumed?: boolean;
   isQtyAssumed?: boolean;
   confidenceNotes?: { en: string[]; hi: string[] };
+  disagreementWarnings?: { en: string[]; hi: string[] };
   slotSources?: {
-    customerName?: 'model' | 'deterministic';
-    phone?: 'model' | 'deterministic';
-    productName?: 'model' | 'deterministic';
-    qty?: 'model' | 'deterministic';
-    unitPrice?: 'model' | 'deterministic';
-    discountPercent?: 'model' | 'deterministic';
+    customerName?: 'llm' | 'deterministic';
+    phone?: 'llm' | 'deterministic';
+    productName?: 'llm' | 'deterministic';
+    qty?: 'llm' | 'deterministic' | 'agreement';
+    unitPrice?: 'llm' | 'deterministic' | 'agreement';
+    discountPercent?: 'llm' | 'deterministic' | 'agreement';
   };
 }
 
@@ -496,8 +500,13 @@ export const VoiceBillPage: React.FC = () => {
                   </thead>
                   <tbody className="divide-y divide-brown-200">
                     {session.lineItems.map((item, idx) => {
-                      const isQtyFallback = item.isQtyAssumed || session.isQtyAssumed || item.qtySource === 'deterministic';
-                      const isPriceFallback = item.isPriceAssumed || session.isPriceAssumed || item.priceSource === 'deterministic';
+                      const showQtyReview = item.qtyNeedsReview;
+                      const showQtyAssumed = !showQtyReview && (item.isQtyAssumed || session.isQtyAssumed);
+
+                      const showPriceReview = item.priceNeedsReview;
+                      const showPriceAssumed = !showPriceReview && (item.isPriceAssumed || session.isPriceAssumed);
+
+                      const showDiscountReview = item.discountNeedsReview;
 
                       return (
                         <tr key={item.id || idx} className="hover:bg-cream/40">
@@ -506,28 +515,50 @@ export const VoiceBillPage: React.FC = () => {
                           </td>
                           <td className="py-2.5 px-3 text-right font-mono">
                             <div>{item.qty}</div>
-                            {isQtyFallback && (
+                            {showQtyReview ? (
+                              <span
+                                className="inline-block text-[10px] text-amber-900 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300 font-sans font-semibold"
+                                title="Deterministic parser overrode LLM disagreement — please double-check"
+                              >
+                                (please double-check)
+                              </span>
+                            ) : showQtyAssumed ? (
                               <span
                                 className="inline-block text-[10px] text-amber-800 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 font-sans font-medium"
-                                title="Quantity assumed / fallback — please confirm"
+                                title="Quantity assumed — please confirm"
                               >
                                 (assumed — please confirm)
                               </span>
-                            )}
+                            ) : null}
                           </td>
                           <td className="py-2.5 px-3 text-right font-mono">
                             <div>₹{item.unitPrice.toFixed(2)}</div>
-                            {isPriceFallback && (
+                            {showPriceReview ? (
+                              <span
+                                className="inline-block text-[10px] text-amber-900 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300 font-sans font-semibold"
+                                title="Deterministic parser overrode LLM disagreement — please double-check"
+                              >
+                                (please double-check)
+                              </span>
+                            ) : showPriceAssumed ? (
                               <span
                                 className="inline-block text-[10px] text-amber-800 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 font-sans font-medium"
-                                title="Price assumed / fallback — please confirm"
+                                title="Price assumed — please confirm"
                               >
                                 (assumed — please confirm)
                               </span>
-                            )}
+                            ) : null}
                           </td>
                           <td className="py-2.5 px-3 text-right font-mono">
-                            {item.discountPercent > 0 ? `${item.discountPercent}%` : '0%'}
+                            <div>{item.discountPercent > 0 ? `${item.discountPercent}%` : '0%'}</div>
+                            {showDiscountReview && (
+                              <span
+                                className="inline-block text-[10px] text-amber-900 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300 font-sans font-semibold"
+                                title="Deterministic parser overrode LLM disagreement — please double-check"
+                              >
+                                (please double-check)
+                              </span>
+                            )}
                           </td>
                           <td className="py-2.5 px-3 text-right font-mono font-bold text-brown-900">
                             ₹{item.lineTotal}
