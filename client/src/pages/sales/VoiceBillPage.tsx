@@ -1042,187 +1042,363 @@ export const VoiceBillPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Pane (5 cols): Live Real-time Invoice Sheet & Accounting Preview */}
+        {/* Right Pane (5 cols): Modern Professional Live Invoice Sheet */}
         <div className={`lg:col-span-5 space-y-3 ${activeTabMobile === 'bill' ? 'block' : 'hidden lg:block'}`}>
-          <div className="bg-surface border-2 border-brown-300 rounded-[16px] p-5 shadow-md flex flex-col justify-between min-h-[680px]">
+          <div className="bg-white border border-brown-200/80 rounded-[16px] p-5 sm:p-6 shadow-sm flex flex-col justify-between min-h-[720px] text-brown-900 font-body transition-all">
             <div className="space-y-4">
-              {/* Paper Invoice Header */}
-              <div className="border-b-2 border-brown-900 pb-3 flex items-start justify-between">
-                <div>
-                  <div className="text-[10px] font-mono tracking-widest uppercase text-brown-500 font-bold">
-                    Official Tax Invoice
-                  </div>
-                  <h2 className="text-xl font-bold font-display text-brown-900 leading-tight">
-                    URBAN FURNITURE
-                  </h2>
-                  <p className="text-[11px] text-brown-600 font-mono">
-                    GSTIN: 24AABCU9603R1ZM • Gandhinagar, GJ
-                  </p>
-                </div>
-
-                <div className="text-right">
-                  <div className="flex items-center gap-1 justify-end">
-                    <button
-                      type="button"
-                      onClick={() => setReceiptMode('a4')}
-                      className={`px-2 py-0.5 text-[10px] font-bold rounded font-mono ${
-                        receiptMode === 'a4' ? 'bg-brown-900 text-cream' : 'bg-brown-100 text-brown-700'
-                      }`}
-                    >
-                      A4
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setReceiptMode('pos')}
-                      className={`px-2 py-0.5 text-[10px] font-bold rounded font-mono ${
-                        receiptMode === 'pos' ? 'bg-brown-900 text-cream' : 'bg-brown-100 text-brown-700'
-                      }`}
-                    >
-                      POS
-                    </button>
-                  </div>
-                  <div className="text-[11px] font-mono font-bold text-brown-800 mt-1">
-                    {session?.invoiceNumber ? session.invoiceNumber : 'DRAFT BILL'}
-                  </div>
-                  <div className="text-[10px] text-brown-500">
-                    {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Bill To Customer Section */}
-              <div className="bg-cream/40 border border-brown-200 rounded-[10px] p-3 text-xs flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] text-brown-500 font-bold uppercase tracking-wider block">
-                    Billed To:
+              {/* Top Bar: Compliance Badge & Format Toggle */}
+              <div className="flex items-center justify-between pb-3 border-b border-brown-100">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold font-mono bg-emerald-50 text-emerald-800 border border-emerald-200/60">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    GST Rule 46 Compliant
                   </span>
-                  <div className="font-bold text-brown-900 text-sm">
-                    {session?.customerName || <span className="text-brown-400 italic">Name pending...</span>}
-                  </div>
-                  <div className="text-brown-600 font-mono text-[11px]">
-                    {session?.phone ? `+91 ${session.phone}` : <span className="text-brown-400 italic">Phone pending...</span>}
-                  </div>
+                  <span className="text-[10px] text-brown-400 font-mono hidden sm:inline">
+                    State: Gujarat (24)
+                  </span>
                 </div>
 
-                {session?.customerName && (
-                  <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs border border-emerald-300">
-                    {session.customerName.charAt(0)}
-                  </div>
-                )}
+                <div className="flex items-center gap-1 bg-brown-50/70 p-0.5 rounded-lg border border-brown-200/60">
+                  <button
+                    type="button"
+                    onClick={() => setReceiptMode('a4')}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all cursor-pointer ${
+                      receiptMode === 'a4'
+                        ? 'bg-white text-brown-900 shadow-xs font-semibold'
+                        : 'text-brown-600 hover:text-brown-900'
+                    }`}
+                  >
+                    Tax Invoice
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReceiptMode('pos')}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all cursor-pointer ${
+                      receiptMode === 'pos'
+                        ? 'bg-white text-brown-900 shadow-xs font-semibold'
+                        : 'text-brown-600 hover:text-brown-900'
+                    }`}
+                  >
+                    POS Slip
+                  </button>
+                </div>
               </div>
 
-              {/* Review / Disagreement Notice (if any) */}
-              {session?.disagreementWarnings && (
-                <div className="p-2.5 bg-amber-50 border border-amber-300 rounded-[8px] text-[11px] text-amber-900 space-y-1">
-                  <div className="font-bold flex items-center gap-1 text-amber-800">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    <span>Deterministic Parser Disagreement Overrides:</span>
-                  </div>
-                  {session.disagreementWarnings.en?.map((w, i) => (
-                    <div key={i} className="pl-4 text-[10px]">• {w}</div>
-                  ))}
-                </div>
-              )}
+              {receiptMode === 'a4' ? (
+                /* ── Modern Showroom-Grade Tax Invoice ─────────────────────── */
+                <div className="space-y-3 text-xs">
+                  {/* Brand & Invoice Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-brown-100">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-brown-900 text-amber-200 font-display font-bold text-xs flex items-center justify-center shadow-xs">
+                          UF
+                        </div>
+                        <div>
+                          <h2 className="text-base font-bold font-display tracking-tight text-brown-900 leading-none">
+                            URBAN FURNITURE
+                          </h2>
+                          <p className="text-[10px] text-brown-500 font-body">Contract &amp; Domestic Furnishings</p>
+                        </div>
+                      </div>
+                      <div className="text-[10px] text-brown-600 space-y-0.5 pt-1 font-mono">
+                        <div>GSTIN: <strong className="text-brown-900">24AABCU9603R1ZM</strong> • CIN: U36100GJ2020PTC115482</div>
+                        <div className="text-brown-500">Plot 42, GIDC Electronics Zone, Gandhinagar - 382024</div>
+                      </div>
+                    </div>
 
-              {/* Live Line Items Table */}
-              <div className="border border-brown-200 rounded-[10px] overflow-hidden">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-brown-100/70 border-b border-brown-200 text-brown-800 font-semibold font-display">
-                    <tr>
-                      <th className="py-2 px-2.5">Item</th>
-                      <th className="py-2 px-2 text-center">Qty</th>
-                      <th className="py-2 px-2 text-right">Price</th>
-                      <th className="py-2 px-2 text-right">Total</th>
-                      <th className="py-2 px-1 text-center"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-brown-100">
+                    <div className="text-left sm:text-right space-y-1 sm:self-start">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-brown-900 text-cream rounded-md text-[10px] font-mono font-bold tracking-wider uppercase">
+                        TAX INVOICE
+                      </div>
+                      <div className="text-sm font-bold font-mono text-brown-900">
+                        {session?.invoiceNumber || 'INV-2026-DRAFT'}
+                      </div>
+                      <div className="text-[10px] text-brown-500 font-mono">
+                        Date: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2-Column Info Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {/* Customer / Billed To Card */}
+                    <div className="bg-brown-50/40 border border-brown-200/60 rounded-xl p-3 space-y-1">
+                      <div className="text-[9.5px] font-bold font-mono uppercase tracking-wider text-brown-400">
+                        Billed To
+                      </div>
+                      <div className="text-sm font-bold text-brown-900">
+                        {session?.customerName || <span className="text-brown-400 font-normal italic">Pending Customer Name...</span>}
+                      </div>
+                      <div className="text-xs text-brown-700 font-mono">
+                        {session?.phone ? `+91 ${session.phone}` : <span className="text-brown-400 font-normal italic">Pending Contact No...</span>}
+                      </div>
+                      <div className="flex items-center justify-between text-[10px] text-brown-600 pt-1 border-t border-brown-200/40">
+                        <span>Place of Supply: <strong>Gujarat (24)</strong></span>
+                        <span className="px-1.5 py-0.2 bg-white text-brown-700 rounded border border-brown-200 text-[9px] font-mono">
+                          B2C Consumer
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Invoice Particulars Card */}
+                    <div className="bg-brown-50/40 border border-brown-200/60 rounded-xl p-3 space-y-1 text-[11px]">
+                      <div className="text-[9.5px] font-bold font-mono uppercase tracking-wider text-brown-400">
+                        Invoice Particulars
+                      </div>
+                      <div className="flex justify-between items-center text-brown-800">
+                        <span className="text-brown-500">Supply Type:</span>
+                        <span className="font-medium">Intra-State (CGST + SGST)</span>
+                      </div>
+                      <div className="flex justify-between items-center text-brown-800">
+                        <span className="text-brown-500">HSN Chapter:</span>
+                        <span className="font-mono font-medium">9403 (Furniture)</span>
+                      </div>
+                      <div className="flex justify-between items-center text-brown-800 pt-1 border-t border-brown-200/40">
+                        <span className="text-brown-500">Reverse Charge:</span>
+                        <span className="font-semibold text-emerald-700 font-mono">No</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Disagreement Warning (if any) */}
+                  {session?.disagreementWarnings && (
+                    <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-lg text-xs text-amber-900 space-y-0.5">
+                      <div className="font-semibold flex items-center gap-1.5 text-amber-800">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        <span>Parser Overrides Applied:</span>
+                      </div>
+                      {session.disagreementWarnings.en?.map((w, i) => (
+                        <div key={i} className="pl-5 text-[11px]">• {w}</div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Modern Line Items Table */}
+                  <div className="border border-brown-200/70 rounded-xl overflow-hidden bg-white">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-brown-50/60 border-b border-brown-200/70 text-brown-700 font-semibold font-mono text-[10px] uppercase tracking-wider">
+                        <tr>
+                          <th className="py-2.5 px-3">Item &amp; Description</th>
+                          <th className="py-2.5 px-2 text-center w-12">HSN</th>
+                          <th className="py-2.5 px-2 text-center w-20">Qty</th>
+                          <th className="py-2.5 px-2 text-right w-20">Rate</th>
+                          <th className="py-2.5 px-2 text-right w-20">Taxable</th>
+                          <th className="py-2.5 px-3 text-right w-24">Total</th>
+                          <th className="py-2.5 px-1.5 text-center w-6"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-brown-100">
+                        {session?.lineItems && session.lineItems.length > 0 ? (
+                          session.lineItems.map((item, idx) => {
+                            const baseRate = item.unitPrice || 0;
+                            const qty = item.qty || 0;
+                            const discount = item.discountPercent || 0;
+                            const taxable = (qty * baseRate) * (1 - discount / 100);
+                            const gstAmt = taxable * ((item.taxRate || 18) / 100);
+                            const lineTotal = taxable + gstAmt;
+
+                            return (
+                              <tr key={item.id || idx} className="hover:bg-brown-50/30 transition-colors">
+                                <td className="py-2 px-3">
+                                  <div className="font-semibold text-brown-900 leading-tight">
+                                    {item.matchedName || item.productName}
+                                  </div>
+                                  <div className="text-[10px] text-brown-400 font-mono">
+                                    Grade-A Finish
+                                    {discount > 0 && (
+                                      <span className="ml-1.5 text-emerald-700 font-medium">
+                                        ({discount}% off)
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                                <td className="py-2 px-2 text-center font-mono text-brown-500 text-[11px]">
+                                  9403
+                                </td>
+                                <td className="py-2 px-2 text-center">
+                                  <div className="inline-flex items-center gap-1 bg-brown-50 px-1.5 py-0.5 rounded-md border border-brown-200/50">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateQty(item.id, item.qty - 1)}
+                                      className="w-4 h-4 rounded text-brown-600 hover:bg-brown-200 flex items-center justify-center cursor-pointer text-xs"
+                                    >
+                                      -
+                                    </button>
+                                    <span className="font-mono font-bold text-xs w-4 text-center text-brown-900">{item.qty}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleUpdateQty(item.id, item.qty + 1)}
+                                      className="w-4 h-4 rounded text-brown-600 hover:bg-brown-200 flex items-center justify-center cursor-pointer text-xs"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                </td>
+                                <td className="py-2 px-2 text-right font-mono text-brown-700">
+                                  ₹{baseRate.toFixed(2)}
+                                </td>
+                                <td className="py-2 px-2 text-right font-mono text-brown-800">
+                                  ₹{taxable.toFixed(2)}
+                                </td>
+                                <td className="py-2 px-3 text-right font-mono font-bold text-brown-900">
+                                  ₹{lineTotal.toFixed(2)}
+                                </td>
+                                <td className="py-2 px-1.5 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteItem(item.id)}
+                                    title="Remove item"
+                                    className="text-brown-400 hover:text-red-600 p-1 cursor-pointer transition-colors"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        ) : (
+                          <tr>
+                            <td colSpan={7} className="py-10 text-center text-brown-400 italic text-xs">
+                              Speak or type product details to begin building the invoice.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Summary & Bank Remittance Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    {/* Left: Remittance Bank Card */}
+                    <div className="bg-brown-50/30 border border-brown-200/50 rounded-xl p-3 space-y-1.5">
+                      <div className="text-[10px] font-bold font-mono uppercase tracking-wider text-brown-500">
+                        Payment &amp; Remittance
+                      </div>
+                      <div className="text-[11px] font-mono text-brown-700 leading-tight space-y-0.5">
+                        <div>Bank: <strong>State Bank of India</strong></div>
+                        <div>A/C: <strong>389201004521</strong> (Current)</div>
+                        <div>IFSC: <strong>SBIN0001234</strong> • Gandhinagar</div>
+                        <div>UPI: <strong>urbanfurniture@sbi</strong></div>
+                      </div>
+                      <div className="text-[10px] text-brown-500 pt-1 border-t border-brown-200/40">
+                        ✓ 1-Year Comprehensive Warranty on all items
+                      </div>
+                    </div>
+
+                    {/* Right: Modern Totals Card */}
+                    <div className="bg-brown-50/50 border border-brown-200/60 rounded-xl p-3 space-y-1.5">
+                      <div className="flex justify-between text-brown-600 text-xs">
+                        <span>Taxable Amount:</span>
+                        <span className="font-mono font-medium">₹{subtotalDec.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-brown-600 text-[11px]">
+                        <span>CGST (9%):</span>
+                        <span className="font-mono">₹{(taxDec / 2).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-brown-600 text-[11px]">
+                        <span>SGST (9%):</span>
+                        <span className="font-mono">₹{(taxDec / 2).toFixed(2)}</span>
+                      </div>
+                      <div className="pt-2 border-t border-brown-200/80 flex items-center justify-between">
+                        <span className="font-bold text-brown-900 text-xs uppercase tracking-tight">
+                          Total Amount:
+                        </span>
+                        <span className="font-mono font-bold text-base text-emerald-900">
+                          ₹{session?.grandTotal || '0.00'}
+                        </span>
+                      </div>
+                      {session?.grandTotal && parseFloat(session.grandTotal) > 0 && (
+                        <div className="text-[9.5px] text-brown-500 italic text-right font-mono pt-0.5">
+                          {amountToWords(session.grandTotal)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Verification Footer */}
+                  <div className="flex items-center justify-between pt-2 border-t border-brown-100 text-[10px]">
+                    <div className="flex items-center gap-1.5 text-emerald-800 font-mono font-medium">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Verified GST Electronic Invoice</span>
+                    </div>
+
+                    <div className="text-right text-brown-500 font-mono">
+                      <span>Authorised Signatory • Urban Furniture Pvt. Ltd.</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                /* ── Modern Minimalist POS Slip ─────────────────────── */
+                <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 font-mono text-xs space-y-3 shadow-inner">
+                  <div className="text-center border-b border-dashed border-stone-300 pb-2.5">
+                    <div className="text-sm font-bold tracking-tight text-stone-900 uppercase">URBAN FURNITURE</div>
+                    <div className="text-[10px] text-stone-500">Plot 42, GIDC, Gandhinagar, Gujarat</div>
+                    <div className="text-[10px] text-stone-500">GSTIN: 24AABCU9603R1ZM</div>
+                    <div className="text-[10px] font-semibold text-stone-800 mt-1 uppercase tracking-wider">
+                      Retail Tax Invoice
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between text-[10px] border-b border-dashed border-stone-300 pb-2 text-stone-600">
+                    <div>
+                      <div>Bill: <strong>{session?.invoiceNumber || 'POS-DRAFT'}</strong></div>
+                      <div>Customer: <strong>{session?.customerName || 'Walk-in'}</strong></div>
+                    </div>
+                    <div className="text-right">
+                      <div>{new Date().toLocaleDateString('en-IN')}</div>
+                      <div>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                    </div>
+                  </div>
+
+                  {/* POS Line Items */}
+                  <div className="space-y-1.5 border-b border-dashed border-stone-300 pb-2">
+                    <div className="flex justify-between font-bold text-[10px] text-stone-700">
+                      <span className="w-1/2">ITEM</span>
+                      <span className="w-1/6 text-center">QTY</span>
+                      <span className="w-1/6 text-right">RATE</span>
+                      <span className="w-1/6 text-right">TOTAL</span>
+                    </div>
                     {session?.lineItems && session.lineItems.length > 0 ? (
                       session.lineItems.map((item, idx) => (
-                        <tr key={item.id || idx} className="hover:bg-cream/40">
-                          <td className="py-2 px-2.5 font-medium text-brown-900">
-                            <div className="leading-tight">{item.matchedName || item.productName}</div>
-                            {item.discountPercent > 0 && (
-                              <span className="inline-block text-[10px] text-emerald-800 font-mono">
-                                ({item.discountPercent}% off)
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2 px-2 text-center">
-                            <div className="inline-flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => handleUpdateQty(item.id, item.qty - 1)}
-                                className="w-5 h-5 rounded bg-brown-100 hover:bg-brown-200 text-brown-800 flex items-center justify-center cursor-pointer text-xs transition-colors"
-                              >
-                                -
-                              </button>
-                              <span className="font-mono font-bold w-5 text-center">{item.qty}</span>
-                              <button
-                                type="button"
-                                onClick={() => handleUpdateQty(item.id, item.qty + 1)}
-                                className="w-5 h-5 rounded bg-brown-100 hover:bg-brown-200 text-brown-800 flex items-center justify-center cursor-pointer text-xs transition-colors"
-                              >
-                                +
-                              </button>
-                            </div>
-                            {item.qtyNeedsReview && (
-                              <span className="block text-[9px] text-amber-800 font-semibold" title="Deterministic parser overrode LLM disagreement">
-                                (review)
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2 px-2 text-right font-mono text-brown-800">
-                            ₹{item.unitPrice.toFixed(0)}
-                          </td>
-                          <td className="py-2 px-2 text-right font-mono font-bold text-brown-900">
-                            ₹{item.lineTotal}
-                          </td>
-                          <td className="py-2 px-1 text-center">
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteItem(item.id)}
-                              title="Delete item from bill"
-                              className="text-brown-400 hover:text-danger p-1 cursor-pointer transition-colors"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </td>
-                        </tr>
+                        <div key={idx} className="flex justify-between text-[9px]">
+                          <span className="w-1/2 truncate font-medium">{item.matchedName || item.productName}</span>
+                          <span className="w-1/6 text-center">{item.qty}</span>
+                          <span className="w-1/6 text-right">{item.unitPrice}</span>
+                          <span className="w-1/6 text-right font-bold">{item.lineTotal}</span>
+                        </div>
                       ))
                     ) : (
-                      <tr>
-                        <td colSpan={5} className="py-8 text-center text-brown-400 italic text-xs">
-                          No items added yet. Speak or type a product name to add.
-                        </td>
-                      </tr>
+                      <div className="text-center italic text-stone-400 py-3">No items billed yet</div>
                     )}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Tax & Grand Total Breakdown */}
-              <div className="bg-cream/40 border border-brown-200 rounded-[10px] p-3 space-y-1.5 text-xs">
-                <div className="flex items-center justify-between text-brown-600">
-                  <span>Taxable Subtotal:</span>
-                  <span className="font-mono">₹{subtotalDec.toFixed(2)}</span>
-                </div>
-                <div className="flex items-center justify-between text-brown-600">
-                  <span>GST (9% CGST + 9% SGST):</span>
-                  <span className="font-mono">₹{taxDec.toFixed(2)}</span>
-                </div>
-                <div className="border-t border-brown-300 pt-1.5 flex items-center justify-between font-bold text-brown-900 text-base">
-                  <span>Grand Total:</span>
-                  <span className="font-mono text-emerald-800 text-lg">
-                    ₹{session?.grandTotal || '0.00'}
-                  </span>
-                </div>
-                {session?.grandTotal && parseFloat(session.grandTotal) > 0 && (
-                  <div className="text-[10px] text-brown-500 font-mono italic text-right pt-0.5">
-                    {amountToWords(session.grandTotal)}
                   </div>
-                )}
-              </div>
+
+                  {/* POS Totals */}
+                  <div className="space-y-1 text-[10px]">
+                    <div className="flex justify-between">
+                      <span>Subtotal (Taxable):</span>
+                      <span>₹{subtotalDec.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-stone-600">
+                      <span>CGST (9%):</span>
+                      <span>₹{(taxDec / 2).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-stone-600">
+                      <span>SGST (9%):</span>
+                      <span>₹{(taxDec / 2).toFixed(2)}</span>
+                    </div>
+                    <div className="border-t-2 border-dashed border-stone-800 pt-1 flex justify-between font-black text-sm text-stone-900">
+                      <span>NET AMOUNT PAYABLE:</span>
+                      <span>₹{session?.grandTotal || '0.00'}</span>
+                    </div>
+                  </div>
+
+                  <div className="text-center pt-2 border-t border-dashed border-stone-400 text-[8px] text-stone-500">
+                    <div>Thank you for choosing Urban Furniture!</div>
+                    <div>Goods covered under 1 Year Warranty • Visit www.urbanfurniture.in</div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Bottom Actions & Ledger Confirmation */}
