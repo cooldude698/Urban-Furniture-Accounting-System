@@ -15,6 +15,12 @@ import { agingRouter } from './routes/agingRoutes';
 import { ledgerRouter } from './routes/ledgerRoutes';
 import { verifyRouter } from './routes/verifyRoutes';
 import { auditRouter } from './routes/auditRoutes';
+import { productRouter } from './routes/productRoutes';
+import { accountRouter, journalRouter } from './routes/accountRoutes';
+import { analyticRouter } from './routes/analyticRoutes';
+import { poRouter } from './routes/purchaseOrderRoutes';
+import { billRouter } from './routes/vendorBillRoutes';
+import { budgetRouter } from './routes/budgetRoutes';
 import { sendError } from './utils/response';
 
 dotenv.config();
@@ -52,6 +58,14 @@ app.use('/api/reports', reportRouter);
 app.use('/api/ledger', ledgerRouter);
 app.use('/api/verify', verifyRouter);
 app.use('/api/audit', auditRouter);
+app.use('/api/products', productRouter);
+app.use('/api/accounts', accountRouter);
+app.use('/api/journals', journalRouter);
+app.use('/api/analytic-accounts', analyticRouter);
+app.use('/api/purchase-orders', poRouter);
+app.use('/api/bills', billRouter);
+app.use('/api/vendor-bills', billRouter);
+app.use('/api/budgets', budgetRouter);
 
 
 // 404 handler

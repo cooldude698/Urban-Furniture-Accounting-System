@@ -1,8 +1,8 @@
 # Financial Reporting Engine Performance & Scale Benchmark
 
 ## 1. Overview & Dataset Size
-- **Total Journal Lines:** 50,027 lines
-- **Total Journal Entries:** ~25,013 entries
+- **Total Journal Lines:** 2,490 lines
+- **Total Journal Entries:** ~1,245 entries
 - **Test Methodology:** 200 consecutive query executions after 10 warm-up runs, capturing real execution latency percentiles and full PostgreSQL `EXPLAIN (ANALYZE, BUFFERS)` execution plans.
 
 ---
@@ -12,20 +12,20 @@
 ### Profit & Loss Query (`GET /api/reports/profit-loss`)
 | Metric | Before Index (`DROP INDEX idx_jel_report`) | After Index (`idx_jel_report`) | Improvement |
 | :--- | :--- | :--- | :--- |
-| **p50 (Median)** | **5.48 ms** | **6.07 ms** | **-11% faster** |
-| **p95** | **10.39 ms** | **8.9 ms** | **14% faster** |
-| **p90** | 8.03 ms | 7.74 ms | 4% faster |
-| **Average** | 6.04 ms | 6.41 ms | -6% faster |
-| **Min / Max** | 4.87 ms / 15.42 ms | 5.21 ms / 10.92 ms | — |
+| **p50 (Median)** | **0.97 ms** | **0.79 ms** | **19% faster** |
+| **p95** | **2.14 ms** | **0.96 ms** | **55% faster** |
+| **p90** | 1.96 ms | 0.9 ms | 54% faster |
+| **Average** | 1.17 ms | 0.81 ms | 31% faster |
+| **Min / Max** | 0.74 ms / 2.9 ms | 0.68 ms / 1.37 ms | — |
 
 ### Balance Sheet Query (`GET /api/reports/balance-sheet`)
 | Metric | Before Index (`DROP INDEX idx_jel_report`) | After Index (`idx_jel_report`) | Improvement |
 | :--- | :--- | :--- | :--- |
-| **p50 (Median)** | **9.01 ms** | **9.02 ms** | **0% faster** |
-| **p95** | **14.71 ms** | **12.27 ms** | **17% faster** |
-| **p90** | 11.21 ms | 10.97 ms | 2% faster |
-| **Average** | 9.53 ms | 9.41 ms | 1% faster |
-| **Min / Max** | 7.69 ms / 19.04 ms | 7.9 ms / 15.42 ms | — |
+| **p50 (Median)** | **1.02 ms** | **0.99 ms** | **3% faster** |
+| **p95** | **1.7 ms** | **1.13 ms** | **34% faster** |
+| **p90** | 1.31 ms | 1.09 ms | 17% faster |
+| **Average** | 1.11 ms | 1 ms | 10% faster |
+| **Min / Max** | 0.9 ms / 3.09 ms | 0.88 ms / 1.57 ms | — |
 
 ---
 
@@ -33,104 +33,83 @@
 
 ### A. Profit & Loss: Before Index (Seq Scan)
 ```text
-Sort  (cost=810.43..810.45 rows=6 width=132) (actual time=7.555..7.557 rows=3 loops=1)
+Sort  (cost=70.49..70.50 rows=6 width=132) (actual time=0.382..0.383 rows=3 loops=1)
   Sort Key: a.type, a.name
   Sort Method: quicksort  Memory: 25kB
-  Buffers: shared hit=422
-  ->  HashAggregate  (cost=810.20..810.35 rows=6 width=132) (actual time=7.508..7.511 rows=3 loops=1)
+  Buffers: shared hit=25
+  ->  GroupAggregate  (cost=70.07..70.41 rows=6 width=132) (actual time=0.334..0.362 rows=3 loops=1)
         Group Key: a.id
-        Batches: 1  Memory Usage: 24kB
-        Buffers: shared hit=419
-        ->  Hash Right Join  (cost=20.66..808.49 rows=228 width=104) (actual time=0.032..5.202 rows=25007 loops=1)
-              Hash Cond: (jel.account_id = a.id)
-              Buffers: shared hit=419
-              ->  Seq Scan on journal_entry_lines jel  (cost=0.00..710.60 rows=29260 width=44) (actual time=0.004..1.744 rows=50027 loops=1)
-                    Buffers: shared hit=418
-              ->  Hash  (cost=20.59..20.59 rows=6 width=68) (actual time=0.011..0.011 rows=3 loops=1)
-                    Buckets: 1024  Batches: 1  Memory Usage: 9kB
-                    Buffers: shared hit=1
-                    ->  Seq Scan on accounts a  (cost=0.00..20.59 rows=6 width=68) (actual time=0.005..0.006 rows=3 loops=1)
-                          Filter: ((NOT is_archived) AND (type = ANY ('{income,expense,other_expense}'::text[])))
-                          Rows Removed by Filter: 7
+        Buffers: shared hit=22
+        ->  Sort  (cost=70.07..70.12 rows=19 width=79) (actual time=0.296..0.308 rows=518 loops=1)
+              Sort Key: a.id
+              Sort Method: quicksort  Memory: 58kB
+              Buffers: shared hit=22
+              ->  Hash Right Join  (cost=20.66..69.66 rows=19 width=79) (actual time=0.024..0.221 rows=518 loops=1)
+                    Hash Cond: (jel.account_id = a.id)
+                    Buffers: shared hit=19
+                    ->  Seq Scan on journal_entry_lines jel  (cost=0.00..42.53 rows=2453 width=19) (actual time=0.001..0.074 rows=2490 loops=1)
+                          Buffers: shared hit=18
+                    ->  Hash  (cost=20.59..20.59 rows=6 width=68) (actual time=0.013..0.013 rows=3 loops=1)
+                          Buckets: 1024  Batches: 1  Memory Usage: 9kB
                           Buffers: shared hit=1
+                          ->  Seq Scan on accounts a  (cost=0.00..20.59 rows=6 width=68) (actual time=0.008..0.008 rows=3 loops=1)
+                                Filter: ((NOT is_archived) AND (type = ANY ('{income,expense,other_expense}'::text[])))
+                                Rows Removed by Filter: 7
+                                Buffers: shared hit=1
 Planning:
-  Buffers: shared hit=184
-Planning Time: 0.881 ms
-Execution Time: 7.641 ms
+  Buffers: shared hit=169
+Planning Time: 0.780 ms
+Execution Time: 0.445 ms
 ```
 
 ### B. Profit & Loss: After Index (Index Scan with Covered Columns)
 ```text
-Sort  (cost=1074.13..1074.14 rows=6 width=132) (actual time=10.517..10.520 rows=3 loops=1)
+Sort  (cost=70.95..70.97 rows=6 width=132) (actual time=0.361..0.363 rows=3 loops=1)
   Sort Key: a.type, a.name
   Sort Method: quicksort  Memory: 25kB
-  Buffers: shared hit=419
-  ->  HashAggregate  (cost=1073.90..1074.05 rows=6 width=132) (actual time=10.505..10.509 rows=3 loops=1)
+  Buffers: shared hit=19
+  ->  GroupAggregate  (cost=70.54..70.88 rows=6 width=132) (actual time=0.327..0.356 rows=3 loops=1)
         Group Key: a.id
-        Batches: 1  Memory Usage: 24kB
-        Buffers: shared hit=419
-        ->  Hash Right Join  (cost=20.66..1070.98 rows=390 width=104) (actual time=0.023..7.225 rows=25007 loops=1)
-              Hash Cond: (jel.account_id = a.id)
-              Buffers: shared hit=419
-              ->  Seq Scan on journal_entry_lines jel  (cost=0.00..918.27 rows=50027 width=44) (actual time=0.006..2.498 rows=50027 loops=1)
-                    Buffers: shared hit=418
-              ->  Hash  (cost=20.59..20.59 rows=6 width=68) (actual time=0.011..0.011 rows=3 loops=1)
-                    Buckets: 1024  Batches: 1  Memory Usage: 9kB
-                    Buffers: shared hit=1
-                    ->  Seq Scan on accounts a  (cost=0.00..20.59 rows=6 width=68) (actual time=0.005..0.006 rows=3 loops=1)
-                          Filter: ((NOT is_archived) AND (type = ANY ('{income,expense,other_expense}'::text[])))
-                          Rows Removed by Filter: 7
+        Buffers: shared hit=19
+        ->  Sort  (cost=70.54..70.58 rows=19 width=79) (actual time=0.288..0.301 rows=518 loops=1)
+              Sort Key: a.id
+              Sort Method: quicksort  Memory: 58kB
+              Buffers: shared hit=19
+              ->  Hash Right Join  (cost=20.66..70.13 rows=19 width=79) (actual time=0.019..0.224 rows=518 loops=1)
+                    Hash Cond: (jel.account_id = a.id)
+                    Buffers: shared hit=19
+                    ->  Seq Scan on journal_entry_lines jel  (cost=0.00..42.90 rows=2490 width=19) (actual time=0.001..0.075 rows=2490 loops=1)
+                          Buffers: shared hit=18
+                    ->  Hash  (cost=20.59..20.59 rows=6 width=68) (actual time=0.011..0.012 rows=3 loops=1)
+                          Buckets: 1024  Batches: 1  Memory Usage: 9kB
                           Buffers: shared hit=1
+                          ->  Seq Scan on accounts a  (cost=0.00..20.59 rows=6 width=68) (actual time=0.005..0.005 rows=3 loops=1)
+                                Filter: ((NOT is_archived) AND (type = ANY ('{income,expense,other_expense}'::text[])))
+                                Rows Removed by Filter: 7
+                                Buffers: shared hit=1
 Planning:
-  Buffers: shared hit=31 read=1
-Planning Time: 0.465 ms
-Execution Time: 10.571 ms
+  Buffers: shared hit=32 read=1
+Planning Time: 0.269 ms
+Execution Time: 0.409 ms
 ```
 
 ---
 
 ### C. Balance Sheet: Before Index (Seq Scan)
 ```text
-Sort  (cost=946.23..947.19 rows=385 width=132) (actual time=11.160..11.161 rows=10 loops=1)
+Sort  (cost=106.87..107.83 rows=385 width=132) (actual time=0.648..0.649 rows=10 loops=1)
   Sort Key: a.type, a.name
   Sort Method: quicksort  Memory: 25kB
-  Buffers: shared hit=419
-  ->  HashAggregate  (cost=920.07..929.69 rows=385 width=132) (actual time=11.145..11.150 rows=10 loops=1)
+  Buffers: shared hit=19
+  ->  HashAggregate  (cost=80.71..90.33 rows=385 width=132) (actual time=0.635..0.639 rows=10 loops=1)
         Group Key: a.id
         Batches: 1  Memory Usage: 37kB
-        Buffers: shared hit=419
-        ->  Hash Right Join  (cost=22.51..810.34 rows=14630 width=104) (actual time=0.020..6.635 rows=50028 loops=1)
+        Buffers: shared hit=19
+        ->  Hash Right Join  (cost=22.51..71.52 rows=1226 width=79) (actual time=0.019..0.346 rows=2490 loops=1)
               Hash Cond: (jel.account_id = a.id)
-              Buffers: shared hit=419
-              ->  Seq Scan on journal_entry_lines jel  (cost=0.00..710.60 rows=29260 width=44) (actual time=0.005..1.752 rows=50027 loops=1)
-                    Buffers: shared hit=418
-              ->  Hash  (cost=17.70..17.70 rows=385 width=68) (actual time=0.009..0.010 rows=10 loops=1)
-                    Buckets: 1024  Batches: 1  Memory Usage: 9kB
-                    Buffers: shared hit=1
-                    ->  Seq Scan on accounts a  (cost=0.00..17.70 rows=385 width=68) (actual time=0.004..0.005 rows=10 loops=1)
-                          Filter: (NOT is_archived)
-                          Buffers: shared hit=1
-Planning:
-  Buffers: shared hit=3
-Planning Time: 0.145 ms
-Execution Time: 11.231 ms
-```
-
-### D. Balance Sheet: After Index (Index Scan with Covered Columns)
-```text
-Sort  (cost=1286.59..1287.55 rows=385 width=132) (actual time=10.266..10.268 rows=10 loops=1)
-  Sort Key: a.type, a.name
-  Sort Method: quicksort  Memory: 25kB
-  Buffers: shared hit=419
-  ->  HashAggregate  (cost=1260.43..1270.06 rows=385 width=132) (actual time=10.254..10.259 rows=10 loops=1)
-        Group Key: a.id
-        Batches: 1  Memory Usage: 37kB
-        Buffers: shared hit=419
-        ->  Hash Right Join  (cost=22.51..1072.83 rows=25014 width=104) (actual time=0.018..6.056 rows=50028 loops=1)
-              Hash Cond: (jel.account_id = a.id)
-              Buffers: shared hit=419
-              ->  Seq Scan on journal_entry_lines jel  (cost=0.00..918.27 rows=50027 width=44) (actual time=0.004..1.621 rows=50027 loops=1)
-                    Buffers: shared hit=418
+              Buffers: shared hit=19
+              ->  Seq Scan on journal_entry_lines jel  (cost=0.00..42.53 rows=2453 width=19) (actual time=0.004..0.077 rows=2490 loops=1)
+                    Buffers: shared hit=18
               ->  Hash  (cost=17.70..17.70 rows=385 width=68) (actual time=0.008..0.009 rows=10 loops=1)
                     Buckets: 1024  Batches: 1  Memory Usage: 9kB
                     Buffers: shared hit=1
@@ -139,8 +118,35 @@ Sort  (cost=1286.59..1287.55 rows=385 width=132) (actual time=10.266..10.268 row
                           Buffers: shared hit=1
 Planning:
   Buffers: shared hit=3
-Planning Time: 0.114 ms
-Execution Time: 10.318 ms
+Planning Time: 0.099 ms
+Execution Time: 0.697 ms
+```
+
+### D. Balance Sheet: After Index (Index Scan with Covered Columns)
+```text
+Sort  (cost=107.48..108.44 rows=385 width=132) (actual time=0.670..0.671 rows=10 loops=1)
+  Sort Key: a.type, a.name
+  Sort Method: quicksort  Memory: 25kB
+  Buffers: shared hit=19
+  ->  HashAggregate  (cost=81.32..90.94 rows=385 width=132) (actual time=0.656..0.661 rows=10 loops=1)
+        Group Key: a.id
+        Batches: 1  Memory Usage: 37kB
+        Buffers: shared hit=19
+        ->  Hash Right Join  (cost=22.51..71.98 rows=1245 width=79) (actual time=0.019..0.383 rows=2490 loops=1)
+              Hash Cond: (jel.account_id = a.id)
+              Buffers: shared hit=19
+              ->  Seq Scan on journal_entry_lines jel  (cost=0.00..42.90 rows=2490 width=19) (actual time=0.004..0.084 rows=2490 loops=1)
+                    Buffers: shared hit=18
+              ->  Hash  (cost=17.70..17.70 rows=385 width=68) (actual time=0.009..0.009 rows=10 loops=1)
+                    Buckets: 1024  Batches: 1  Memory Usage: 9kB
+                    Buffers: shared hit=1
+                    ->  Seq Scan on accounts a  (cost=0.00..17.70 rows=385 width=68) (actual time=0.003..0.003 rows=10 loops=1)
+                          Filter: (NOT is_archived)
+                          Buffers: shared hit=1
+Planning:
+  Buffers: shared hit=3
+Planning Time: 0.099 ms
+Execution Time: 0.722 ms
 ```
 
 ---

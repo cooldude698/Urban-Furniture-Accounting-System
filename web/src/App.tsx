@@ -6,6 +6,9 @@ import { CustomerInvoiceForm } from './pages/CustomerInvoiceForm';
 import { RegisterPaymentForm } from './pages/RegisterPaymentForm';
 import { ReceivablesView } from './pages/ReceivablesView';
 import { PortalApp } from './portal/PortalApp';
+import { PurchaseView } from './pages/PurchaseView';
+import { MasterDataView } from './pages/MasterDataView';
+import { ReportsView } from './pages/ReportsView';
 
 type SalesSubMenu = 'orders' | 'invoices' | 'receivables' | 'payments';
 type NavTab = 'Sales' | 'Purchase' | 'Account' | 'Report';
@@ -77,7 +80,7 @@ export const App: React.FC = () => {
             Launch Customer Portal (/portal) ↗
           </button>
           <span className="bg-brown-100 px-2.5 py-1 rounded-full text-brown-900 font-semibold">
-            Aryan (Sales & Portal)
+            Unified Team ERP (Spine v1.0)
           </span>
         </div>
       </header>
@@ -243,12 +246,13 @@ export const App: React.FC = () => {
               }}
             />
           )
-        ) : (
-          <div className="max-w-4xl mx-auto py-16 text-center text-brown-700">
-            <h2 className="text-xl font-bold font-display text-brown-900 mb-2">{activeTab} Module</h2>
-            <p className="text-sm">Owned by teammates (Vedesh / Aman / Swapnil). You are on Aryan's Sales vertical.</p>
-          </div>
-        )}
+        ) : activeTab === 'Purchase' ? (
+          <PurchaseView />
+        ) : activeTab === 'Account' ? (
+          <MasterDataView />
+        ) : activeTab === 'Report' ? (
+          <ReportsView />
+        ) : null}
       </main>
     </div>
   );
