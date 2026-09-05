@@ -36,9 +36,15 @@ type ActiveView =
   | 'bill-list'
   | 'bill-form';
 
-export function App() {
-  const [activeTab, setActiveTab] = useState<NavigationTab>('Purchase');
-  const [activeView, setActiveView] = useState<ActiveView>('bill-list');
+export interface AppProps {
+  initialTab?: NavigationTab;
+  initialView?: ActiveView;
+  hideHeader?: boolean;
+}
+
+export function App({ initialTab = 'Purchase', initialView = 'bill-list', hideHeader = false }: AppProps = {}) {
+  const [activeTab, setActiveTab] = useState<NavigationTab>(initialTab);
+  const [activeView, setActiveView] = useState<ActiveView>(initialView);
   const [selectedContactId, setSelectedContactId] = useState<number | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
@@ -50,14 +56,15 @@ export function App() {
   const navTabs: NavigationTab[] = ['Sales', 'Purchase', 'Account', 'Report'];
 
   return (
-    <div className="min-h-screen flex flex-col bg-cream text-brown-900 font-sans">
+    <div className={`min-h-screen flex flex-col bg-cream text-brown-900 font-sans ${hideHeader ? 'min-h-0' : ''}`}>
       {/* Top Navbar */}
-      <header className="bg-surface border-b border-brown-200 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          {/* Brand */}
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-brown-700 text-cream flex items-center justify-center font-heading font-bold text-lg shadow-sm">
-              UF
+      <header className={`bg-surface border-b border-brown-200 sticky top-0 z-30 shadow-sm ${hideHeader ? 'border-t-0 shadow-none' : ''}`}>
+        {!hideHeader && (
+          <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            {/* Brand */}
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-brown-700 text-cream flex items-center justify-center font-heading font-bold text-lg shadow-sm">
+                UF
             </div>
             <div>
               <span className="font-heading font-bold text-brown-900 text-base tracking-tight block">
@@ -100,6 +107,7 @@ export function App() {
             </span>
           </div>
         </div>
+      )}
 
         {/* Submenu for Purchase tab */}
         {activeTab === 'Purchase' && (

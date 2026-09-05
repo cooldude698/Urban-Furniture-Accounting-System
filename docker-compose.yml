@@ -28,7 +28,7 @@ services:
       CORS_ORIGIN: http://localhost:5173
       PORT: "5000"
     ports:
-      - "5000:5000"
+      - "5002:5000"
     volumes:
       - ./api:/app
       - ./shared:/shared

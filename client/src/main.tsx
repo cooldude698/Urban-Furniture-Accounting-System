@@ -55,6 +55,7 @@ import BalanceSheetPage from './pages/reports/BalanceSheetPage';
 import ProfitLossPage from './pages/reports/ProfitLossPage';
 import BudgetReportPage from './pages/reports/BudgetReportPage';
 import VerifyPage from './pages/reports/VerifyPage';
+import { App } from './App';
 
 // Customer Portal (Restricted Surface)
 import PortalApp from './pages/portal/PortalApp';
@@ -87,6 +88,9 @@ createRoot(document.getElementById('root')!).render(
 
             {/* ── Kitchen sink (no shell — full-page design system preview) ── */}
             <Route path="/kitchen-sink" element={<KitchenSink />} />
+
+            {/* ── Standalone complete App (legacy/standalone studio) ── */}
+            <Route path="/app/*" element={<App />} />
 
             {/* ── Main ERP App Shell ── */}
             <Route element={<AppShell />}>

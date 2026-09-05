@@ -21,7 +21,7 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
 // CORS with credentials: true
 app.use(
   cors({
-    origin: [CORS_ORIGIN, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: [CORS_ORIGIN, 'http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://127.0.0.1:5174'],
     credentials: true,
   })
 );
@@ -29,6 +29,26 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Root health & info
+app.get('/', (_req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'Urban Furniture Accounting API',
+    version: '1.0.0',
+    client_url: 'http://localhost:5174',
+    endpoints: {
+      contacts: '/api/contacts',
+      products: '/api/products',
+      accounts: '/api/accounts',
+      journals: '/api/journals',
+      analytics: '/api/analytic-accounts',
+      purchase_orders: '/api/purchase-orders',
+      bills: '/api/bills',
+      health: '/api/health',
+    },
+  });
+});
 
 // Serve local static uploaded images
 const uploadsPath = path.resolve(__dirname, '../uploads');
