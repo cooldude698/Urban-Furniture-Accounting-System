@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { StatusBadge } from '../../components/StatusBadge';
 import { SalesOrderDTO } from '@shared/schemas/salesOrder';
 
@@ -10,9 +10,15 @@ export interface SalesOrderListPageProps {
 
 export const SalesOrderListPage: React.FC<SalesOrderListPageProps> = ({ onSelectOrder, onNewOrder }) => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [orders, setOrders] = useState<SalesOrderDTO[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>(searchParams.get('status') || 'all');
+
+  useEffect(() => {
+    const param = searchParams.get('status');
+    if (param) setFilterStatus(param);
+  }, [searchParams]);
 
   useEffect(() => {
     fetch('/api/sales-orders')

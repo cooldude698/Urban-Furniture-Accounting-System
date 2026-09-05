@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ListView, Column } from '../../components/ListView';
 import { PurchaseOrdersApi } from '../../api/purchaseOrders.api';
 import { PurchaseOrder } from '@shared/schemas/purchaseOrder.schema';
@@ -12,6 +13,7 @@ interface POListPageProps {
 }
 
 export const POListPage: React.FC<POListPageProps> = ({ onSelectPO, onNewPO }) => {
+  const [searchParams] = useSearchParams();
   const [pos, setPos] = useState<PurchaseOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -30,6 +32,12 @@ export const POListPage: React.FC<POListPageProps> = ({ onSelectPO, onNewPO }) =
   useEffect(() => {
     fetchPOs();
   }, []);
+
+  const statusParam = searchParams.get('status');
+  const displayedPOs = pos.filter(p => {
+    if (!statusParam || statusParam === 'all') return true;
+    return p.status === statusParam;
+  });
 
   const columns: Column<PurchaseOrder>[] = [
     {
@@ -71,7 +79,7 @@ export const POListPage: React.FC<POListPageProps> = ({ onSelectPO, onNewPO }) =
       title="Purchase Orders"
       subtitle="Commercial orders placed with material and goods suppliers"
       columns={columns}
-      data={pos}
+      data={displayedPOs}
       loading={loading}
       onRowClick={p => p.id && onSelectPO(p.id)}
       onNew={onNewPO}

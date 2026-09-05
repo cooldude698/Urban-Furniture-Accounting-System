@@ -673,7 +673,7 @@ export default function Dashboard() {
               </div>
             </Link>
             <Link
-              to="/sales/orders"
+              to="/sales/orders?status=confirmed"
               style={{
                 textDecoration: 'none',
                 background: 'rgba(237, 241, 232, 0.65)',
@@ -688,7 +688,7 @@ export default function Dashboard() {
               </div>
             </Link>
             <Link
-              to="/sales/orders"
+              to="/sales/orders?status=draft"
               style={{
                 textDecoration: 'none',
                 background: 'rgba(235, 215, 190, 0.25)',
@@ -796,7 +796,7 @@ export default function Dashboard() {
               </div>
             </Link>
             <Link
-              to="/purchase/orders"
+              to="/purchase/orders?status=confirmed"
               style={{
                 textDecoration: 'none',
                 background: 'rgba(237, 241, 232, 0.65)',
@@ -811,7 +811,7 @@ export default function Dashboard() {
               </div>
             </Link>
             <Link
-              to="/purchase/orders"
+              to="/purchase/orders?status=draft"
               style={{
                 textDecoration: 'none',
                 background: 'rgba(235, 215, 190, 0.25)',
