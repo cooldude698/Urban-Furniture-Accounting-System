@@ -91,10 +91,12 @@ export const RegisterPaymentPage: React.FC = () => {
           // Otherwise calculate sum of open dues
           const totalDue = invs.reduce((acc, i) => acc.plus(i.amountDue), new Decimal(0));
           setAmount(totalDue.toFixed(2));
-          // Default auto-allocate first open invoice
-          if (invs.length > 0) {
-            setAllocations({ [invs[0].id]: invs[0].amountDue });
+          // Auto-allocate all open invoices to match totalDue by default
+          const initAlloc: Record<number, string> = {};
+          for (const inv of invs) {
+            initAlloc[inv.id] = new Decimal(inv.amountDue).toFixed(2);
           }
+          setAllocations(initAlloc);
         }
       })
       .catch((err: any) => setError(err?.response?.data?.error?.message || err.message))
@@ -108,12 +110,20 @@ export const RegisterPaymentPage: React.FC = () => {
     }));
   };
 
-  const handleAutoDistribute = () => {
-    let rem = new Decimal(amount || '0');
+  const handleAutoDistribute = (customAmount?: string) => {
+    let rem: Decimal;
+    try {
+      rem = new Decimal(customAmount !== undefined ? customAmount || '0' : amount || '0');
+    } catch {
+      rem = new Decimal(0);
+    }
     const newAlloc: Record<number, string> = {};
 
     for (const inv of openInvoices) {
-      if (rem.lessThanOrEqualTo(0)) break;
+      if (rem.lessThanOrEqualTo(0)) {
+        newAlloc[inv.id] = '0.00';
+        continue;
+      }
       const due = new Decimal(inv.amountDue);
       if (rem.greaterThanOrEqualTo(due)) {
         newAlloc[inv.id] = due.toFixed(2);
@@ -124,6 +134,19 @@ export const RegisterPaymentPage: React.FC = () => {
       }
     }
     setAllocations(newAlloc);
+  };
+
+  const handleAmountChange = (newVal: string) => {
+    setAmount(newVal);
+    setError(null);
+    try {
+      const parsed = new Decimal(newVal || '0');
+      if (parsed.greaterThan(0)) {
+        handleAutoDistribute(newVal);
+      }
+    } catch {
+      // ignore formatting while user is typing
+    }
   };
 
   const allocatedSum = Object.values(allocations).reduce(
@@ -387,7 +410,7 @@ export const RegisterPaymentPage: React.FC = () => {
               <input
                 type="text"
                 value={amount}
-                onChange={e => setAmount(e.target.value)}
+                onChange={e => handleAmountChange(e.target.value)}
                 className="w-full bg-surface border border-brown-300 rounded-[6px] px-3 py-2 text-brown-900 focus:ring-2 focus:ring-brown-700 outline-none text-base font-bold font-mono"
                 placeholder="0.00"
               />
@@ -412,7 +435,7 @@ export const RegisterPaymentPage: React.FC = () => {
             {openInvoices.length > 0 && (
               <button
                 type="button"
-                onClick={handleAutoDistribute}
+                onClick={() => handleAutoDistribute()}
                 className="text-xs font-semibold text-brown-700 bg-brown-100 hover:bg-brown-200 px-3 py-1.5 rounded-[6px] transition-colors"
               >
                 Auto-Distribute Oldest First
@@ -460,13 +483,25 @@ export const RegisterPaymentPage: React.FC = () => {
                           ₹{Number(inv.amountDue).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </td>
                         <td className="p-2.5 text-right">
-                          <input
-                            type="text"
-                            value={currentAlloc}
-                            onChange={e => handleAllocationChange(inv.id, e.target.value)}
-                            placeholder="0.00"
-                            className="w-full text-right bg-surface border border-brown-300 rounded px-2 py-1 font-mono font-bold text-brown-900 focus:ring-2 focus:ring-brown-700 outline-none text-xs"
-                          />
+                          <div className="flex items-center gap-1.5 justify-end">
+                            <input
+                              type="text"
+                              value={currentAlloc}
+                              onChange={e => handleAllocationChange(inv.id, e.target.value)}
+                              placeholder="0.00"
+                              className="w-28 text-right bg-surface border border-brown-300 rounded px-2 py-1 font-mono font-bold text-brown-900 focus:ring-2 focus:ring-brown-700 outline-none text-xs"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleAllocationChange(inv.id, new Decimal(inv.amountDue).toFixed(2));
+                              }}
+                              className="px-2 py-1 text-[10px] font-bold text-brown-800 bg-brown-200/70 hover:bg-brown-300 rounded transition-colors"
+                              title="Allocate full amount due"
+                            >
+                              Full
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -490,9 +525,19 @@ export const RegisterPaymentPage: React.FC = () => {
                       ✓ Perfectly Balanced
                     </span>
                   ) : (
-                    <span className="px-3 py-1 bg-amber-100 text-amber-900 font-bold rounded-full">
-                      Difference: ₹{new Decimal(amount || '0').minus(allocatedSum).toFixed(2)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="px-3 py-1 bg-amber-100 text-amber-900 font-bold rounded-full">
+                        Difference: ₹{new Decimal(amount || '0').minus(allocatedSum).toFixed(2)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setAmount(allocatedSum.toFixed(2))}
+                        className="px-2.5 py-1 text-xs font-semibold bg-brown-200 hover:bg-brown-300 text-brown-900 rounded transition-colors"
+                        title="Adjust payment amount to match allocated sum"
+                      >
+                        Match Amount to Allocated
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>

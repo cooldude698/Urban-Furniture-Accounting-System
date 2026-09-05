@@ -17,6 +17,8 @@ export interface DashboardStats {
     budget: number;
     committed: number;
   };
+  invoicesCount: number;
+  billsCount: number;
 }
 
 export interface DashboardKPI {
@@ -80,6 +82,8 @@ export class DashboardService {
         (SELECT COUNT(*)::INT FROM purchase_orders) AS po_all,
         (SELECT COUNT(*)::INT FROM purchase_orders WHERE status = 'confirmed') AS po_confirmed,
         (SELECT COUNT(*)::INT FROM purchase_orders WHERE status = 'draft') AS po_draft,
+        (SELECT COUNT(*)::INT FROM customer_invoices) AS inv_count,
+        (SELECT COUNT(*)::INT FROM vendor_bills) AS bill_count,
         (SELECT COUNT(*)::INT FROM budgets) AS budget_count,
         (SELECT COUNT(*)::INT FROM budgets WHERE status = 'confirmed') AS budget_committed,
         (
@@ -109,6 +113,8 @@ export class DashboardService {
         budget: Number(row.budget_count || 0),
         committed: Number(row.budget_committed || 0),
       },
+      invoicesCount: Number(row.inv_count || 0),
+      billsCount: Number(row.bill_count || 0),
     };
   }
 

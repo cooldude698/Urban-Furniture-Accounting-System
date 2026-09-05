@@ -23,6 +23,7 @@ import {
   Move,
   Info,
 } from 'lucide-react';
+import api from '../../lib/axios';
 
 interface ShowroomModel {
   id: string;
@@ -96,11 +97,10 @@ export const PortalRoomStudioPage: React.FC = () => {
 
   // 1. Fetch available models from API
   useEffect(() => {
-    fetch('/api/portal/models')
-      .then(res => res.json())
-      .then(json => {
-        if (json.data) {
-          setCatalogModels(json.data);
+    api.get('/api/portal/models')
+      .then(res => {
+        if (res.data?.data) {
+          setCatalogModels(res.data.data);
         }
       })
       .catch(err => console.error('Failed to load models:', err));

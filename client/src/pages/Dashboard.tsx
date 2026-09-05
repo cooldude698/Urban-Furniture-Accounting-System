@@ -765,7 +765,7 @@ export default function Dashboard() {
               to="/sales/invoices"
               style={{ fontSize: 12, color: 'var(--brown-700)', fontFamily: 'var(--font-body)', fontWeight: 500, textDecoration: 'none' }}
             >
-              Invoices (300) →
+              Invoices ({isStatsLoading ? '...' : statsData?.invoicesCount ?? '303'}) →
             </Link>
             <Link
               to="/sales/receivables"
@@ -888,7 +888,7 @@ export default function Dashboard() {
               to="/purchase/bills"
               style={{ fontSize: 12, color: 'var(--brown-700)', fontFamily: 'var(--font-body)', fontWeight: 500, textDecoration: 'none' }}
             >
-              Bills (180) →
+              Bills ({isStatsLoading ? '...' : statsData?.billsCount ?? '182'}) →
             </Link>
             <Link
               to="/purchase/statements"

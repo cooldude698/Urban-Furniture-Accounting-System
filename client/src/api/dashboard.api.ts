@@ -16,6 +16,8 @@ export interface DashboardStats {
     budget: number;
     committed: number;
   };
+  invoicesCount?: number;
+  billsCount?: number;
 }
 
 export interface DashboardKPI {

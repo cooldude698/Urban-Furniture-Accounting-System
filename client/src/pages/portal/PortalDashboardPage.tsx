@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { usePortalAuth } from './PortalAuthGuard';
 import { formatINR } from '../../lib/money';
+import api from '../../lib/axios';
 
 interface InvoiceSummary {
   totalDue: string;
@@ -46,9 +47,9 @@ export const PortalDashboardPage: React.FC = () => {
   useEffect(() => {
     if (!user) return;
     setLoadingFinancials(true);
-    fetch('/api/portal/invoices')
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json) => {
+    api.get('/api/portal/invoices')
+      .then((res) => {
+        const json = res.data;
         if (json?.data && Array.isArray(json.data)) {
           let due = 0;
           let invoiced = 0;

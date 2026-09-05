@@ -253,7 +253,13 @@ export const PortalInvoiceDetail: React.FC = () => {
     if (pdfLoading) return;
     setPdfLoading(true);
     try {
-      const res = await fetch(`/api/portal/invoices/${invoiceId}/pdf`);
+      const token = localStorage.getItem('urban_token') || localStorage.getItem('urban_portal_token');
+      const headers: HeadersInit = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(`/api/portal/invoices/${invoiceId}/pdf`, {
+        credentials: 'include',
+        headers,
+      });
       const contentType = res.headers.get('content-type') ?? '';
       if (contentType.includes('application/pdf')) {
         const blob = await res.blob();
