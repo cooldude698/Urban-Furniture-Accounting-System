@@ -293,14 +293,6 @@ export default function LandingPage() {
                   {/* Warm Glowing Bulb inside */}
                   <circle cx="180" cy="140" r="5" fill="#FFF1D0" />
                 </g>
-
-                {/* Showroom Badge / Label */}
-                <g opacity="0.65">
-                  <rect x="238" y="444" width="124" height="20" rx="4" fill="#EBD7BE" />
-                  <text x="300" y="457" textAnchor="middle" fill="#5E453A" fontSize="9" fontFamily="IBM Plex Mono" letterSpacing="1">
-                    SHOWROOM COLLECTION
-                  </text>
-                </g>
               </svg>
 
               {/* Showroom Floating Tag */}
