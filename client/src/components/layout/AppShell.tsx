@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { MegaMenu } from './MegaMenu';
 import api from '../../lib/axios';
+import { BrandLogo } from '../ui/BrandLogo';
 
 interface SubNavItem {
   label: string;
@@ -141,19 +142,13 @@ export default function AppShell() {
             to="/dashboard"
             onClick={() => setIsMegaMenuOpen(false)}
             style={{
-              fontFamily: 'var(--font-display)',
-              fontWeight: 700,
-              fontSize: 18,
-              color: 'var(--brown-900)',
-              letterSpacing: '-0.01em',
               textDecoration: 'none',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 8,
               zIndex: 2,
             }}
           >
-            <span>Urban Furniture</span>
+            <BrandLogo size={24} variant="dark" />
           </NavLink>
 
           {/* Centered Navigation Modules */}

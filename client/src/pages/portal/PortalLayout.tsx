@@ -1,6 +1,7 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { usePortalAuth } from './PortalAuthGuard';
+import { BrandLogo } from '../../components/ui/BrandLogo';
 
 export const PortalLayout: React.FC = () => {
   const { user, logout } = usePortalAuth();
@@ -37,37 +38,12 @@ export const PortalLayout: React.FC = () => {
         }}
       >
         {/* Brand mark */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          {/* UF square: brown-700 fill, cream text per spec */}
-          <div
-            style={{
-              width: 32, height: 32,
-              borderRadius: 6,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: 'var(--font-display)',
-              fontWeight: 700,
-              fontSize: 13,
-              backgroundColor: 'var(--brown-700)',
-              color: 'var(--cream)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
-            }}
-          >
-            UF
-          </div>
-          <div>
-            <span
-              style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, letterSpacing: '-0.01em', color: 'var(--cream)', display: 'block', lineHeight: '20px' }}
-            >
-              Urban Furniture
-            </span>
-            {/* Subtitle: brown-300 text per spec */}
-            <span
-              style={{ fontSize: 10, textTransform: 'uppercase', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', fontWeight: 600, color: 'var(--brown-300)', display: 'block' }}
-            >
-              Customer Portal Surface
-            </span>
-          </div>
-        </div>
+        <BrandLogo
+          size={32}
+          variant="light"
+          badge={true}
+          subtitle="Customer Portal Surface"
+        />
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
           {/* Tab navigation — pill switcher inside the dark header */}

@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import api from '../lib/axios';
+import { ChairIcon } from '../components/ui/BrandLogo';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -88,12 +89,14 @@ export default function Signup() {
         <h2 style={styles.pageTitle}>Sign Up Page</h2>
 
         <div style={styles.card}>
-          {/* App LoGo container — exact wireframe box */}
+          {/* App Brand Logo container */}
           <div style={styles.appLogoBox}>
-            <div style={styles.logoBadge}>UF</div>
+            <div style={styles.logoBadge}>
+              <ChairIcon size={20} color="var(--cream, #F9F2E4)" />
+            </div>
             <div style={styles.logoTextCol}>
-              <span style={styles.appLogoText}>App LoGo</span>
-              <span style={styles.appLogoSub}>Urban Furniture</span>
+              <span style={styles.appLogoText}>Urban Furniture</span>
+              <span style={styles.appLogoSub}>Registration</span>
             </div>
           </div>
 

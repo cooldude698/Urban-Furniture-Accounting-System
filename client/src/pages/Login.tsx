@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Eye, EyeOff, Building2, UserCheck } from 'lucide-react';
 import api from '../lib/axios';
+import { BrandLogo, ChairIcon } from '../components/ui/BrandLogo';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -122,12 +123,14 @@ export default function Login() {
         {/* ── ADMIN LOGIN FORM ── */}
         {activePortal === 'admin' ? (
           <div style={styles.card}>
-            {/* App LoGo container */}
+            {/* App Brand Logo container */}
             <div style={styles.appLogoBox}>
-              <div style={styles.logoBadge}>UF</div>
+              <div style={styles.logoBadge}>
+                <ChairIcon size={20} color="var(--cream, #F9F2E4)" />
+              </div>
               <div style={styles.logoTextCol}>
-                <span style={styles.appLogoText}>App LoGo</span>
-                <span style={styles.appLogoSub}>Urban Furniture</span>
+                <span style={styles.appLogoText}>Urban Furniture</span>
+                <span style={styles.appLogoSub}>Double-Entry ERP</span>
               </div>
             </div>
 
@@ -269,12 +272,14 @@ export default function Login() {
         ) : (
           /* ── CUSTOMER LOGIN FORM ── */
           <div style={styles.card}>
-            {/* App LoGo container */}
+            {/* App Brand Logo container */}
             <div style={styles.appLogoBox}>
-              <div style={styles.logoBadge}>UF</div>
+              <div style={styles.logoBadge}>
+                <ChairIcon size={20} color="var(--cream, #F9F2E4)" />
+              </div>
               <div style={styles.logoTextCol}>
-                <span style={styles.appLogoText}>Customer Portal</span>
-                <span style={styles.appLogoSub}>Urban Furniture</span>
+                <span style={styles.appLogoText}>Urban Furniture</span>
+                <span style={styles.appLogoSub}>Customer Portal</span>
               </div>
             </div>
 

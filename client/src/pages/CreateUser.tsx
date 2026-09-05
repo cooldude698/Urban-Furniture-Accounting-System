@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import api from '../lib/axios';
+import { ChairIcon } from '../components/ui/BrandLogo';
 
 export default function CreateUser() {
   const navigate = useNavigate();
@@ -100,12 +101,14 @@ export default function CreateUser() {
         <h2 style={styles.pageTitle}>Create User</h2>
 
         <div style={styles.card}>
-          {/* App LoGo box matching wireframe */}
+          {/* App Brand Logo box */}
           <div style={styles.appLogoBox}>
-            <div style={styles.logoBadge}>UF</div>
+            <div style={styles.logoBadge}>
+              <ChairIcon size={20} color="var(--cream, #F9F2E4)" />
+            </div>
             <div style={styles.logoTextCol}>
-              <span style={styles.appLogoText}>App LoGo</span>
-              <span style={styles.appLogoSub}>Urban Furniture</span>
+              <span style={styles.appLogoText}>Urban Furniture</span>
+              <span style={styles.appLogoSub}>Staff Creation</span>
             </div>
           </div>
 

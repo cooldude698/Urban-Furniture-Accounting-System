@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ChairIcon } from '../../components/ui/BrandLogo';
 
 /* ─── tiny shared style objects — avoids repeating var(--token) strings ─── */
 const inputStyle: React.CSSProperties = {
@@ -96,22 +97,19 @@ export const PortalLogin: React.FC = () => {
           <div style={{ textAlign: 'center', marginBottom: '32px' }}>
             <div
               style={{
-                width: '48px',
-                height: '48px',
+                width: '52px',
+                height: '52px',
                 background: 'var(--brown-700)',
                 color: 'var(--cream)',
                 borderRadius: 'var(--radius-md)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontFamily: 'var(--font-display)',
-                fontWeight: 700,
-                fontSize: '18px',
                 margin: '0 auto 14px',
                 boxShadow: 'var(--shadow-sm)',
               }}
             >
-              UF
+              <ChairIcon size={34} color="var(--cream)" />
             </div>
             <h1
               style={{

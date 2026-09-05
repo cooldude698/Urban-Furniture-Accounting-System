@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ChairIcon } from '../../components/ui/BrandLogo';
 
 export const PortalInviteAccept: React.FC = () => {
   const navigate = useNavigate();
@@ -115,22 +116,19 @@ export const PortalInviteAccept: React.FC = () => {
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
             <div
               style={{
-                width: 44,
-                height: 44,
-                background: 'var(--brown-900)',
+                width: 48,
+                height: 48,
+                background: 'var(--brown-700)',
                 color: 'var(--cream)',
-                borderRadius: 10,
+                borderRadius: 'var(--radius-md)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontFamily: 'var(--font-display)',
-                fontWeight: 700,
-                fontSize: 16,
                 marginBottom: 12,
                 boxShadow: 'var(--shadow-sm)',
               }}
             >
-              UF
+              <ChairIcon size={30} color="var(--cream)" />
             </div>
             <h1
               style={{
