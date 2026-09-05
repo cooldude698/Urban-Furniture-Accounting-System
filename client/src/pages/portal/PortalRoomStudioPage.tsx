@@ -1288,7 +1288,7 @@ export const PortalRoomStudioPage: React.FC = () => {
         <div
           style={{
             position: 'absolute',
-            bottom: isDockOpen ? 180 : 32,
+            bottom: 24,
             left: '50%',
             transform: 'translateX(-50%)',
             backgroundColor: 'rgba(255, 255, 255, 0.96)',
@@ -1296,19 +1296,19 @@ export const PortalRoomStudioPage: React.FC = () => {
             borderRadius: 999,
             border: '1px solid rgba(208, 174, 146, 0.6)',
             boxShadow: '0 8px 24px rgba(74, 58, 52, 0.15)',
-            padding: '8px 18px',
+            padding: '6px 14px',
             display: 'flex',
             alignItems: 'center',
-            gap: 14,
+            gap: 10,
             zIndex: 30,
-            transition: 'bottom 200ms ease-out',
+            transition: 'all 200ms ease-out',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--brown-900)', fontFamily: 'var(--font-display)' }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--brown-900)', fontFamily: 'var(--font-display)' }}>
               {selectedItem.name}
             </span>
-            <span style={{ fontSize: 11, color: 'var(--brown-600)' }}>• Drag floor to glide</span>
+            <span style={{ fontSize: 10, color: 'var(--brown-600)' }}>• Drag floor</span>
           </div>
 
           <div style={{ height: 20, width: 1, backgroundColor: 'rgba(208, 174, 146, 0.5)' }} />
@@ -1394,53 +1394,142 @@ export const PortalRoomStudioPage: React.FC = () => {
         </div>
       )}
 
-      {/* ── Bottom Furniture Dock (Clean Japandi, No Ugly Scrollbars) ── */}
+      {/* ── Corner Furniture Library (Sleek Bottom-Right Drawer) ── */}
       <div
         style={{
           position: 'absolute',
-          bottom: 12,
-          left: 20,
+          bottom: 20,
           right: 20,
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(16px)',
-          borderRadius: 20,
-          border: '1px solid rgba(208, 174, 146, 0.5)',
-          boxShadow: '0 8px 32px rgba(74, 58, 52, 0.10)',
-          overflow: 'hidden',
-          transition: 'all 200ms ease-out',
           zIndex: 25,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-end',
         }}
       >
-        {/* Dock Header & Filter Pills */}
-        <div
-          style={{
-            padding: '8px 18px',
-            borderBottom: isDockOpen ? '1px solid rgba(208, 174, 146, 0.25)' : 'none',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--brown-900)', fontFamily: 'var(--font-display)' }}>
-              Add Furniture:
+        {!isDockOpen ? (
+          /* Minimized pill trigger in bottom-right corner */
+          <button
+            onClick={() => setIsDockOpen(true)}
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.96)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(208, 174, 146, 0.6)',
+              boxShadow: '0 6px 24px rgba(74, 58, 52, 0.12)',
+              borderRadius: 999,
+              padding: '8px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              fontSize: 12,
+              fontWeight: 700,
+              fontFamily: 'var(--font-display)',
+              color: 'var(--brown-900)',
+              cursor: 'pointer',
+              transition: 'all 150ms ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 8px 28px rgba(74, 58, 52, 0.18)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'none';
+              e.currentTarget.style.boxShadow = '0 6px 24px rgba(74, 58, 52, 0.12)';
+            }}
+          >
+            <Plus size={14} />
+            Add Furniture
+            <span
+              style={{
+                fontSize: 10,
+                backgroundColor: 'var(--brown-900)',
+                color: 'var(--cream)',
+                borderRadius: 999,
+                padding: '2px 7px',
+                fontWeight: 600,
+              }}
+            >
+              {catalogModels.length}
             </span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          </button>
+        ) : (
+          /* Expanded sleek corner drawer */
+          <div
+            style={{
+              width: 310,
+              maxHeight: 'calc(100vh - 180px)',
+              backgroundColor: 'rgba(255, 255, 255, 0.96)',
+              backdropFilter: 'blur(16px)',
+              borderRadius: 16,
+              border: '1px solid rgba(208, 174, 146, 0.55)',
+              boxShadow: '0 12px 36px rgba(74, 58, 52, 0.14)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                padding: '10px 14px',
+                borderBottom: '1px solid rgba(208, 174, 146, 0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--brown-900)', fontFamily: 'var(--font-display)' }}>
+                  Furniture Library
+                </span>
+                <span style={{ fontSize: 10, color: 'var(--brown-500)', fontFamily: 'var(--font-mono)' }}>
+                  ({filteredModels.length})
+                </span>
+              </div>
+              <button
+                onClick={() => setIsDockOpen(false)}
+                title="Collapse"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--brown-600)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: 4,
+                  borderRadius: 6,
+                }}
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            {/* Category Filter Pills */}
+            <div
+              style={{
+                padding: '8px 10px',
+                display: 'flex',
+                gap: 4,
+                overflowX: 'auto',
+                scrollbarWidth: 'none',
+                borderBottom: '1px solid rgba(208, 174, 146, 0.15)',
+              }}
+            >
               {categories.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
                   style={{
-                    padding: '4px 14px',
+                    padding: '3px 8px',
                     borderRadius: 999,
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: selectedCategory === cat ? 700 : 500,
                     fontFamily: 'var(--font-display)',
                     color: selectedCategory === cat ? 'var(--cream)' : 'var(--brown-700)',
                     backgroundColor: selectedCategory === cat ? 'var(--brown-900)' : 'transparent',
                     border: '1px solid',
-                    borderColor: selectedCategory === cat ? 'var(--brown-900)' : 'transparent',
+                    borderColor: selectedCategory === cat ? 'var(--brown-900)' : 'rgba(208, 174, 146, 0.4)',
                     cursor: 'pointer',
+                    whiteSpace: 'nowrap',
                     transition: 'all 120ms ease',
                   }}
                 >
@@ -1448,120 +1537,96 @@ export const PortalRoomStudioPage: React.FC = () => {
                 </button>
               ))}
             </div>
-          </div>
 
-          <button
-            onClick={() => setIsDockOpen(!isDockOpen)}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--brown-700)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              fontSize: 11,
-              fontWeight: 600,
-            }}
-          >
-            {isDockOpen ? 'Collapse' : 'Expand Furniture'}
-            {isDockOpen ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-          </button>
-        </div>
-
-        {/* Dock Items Carousel (Clean Horizontal Slider, Zero Scrollbar Clutter) */}
-        {isDockOpen && (
-          <div
-            style={{
-              display: 'flex',
-              gap: 12,
-              padding: '12px 18px',
-              overflowX: 'auto',
-              scrollbarWidth: 'none', // Firefox
-              msOverflowStyle: 'none', // IE/Edge
-            }}
-          >
-            {filteredModels.map((model) => (
-              <div
-                key={model.id}
-                draggable={true}
-                onDragStart={(e) => {
-                  e.dataTransfer.setData('text/plain', model.id);
-                  e.dataTransfer.setData('modelId', model.id);
-                  e.dataTransfer.effectAllowed = 'copy';
-                }}
-                onClick={() => handleAddFurniture(model)}
-                style={{
-                  flex: '0 0 170px',
-                  backgroundColor: 'var(--surface)',
-                  border: '1px solid rgba(208, 174, 146, 0.4)',
-                  borderRadius: 14,
-                  padding: '10px 12px',
-                  cursor: 'grab',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  transition: 'transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.borderColor = 'var(--brown-900)';
-                  e.currentTarget.style.boxShadow = 'var(--shadow-sm)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'none';
-                  e.currentTarget.style.borderColor = 'rgba(208, 174, 146, 0.4)';
-                  e.currentTarget.style.boxShadow = 'none';
-                }}
-              >
-                <div>
-                  <span
-                    style={{
-                      fontSize: 9,
-                      fontWeight: 700,
-                      color: 'var(--brown-600)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                    }}
-                  >
-                    {model.category}
-                  </span>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: 'var(--brown-900)',
-                      fontFamily: 'var(--font-display)',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      marginTop: 2,
-                    }}
-                    title={model.name}
-                  >
-                    {model.name}
+            {/* Scrollable list of compact cards */}
+            <div
+              style={{
+                padding: '8px 10px',
+                overflowY: 'auto',
+                maxHeight: 380,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+              }}
+            >
+              {filteredModels.map((model) => (
+                <div
+                  key={model.id}
+                  draggable={true}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('text/plain', model.id);
+                    e.dataTransfer.setData('modelId', model.id);
+                    e.dataTransfer.effectAllowed = 'copy';
+                  }}
+                  onClick={() => handleAddFurniture(model)}
+                  style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                    border: '1px solid rgba(208, 174, 146, 0.35)',
+                    borderRadius: 10,
+                    padding: '7px 10px',
+                    cursor: 'grab',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    transition: 'all 120ms ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#FFFFFF';
+                    e.currentTarget.style.borderColor = 'var(--brown-900)';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
+                    e.currentTarget.style.borderColor = 'rgba(208, 174, 146, 0.35)';
+                    e.currentTarget.style.transform = 'none';
+                  }}
+                >
+                  <div style={{ overflow: 'hidden', marginRight: 8 }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, color: 'var(--brown-500)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      {model.category}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: 'var(--brown-900)',
+                        fontFamily: 'var(--font-display)',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                      title={model.name}
+                    >
+                      {model.name}
+                    </div>
                   </div>
-                </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-                  <span style={{ fontSize: 10, color: 'var(--brown-500)', fontFamily: 'var(--font-mono)' }}>
-                    {model.sizeKB} KB
-                  </span>
-                  <span
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAddFurniture(model);
+                    }}
+                    title="Add to room"
                     style={{
-                      fontSize: 11,
+                      background: 'none',
+                      border: '1px solid rgba(208, 174, 146, 0.5)',
+                      borderRadius: 6,
+                      padding: '3px 8px',
+                      fontSize: 10,
                       fontWeight: 700,
                       color: 'var(--brown-900)',
+                      cursor: 'pointer',
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: 2,
+                      flexShrink: 0,
                     }}
                   >
-                    <Plus size={12} /> Add
-                  </span>
+                    <Plus size={11} /> Add
+                  </button>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
       </div>
