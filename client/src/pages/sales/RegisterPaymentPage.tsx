@@ -3,7 +3,6 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import Decimal from 'decimal.js';
 import { BlockingWarning } from './components/Warnings';
 import api from '../../lib/axios';
-import { loadRazorpayScript } from '../../lib/razorpay';
 
 export interface OpenInvoiceItem {
   id: number;
@@ -27,7 +26,7 @@ export const RegisterPaymentPage: React.FC = () => {
 
   const [contacts, setContacts] = useState<Array<{ id: number; name: string }>>([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState<number>(initialCustomerId);
-  const [method, setMethod] = useState<'bank' | 'cash' | 'razorpay'>('bank');
+  const [method, setMethod] = useState<'bank' | 'cash'>('bank');
   const [paymentDate, setPaymentDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [amount, setAmount] = useState<string>('0.00');
 
@@ -180,73 +179,7 @@ export const RegisterPaymentPage: React.FC = () => {
         amount: new Decimal(allocAmt).toFixed(2),
       }));
 
-    // If method is Razorpay, trigger Razorpay online checkout!
-    if (method === 'razorpay') {
-      const primaryInvoiceId = cleanAllocations[0]?.invoiceId;
-      if (!primaryInvoiceId) {
-        setError('Please select at least one invoice to pay via Razorpay.');
-        return;
-      }
-      setSubmitting(true);
-      setError(null);
-      try {
-        const scriptLoaded = await loadRazorpayScript();
-        if (!scriptLoaded) {
-          throw new Error('Could not load Razorpay SDK. Please check your internet connection.');
-        }
-
-        const orderRes = await api.post(`/api/invoices/${primaryInvoiceId}/razorpay/create-order`, {
-          amount: payAmt.toFixed(2),
-        });
-
-        const orderData = orderRes.data?.data;
-        const customerObj = contacts.find(c => c.id === selectedCustomerId);
-
-        const rzp = new (window as any).Razorpay({
-          key: orderData.keyId,
-          amount: orderData.amount,
-          currency: orderData.currency,
-          name: 'Urban Furniture ERP',
-          description: `Payment for Invoice #${primaryInvoiceId}`,
-          order_id: orderData.orderId,
-          handler: async (response: any) => {
-            try {
-              await api.post(`/api/invoices/${primaryInvoiceId}/razorpay/verify-payment`, {
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                amount: payAmt.toFixed(2),
-              });
-              setSuccessMsg(`Razorpay payment ${response.razorpay_payment_id} verified & posted to General Ledger!`);
-              setTimeout(() => navigate('/sales/invoices'), 1500);
-            } catch (vErr: any) {
-              setError(vErr?.response?.data?.error?.message || 'Payment signature verification failed');
-            } finally {
-              setSubmitting(false);
-            }
-          },
-          prefill: {
-            name: customerObj?.name || 'Customer',
-          },
-          theme: {
-            color: '#4A3A34',
-          },
-        });
-
-        rzp.on('payment.failed', function (resp: any) {
-          setError(`Razorpay Payment Failed: ${resp.error?.description || 'Declined'}`);
-          setSubmitting(false);
-        });
-
-        rzp.open();
-      } catch (err: any) {
-        setError(err?.response?.data?.error?.message || err.message);
-        setSubmitting(false);
-      }
-      return;
-    }
-
-    // Standard Bank / Cash payment registration
+    // Standard Bank / Cash customer receipt registration
     setSubmitting(true);
     setError(null);
     try {
@@ -261,11 +194,11 @@ export const RegisterPaymentPage: React.FC = () => {
 
       if (res.data?.data) {
         setSuccessMsg(
-          `Payment ${res.data.data.number || 'recorded'} successfully! Revenue remains at original invoice recognition — no new income accounts touched.`
+          `Payment ${res.data.data.number || 'receipt recorded'} successfully! ₹${payAmt.toFixed(2)} received and posted to General Ledger (DR ${method === 'bank' ? 'Bank' : 'Cash'}, CR Debtors).`
         );
         setTimeout(() => {
           navigate('/sales/invoices');
-        }, 1200);
+        }, 1500);
       } else {
         setError(res.data?.error?.message || 'Failed to record customer payment');
       }
@@ -352,39 +285,28 @@ export const RegisterPaymentPage: React.FC = () => {
               <label className="block text-xs font-semibold uppercase tracking-wider text-brown-700 mb-1.5">
                 Payment Journal / Method *
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => setMethod('bank')}
-                  className={`py-2 px-2 text-xs font-bold rounded-[6px] border transition-all ${
+                  className={`py-2 px-3 text-xs font-bold rounded-[6px] border transition-all ${
                     method === 'bank'
                       ? 'bg-brown-900 text-cream border-brown-900 shadow-sm'
                       : 'bg-surface text-brown-700 border-brown-300 hover:bg-brown-100'
                   }`}
                 >
-                  🏦 Bank Transfer
+                  🏦 Bank Transfer / Cheque
                 </button>
                 <button
                   type="button"
                   onClick={() => setMethod('cash')}
-                  className={`py-2 px-2 text-xs font-bold rounded-[6px] border transition-all ${
+                  className={`py-2 px-3 text-xs font-bold rounded-[6px] border transition-all ${
                     method === 'cash'
                       ? 'bg-brown-900 text-cream border-brown-900 shadow-sm'
                       : 'bg-surface text-brown-700 border-brown-300 hover:bg-brown-100'
                   }`}
                 >
                   💵 Cash Drawer
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMethod('razorpay')}
-                  className={`py-2 px-2 text-xs font-bold rounded-[6px] border transition-all ${
-                    method === 'razorpay'
-                      ? 'bg-blue-900 text-white border-blue-900 shadow-sm'
-                      : 'bg-surface text-blue-900 border-blue-300 hover:bg-blue-50'
-                  }`}
-                >
-                  ⚡ Razorpay Online
                 </button>
               </div>
             </div>
@@ -416,6 +338,22 @@ export const RegisterPaymentPage: React.FC = () => {
               />
               <span className="text-[11px] text-brown-500 mt-1 block">
                 Partial payment supported. Revenue is unchanged.
+              </span>
+            </div>
+          </div>
+
+          {/* General Ledger Posting Preview */}
+          <div className="mt-4 pt-4 border-t border-brown-200/60 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs bg-brown-50/50 p-3 rounded-[8px]">
+            <div>
+              <span className="text-brown-600 font-medium block">Debit (Receiving Account):</span>
+              <span className="font-mono font-bold text-brown-900">
+                {method === 'bank' ? '1020 - Bank Accounts' : '1010 - Cash Drawer'}
+              </span>
+            </div>
+            <div>
+              <span className="text-brown-600 font-medium block">Credit (Customer Asset):</span>
+              <span className="font-mono font-bold text-brown-900">
+                1200 - Accounts Receivable / Sundry Debtors
               </span>
             </div>
           </div>
@@ -557,17 +495,9 @@ export const RegisterPaymentPage: React.FC = () => {
           <button
             type="submit"
             disabled={submitting || openInvoices.length === 0}
-            className={`px-6 py-2 text-sm font-bold rounded-[6px] transition-all shadow-md active:scale-[0.99] disabled:bg-brown-300 ${
-              method === 'razorpay'
-                ? 'bg-blue-800 text-white hover:bg-blue-700'
-                : 'bg-brown-900 text-cream hover:bg-brown-700'
-            }`}
+            className="px-6 py-2 text-sm font-bold rounded-[6px] transition-all shadow-md active:scale-[0.99] disabled:bg-brown-300 bg-brown-900 text-cream hover:bg-brown-800"
           >
-            {submitting
-              ? 'Processing Payment...'
-              : method === 'razorpay'
-              ? '⚡ Pay via Razorpay Checkout'
-              : 'Post Inbound Payment'}
+            {submitting ? 'Recording Receipt...' : 'Confirm & Register Customer Payment'}
           </button>
         </div>
       </form>
