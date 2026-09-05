@@ -236,9 +236,37 @@ export class PdfService {
     `;
   }
 
+  /**
+   * Generic HTML -> PDF renderer using the same server-side Puppeteer pipeline
+   * that backs invoice export. Callers own the HTML (including <style>).
+   */
+  static async renderHtmlToPdf(html: string): Promise<Buffer> {
+    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH ||
+      (fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
+
+    const browser = await puppeteer.launch({
+      headless: true,
+      executablePath,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+    });
+
+    try {
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'domcontentloaded' });
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: { top: '12mm', right: '12mm', bottom: '12mm', left: '12mm' },
+      });
+      return Buffer.from(pdfBuffer);
+    } finally {
+      await browser.close();
+    }
+  }
+
   static async generateInvoicePdf(invoice: CustomerInvoiceDTO): Promise<Buffer> {
     const html = this.generateInvoiceHtml(invoice);
-    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || 
+    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH ||
       (fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
 
     const browser = await puppeteer.launch({
