@@ -6,6 +6,8 @@ import './index.css';
 
 import AppShell from './components/layout/AppShell';
 import Dashboard from './pages/Dashboard';
+import BudgetListPage from './pages/budget/BudgetListPage';
+import BudgetFormPage from './pages/budget/BudgetFormPage';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
@@ -46,11 +48,18 @@ createRoot(document.getElementById('root')!).render(
           {/* ── Main app shell ── */}
           <Route element={<AppShell />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
-            <Route path="dashboard"  element={<Dashboard />} />
-            <Route path="sales/*"    element={<Placeholder name="Sales" />} />
-            <Route path="purchase/*" element={<Placeholder name="Purchase" />} />
-            <Route path="account/*"  element={<Placeholder name="Account" />} />
-            <Route path="report/*"   element={<Placeholder name="Report" />} />
+            <Route path="dashboard"        element={<Dashboard />} />
+            <Route path="sales/*"          element={<Placeholder name="Sales" />} />
+            <Route path="purchase/*"       element={<Placeholder name="Purchase" />} />
+            
+            {/* ── Account & Budgets ── */}
+            <Route path="account/budgets"     element={<BudgetListPage />} />
+            <Route path="account/budgets/new" element={<BudgetFormPage />} />
+            <Route path="account/budgets/:id" element={<BudgetFormPage />} />
+            <Route path="account"             element={<Navigate to="/account/budgets" replace />} />
+            <Route path="account/*"           element={<Placeholder name="Account" />} />
+
+            <Route path="report/*"         element={<Placeholder name="Report" />} />
           </Route>
         </Routes>
       </BrowserRouter>

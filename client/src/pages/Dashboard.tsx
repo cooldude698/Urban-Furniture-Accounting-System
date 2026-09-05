@@ -494,7 +494,7 @@ export default function Dashboard() {
               Budget
             </h2>
             <Link
-              to="/report"
+              to="/account/budgets"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
