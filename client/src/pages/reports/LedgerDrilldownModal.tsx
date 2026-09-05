@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import Decimal from 'decimal.js';
 import { ReportsApi, LedgerDetail, LedgerEntry } from '../../api/reports.api';
 import Money from '../../components/ui/Money';
 import StatusBadge from '../../components/ui/StatusBadge';

@@ -14,6 +14,12 @@ import ForgotPassword from './pages/ForgotPassword';
 import CreateUser from './pages/CreateUser';
 import KitchenSink from './pages/KitchenSink';
 
+import ReportsIndexPage from './pages/reports/ReportsIndexPage';
+import BalanceSheetPage from './pages/reports/BalanceSheetPage';
+import ProfitLossPage from './pages/reports/ProfitLossPage';
+import BudgetReportPage from './pages/reports/BudgetReportPage';
+import VerifyPage from './pages/reports/VerifyPage';
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -59,7 +65,16 @@ createRoot(document.getElementById('root')!).render(
             <Route path="account"             element={<Navigate to="/account/budgets" replace />} />
             <Route path="account/*"           element={<Placeholder name="Account" />} />
 
-            <Route path="report/*"         element={<Placeholder name="Report" />} />
+            {/* ── Reports ── */}
+            <Route path="report" element={<ReportsIndexPage />}>
+              <Route index element={<Navigate to="balance-sheet" replace />} />
+              <Route path="balance-sheet" element={<BalanceSheetPage />} />
+              <Route path="profit-loss"   element={<ProfitLossPage />} />
+              <Route path="budget"        element={<BudgetReportPage />} />
+            </Route>
+
+            {/* ── System Ledger Audit (/verify) ── */}
+            <Route path="verify" element={<VerifyPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
