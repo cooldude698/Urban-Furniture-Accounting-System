@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import Decimal from 'decimal.js';
 import { ReportsApi, BalanceSheetReport } from '../../api/reports.api';
 import Money from '../../components/ui/Money';
 import LedgerDrilldownModal from './LedgerDrilldownModal';
@@ -9,14 +10,14 @@ import {
   Calendar,
   CheckCircle2,
   AlertCircle,
-  ExternalLink,
   RefreshCw,
-  ArrowLeft,
+  ArrowUpRight,
+  ShieldCheck,
+  Layers,
 } from 'lucide-react';
 
 export default function BalanceSheetPage() {
   const navigate = useNavigate();
-  const [selectedYear, setSelectedYear] = useState<string>('2026');
   const [asOfDate, setAsOfDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
@@ -24,13 +25,6 @@ export default function BalanceSheetPage() {
     id: number;
     name: string;
   } | null>(null);
-
-  const handleYearChange = (yr: string) => {
-    setSelectedYear(yr);
-    if (yr !== 'custom') {
-      setAsOfDate(`${yr}-12-31`);
-    }
-  };
 
   const {
     data: report,
@@ -45,167 +39,123 @@ export default function BalanceSheetPage() {
     ReportsApi.downloadPdf('balance-sheet', { asOf: asOfDate });
   };
 
+  const setPreset = (preset: 'today' | 'month-end' | 'q-end' | 'fy26') => {
+    const today = new Date();
+    const y = today.getFullYear();
+    if (preset === 'today') {
+      setAsOfDate(today.toISOString().split('T')[0]);
+    } else if (preset === 'month-end') {
+      const lastDay = new Date(y, today.getMonth() + 1, 0).toISOString().split('T')[0];
+      setAsOfDate(lastDay);
+    } else if (preset === 'q-end') {
+      const q = Math.floor(today.getMonth() / 3);
+      const lastDay = new Date(y, (q + 1) * 3, 0).toISOString().split('T')[0];
+      setAsOfDate(lastDay);
+    } else if (preset === 'fy26') {
+      setAsOfDate('2026-03-31');
+    }
+  };
+
+  const isBalanced = report?.isBalanced ?? true;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', maxWidth: 1200, margin: '0 auto' }}>
-      {/* ── Page Header ── */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 1100, margin: '0 auto', width: '100%' }}>
+      {/* ── Top Control Bar (Clean Accounting Toolbar) ── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          borderBottom: '1px solid rgba(208, 174, 146, 0.4)',
-          paddingBottom: 'var(--space-4)',
           flexWrap: 'wrap',
           gap: 12,
+          padding: '4px 0',
         }}
       >
-        <div>
-          <h1
+        {/* Single As-Of Date Filter & Presets */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div
             style={{
-              fontFamily: 'var(--font-display)',
-              fontWeight: 700,
-              fontSize: 28,
-              lineHeight: '34px',
-              color: 'var(--brown-900)',
-              margin: 0,
-            }}
-          >
-            Balance Sheet
-          </h1>
-          <p
-            style={{
-              fontFamily: 'var(--font-body)',
-              fontSize: 14,
-              color: 'var(--brown-700)',
-              marginTop: 4,
-              margin: 0,
-            }}
-          >
-            Cumulative statement of financial position up to a single date
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            style={{
-              display: 'inline-flex',
+              display: 'flex',
               alignItems: 'center',
               gap: 6,
-              padding: '8px 14px',
-              fontSize: 13,
-              fontFamily: 'var(--font-body)',
-              fontWeight: 600,
-              color: 'var(--brown-700)',
-              background: 'transparent',
-              border: '1px solid var(--brown-300)',
-              borderRadius: 'var(--radius-sm)',
-              cursor: 'pointer',
-            }}
-          >
-            <ArrowLeft size={15} />
-            <span>Back</span>
-          </button>
-          {/* Print / PDF Button */}
-          <button
-            type="button"
-            onClick={handlePrint}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '8px 16px',
-              fontSize: 13,
-              fontFamily: 'var(--font-body)',
-              fontWeight: 600,
-              color: 'var(--brown-900)',
               background: 'var(--surface)',
               border: '1px solid var(--brown-300)',
+              padding: '4px 10px',
               borderRadius: 'var(--radius-sm)',
-              cursor: 'pointer',
-              boxShadow: 'var(--shadow-sm)',
+              fontSize: 13,
             }}
           >
-            <Printer size={15} />
-            <span>Print / PDF</span>
-          </button>
-        </div>
-      </div>
-
-      {/* ── Controls: Year & Single As-Of Date Picker ── */}
-      <div
-        style={{
-          background: 'var(--cream)',
-          border: '1px solid rgba(208, 174, 146, 0.4)',
-          borderRadius: 'var(--radius-md)',
-          padding: '14px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 16,
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Calendar size={18} style={{ color: 'var(--brown-700)' }} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--brown-900)', fontFamily: 'var(--font-body)' }}>
-              Year:
-            </span>
-            <select
-              value={selectedYear}
-              onChange={(e) => handleYearChange(e.target.value)}
-              style={{
-                fontFamily: 'var(--font-body)',
-                fontSize: 13,
-                fontWeight: 600,
-                padding: '6px 12px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--brown-300)',
-                background: 'var(--surface)',
-                color: 'var(--brown-900)',
-                cursor: 'pointer',
-              }}
-            >
-              <option value="2026">2026 (Dec 31, 2026)</option>
-              <option value="2025">2025 (Dec 31, 2025)</option>
-              <option value="2024">2024 (Dec 31, 2024)</option>
-              <option value="custom">Custom Date</option>
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <label
-              htmlFor="asOfDatePicker"
-              style={{
-                fontFamily: 'var(--font-body)',
-                fontSize: 13,
-                fontWeight: 600,
-                color: 'var(--brown-900)',
-              }}
-            >
-              As of Date:
-            </label>
+            <Calendar size={14} style={{ color: 'var(--brown-700)' }} />
+            <span style={{ fontWeight: 600, color: 'var(--brown-700)' }}>As of Date:</span>
             <input
-              id="asOfDatePicker"
               type="date"
               value={asOfDate}
               onChange={(e) => setAsOfDate(e.target.value)}
               style={{
-                fontFamily: 'var(--font-body)',
-                fontSize: 13,
-                padding: '6px 12px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--brown-300)',
-                background: 'var(--surface)',
+                border: 'none',
+                background: 'transparent',
+                fontSize: 12,
+                fontFamily: 'var(--font-mono)',
                 color: 'var(--brown-900)',
+                outline: 'none',
                 cursor: 'pointer',
               }}
             />
           </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button
+              type="button"
+              onClick={() => setPreset('today')}
+              style={{
+                background: 'var(--surface)',
+                border: '1px solid var(--brown-300)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '5px 9px',
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'var(--brown-700)',
+                cursor: 'pointer',
+              }}
+            >
+              Today
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreset('month-end')}
+              style={{
+                background: 'var(--surface)',
+                border: '1px solid var(--brown-300)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '5px 9px',
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'var(--brown-700)',
+                cursor: 'pointer',
+              }}
+            >
+              Month End
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreset('fy26')}
+              style={{
+                background: 'var(--surface)',
+                border: '1px solid var(--brown-300)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '5px 9px',
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'var(--brown-700)',
+                cursor: 'pointer',
+              }}
+            >
+              FY 2026 Close
+            </button>
+          </div>
         </div>
 
+        {/* Action Buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             type="button"
@@ -214,356 +164,511 @@ export default function BalanceSheetPage() {
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              background: 'transparent',
-              border: 'none',
+              padding: '6px 12px',
               fontSize: 12,
+              fontWeight: 600,
               color: 'var(--brown-700)',
+              background: 'var(--surface)',
+              border: '1px solid var(--brown-300)',
+              borderRadius: 'var(--radius-sm)',
               cursor: 'pointer',
-              textDecoration: 'underline',
+            }}
+            title="Refresh statement"
+          >
+            <RefreshCw size={13} />
+            <span>Refresh</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handlePrint}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 14px',
+              fontSize: 12,
+              fontWeight: 600,
+              color: 'var(--cream)',
+              background: 'var(--brown-900)',
+              border: 'none',
+              borderRadius: 'var(--radius-sm)',
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)',
             }}
           >
-            <RefreshCw size={12} />
-            <span>Recalculate</span>
+            <Printer size={13} />
+            <span>Print / PDF</span>
           </button>
         </div>
       </div>
 
-      {/* ── Balance Status Banner ── */}
-      {report && (
-        <div
-          style={{
-            background: report.isBalanced ? 'var(--posted-bg)' : 'var(--danger-bg)',
-            border: `1px solid ${report.isBalanced ? 'var(--posted)' : 'var(--danger)'}`,
-            borderRadius: 'var(--radius-sm)',
-            padding: '10px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          {report.isBalanced ? (
-            <>
-              <CheckCircle2 size={16} style={{ color: 'var(--posted)' }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--posted)', fontFamily: 'var(--font-body)' }}>
-                Balanced Statement: Assets (<Money value={report.totalAssets} />) = Liabilities + Capital (<Money value={report.totalEquity} />)
-              </span>
-            </>
-          ) : (
-            <>
-              <AlertCircle size={16} style={{ color: 'var(--danger)' }} />
-              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--danger)', fontFamily: 'var(--font-body)' }}>
-                Out of Balance Warning: Total Assets (<Money value={report.totalAssets} />) does not equal Liabilities + Capital (<Money value={report.totalEquity} />)
-              </span>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* ── Two-Column Balance Sheet (Assets vs Liabilities + Capital) ── */}
+      {/* ── Financial Statement Document Sheet (Standard Accounting Presentation) ── */}
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))',
-          gap: 'var(--space-6)',
-          alignItems: 'start',
+          background: 'var(--surface)',
+          borderRadius: 'var(--radius-md)',
+          boxShadow: '0 2px 8px rgba(74, 58, 52, 0.06)',
+          border: '1px solid rgba(208, 174, 146, 0.45)',
+          padding: '36px 44px',
         }}
       >
-        {/* LEFT COLUMN: Assets */}
+        {/* Document Formal Header */}
         <div
           style={{
-            background: 'var(--surface)',
-            border: '1px solid rgba(208, 174, 146, 0.4)',
-            borderRadius: 'var(--radius-md)',
-            boxShadow: 'var(--shadow-sm)',
-            overflow: 'hidden',
+            textAlign: 'center',
+            borderBottom: '2px solid var(--brown-900)',
+            paddingBottom: 20,
+            marginBottom: 20,
           }}
         >
-          <div
+          <span
             style={{
-              padding: '14px 20px',
-              background: 'var(--brown-100)',
-              borderBottom: '1px solid var(--brown-300)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
+              fontFamily: 'var(--font-body)',
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: '0.12em',
+              color: 'var(--brown-500)',
+              textTransform: 'uppercase',
             }}
           >
-            <h2
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontWeight: 700,
-                fontSize: 16,
-                color: 'var(--brown-900)',
-                margin: 0,
-              }}
-            >
-              Assets
-            </h2>
-            <span style={{ fontSize: 12, color: 'var(--brown-700)', fontFamily: 'var(--font-body)' }}>
-              Click any amount to drill down
-            </span>
-          </div>
-
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ height: 32, borderBottom: '1px solid rgba(208, 174, 146, 0.2)', background: 'rgba(249, 242, 228, 0.5)' }}>
-                <th style={{ padding: '0 20px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase' }}>
-                  Account
-                </th>
-                <th style={{ padding: '0 20px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>
-                  Balance
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {report?.assets && report.assets.length > 0 ? (
-                report.assets.map((item) => (
-                  <tr
-                    key={item.accountId}
-                    style={{
-                      height: 44,
-                      borderBottom: '1px solid rgba(208, 174, 146, 0.2)',
-                      transition: 'background 120ms ease-out',
-                    }}
-                  >
-                    <td style={{ padding: '0 20px', fontSize: 13, fontWeight: 500, color: 'var(--brown-900)' }}>
-                      {item.accountName}
-                    </td>
-                    <td style={{ padding: '0 20px', textAlign: 'right' }}>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDrillAccount({ id: item.accountId, name: item.accountName })}
-                        title="Click to drill down into ledger entries"
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          color: 'var(--brown-900)',
-                          fontWeight: 600,
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.color = 'var(--brown-700)';
-                          e.currentTarget.style.textDecoration = 'underline';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.color = 'var(--brown-900)';
-                          e.currentTarget.style.textDecoration = 'none';
-                        }}
-                      >
-                        <Money value={item.balance} />
-                        <ExternalLink size={11} style={{ color: 'var(--brown-700)' }} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={2} style={{ padding: 24, textAlign: 'center', color: 'var(--brown-700)', fontSize: 13 }}>
-                    No asset balances recorded.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-            <tfoot>
-              <tr style={{ background: 'var(--brown-100)', height: 48, fontWeight: 700, borderTop: '2px solid var(--brown-300)' }}>
-                <td style={{ padding: '0 20px', fontSize: 13, textTransform: 'uppercase', color: 'var(--brown-900)' }}>
-                  Total Assets
-                </td>
-                <td style={{ padding: '0 20px', textAlign: 'right', fontSize: 15 }}>
-                  <Money value={report?.totalAssets || '0.00'} />
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+            Urban Furniture Private Limited
+          </span>
+          <h1
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 24,
+              fontWeight: 700,
+              color: 'var(--brown-900)',
+              margin: '6px 0 4px 0',
+            }}
+          >
+            Balance Sheet
+          </h1>
+          <p
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: 13,
+              color: 'var(--brown-700)',
+              margin: 0,
+            }}
+          >
+            Cumulative Financial Position as of {asOfDate}
+          </p>
+          <span
+            style={{
+              fontSize: 11,
+              fontStyle: 'italic',
+              color: 'var(--brown-500)',
+              marginTop: 4,
+              display: 'inline-block',
+            }}
+          >
+            (All figures in Indian Rupees ₹ · Click any account to drill down into general ledger)
+          </span>
         </div>
 
-        {/* RIGHT COLUMN: Liabilities + Capital / Equity */}
+        {/* Equilibrium Status Indicator */}
         <div
           style={{
-            background: 'var(--surface)',
-            border: '1px solid rgba(208, 174, 146, 0.4)',
-            borderRadius: 'var(--radius-md)',
-            boxShadow: 'var(--shadow-sm)',
-            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '8px 14px',
+            background: isBalanced ? 'rgba(95, 112, 82, 0.08)' : 'var(--danger-bg)',
+            border: `1px solid ${isBalanced ? 'rgba(95, 112, 82, 0.3)' : 'var(--danger)'}`,
+            borderRadius: 'var(--radius-sm)',
+            marginBottom: 24,
+            fontSize: 12,
+            fontWeight: 600,
+            color: isBalanced ? 'var(--posted)' : 'var(--danger)',
           }}
         >
-          {/* Liabilities Section */}
-          <div
-            style={{
-              padding: '14px 20px',
-              background: 'var(--brown-100)',
-              borderBottom: '1px solid var(--brown-300)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <h2
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontWeight: 700,
-                fontSize: 16,
-                color: 'var(--brown-900)',
-                margin: 0,
-              }}
-            >
-              Liabilities & Capital
-            </h2>
-            <span style={{ fontSize: 12, color: 'var(--brown-700)', fontFamily: 'var(--font-body)' }}>
-              Click any amount to drill down
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {isBalanced ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
+            <span>
+              {isBalanced
+                ? 'Balance Sheet in Equilibrium (Assets = Liabilities + Total Equity)'
+                : 'Warning: Balance Sheet Unbalanced — check unposted transactions'}
             </span>
           </div>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700 }}>
+            {report?.totalAssets ? `₹${Number(report.totalAssets).toLocaleString('en-IN')}` : '—'}
+          </span>
+        </div>
 
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ height: 32, borderBottom: '1px solid rgba(208, 174, 146, 0.2)', background: 'rgba(249, 242, 228, 0.5)' }}>
-                <th style={{ padding: '0 20px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase' }}>
-                  Account / Equity Source
-                </th>
-                <th style={{ padding: '0 20px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>
-                  Balance
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {/* Category: Liabilities Header */}
-              <tr style={{ background: 'rgba(235, 215, 190, 0.2)', height: 28 }}>
-                <td colSpan={2} style={{ padding: '0 20px', fontSize: 11, fontWeight: 700, color: 'var(--brown-700)', textTransform: 'uppercase' }}>
-                  Liabilities
-                </td>
-              </tr>
-              {report?.liabilities && report.liabilities.length > 0 ? (
-                report.liabilities.map((item) => (
-                  <tr
-                    key={item.accountId}
-                    style={{
-                      height: 44,
-                      borderBottom: '1px solid rgba(208, 174, 146, 0.2)',
-                    }}
-                  >
-                    <td style={{ padding: '0 20px', fontSize: 13, fontWeight: 500, color: 'var(--brown-900)' }}>
-                      {item.accountName}
-                    </td>
-                    <td style={{ padding: '0 20px', textAlign: 'right' }}>
+        {/* ── 2-Column Side-by-Side Statement Structure ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'stretch' }}>
+          {/* ── LEFT COLUMN: ASSETS ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderRight: '1px solid rgba(208, 174, 146, 0.3)', paddingRight: 24 }}>
+            <div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '6px 0',
+                  borderBottom: '1px solid var(--brown-900)',
+                  marginBottom: 10,
+                }}
+              >
+                <h2
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'var(--brown-900)',
+                    margin: 0,
+                  }}
+                >
+                  Assets
+                </h2>
+                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--brown-500)', textTransform: 'uppercase' }}>
+                  Amount (₹)
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {report?.assets && report.assets.length > 0 ? (
+                  report.assets.map((acc) => (
+                    <div
+                      key={acc.accountId}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 8px',
+                        borderBottom: '1px solid rgba(208, 174, 146, 0.2)',
+                        fontSize: 13,
+                      }}
+                    >
                       <button
                         type="button"
-                        onClick={() => setSelectedDrillAccount({ id: item.accountId, name: item.accountName })}
+                        onClick={() =>
+                          setSelectedDrillAccount({
+                            id: acc.accountId,
+                            name: acc.accountName,
+                          })
+                        }
                         style={{
                           background: 'transparent',
                           border: 'none',
+                          color: 'var(--brown-900)',
                           cursor: 'pointer',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: 4,
-                          color: 'var(--brown-900)',
-                          fontWeight: 600,
+                          gap: 6,
+                          fontWeight: 500,
+                          padding: 0,
+                          textAlign: 'left',
                         }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.color = 'var(--brown-700)';
-                          e.currentTarget.style.textDecoration = 'underline';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.color = 'var(--brown-900)';
-                          e.currentTarget.style.textDecoration = 'none';
-                        }}
+                        title="Click to drill down into ledger entries"
                       >
-                        <Money value={item.balance} />
-                        <ExternalLink size={11} style={{ color: 'var(--brown-700)' }} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : null}
-
-              {/* Subtotal Liabilities */}
-              <tr style={{ height: 36, background: 'rgba(249, 242, 228, 0.3)', borderBottom: '1px solid rgba(208, 174, 146, 0.3)' }}>
-                <td style={{ padding: '0 20px', fontSize: 12, fontWeight: 600, color: 'var(--brown-700)', fontStyle: 'italic' }}>
-                  Total Liabilities
-                </td>
-                <td style={{ padding: '0 20px', textAlign: 'right', fontWeight: 600 }}>
-                  <Money value={report?.totalLiabilities || '0.00'} />
-                </td>
-              </tr>
-
-              {/* Category: Capital & Equity */}
-              <tr style={{ background: 'rgba(235, 215, 190, 0.2)', height: 28 }}>
-                <td colSpan={2} style={{ padding: '0 20px', fontSize: 11, fontWeight: 700, color: 'var(--brown-700)', textTransform: 'uppercase' }}>
-                  Capital & Equity
-                </td>
-              </tr>
-              {report?.capital && report.capital.length > 0
-                ? report.capital.map((item) => (
-                    <tr
-                      key={item.accountId}
-                      style={{
-                        height: 44,
-                        borderBottom: '1px solid rgba(208, 174, 146, 0.2)',
-                      }}
-                    >
-                      <td style={{ padding: '0 20px', fontSize: 13, fontWeight: 500, color: 'var(--brown-900)' }}>
-                        {item.accountName}
-                      </td>
-                      <td style={{ padding: '0 20px', textAlign: 'right' }}>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedDrillAccount({ id: item.accountId, name: item.accountName })}
+                        <span>{acc.accountName}</span>
+                        <span
                           style={{
-                            background: 'transparent',
-                            border: 'none',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 4,
-                            color: 'var(--brown-900)',
-                            fontWeight: 600,
+                            fontSize: 10,
+                            background: 'rgba(235, 215, 190, 0.4)',
+                            color: 'var(--brown-700)',
+                            padding: '2px 6px',
+                            borderRadius: 4,
+                            textTransform: 'uppercase',
                           }}
                         >
-                          <Money value={item.balance} />
-                          <ExternalLink size={11} style={{ color: 'var(--brown-700)' }} />
-                        </button>
-                      </td>
-                    </tr>
+                          {acc.type}
+                        </span>
+                        <ArrowUpRight size={13} style={{ color: 'var(--brown-400)' }} />
+                      </button>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--brown-900)' }}>
+                        <Money value={acc.balance} />
+                      </div>
+                    </div>
                   ))
-                : null}
+                ) : (
+                  <div style={{ padding: '12px', fontSize: 13, color: 'var(--brown-500)', fontStyle: 'italic' }}>
+                    No asset balances recorded.
+                  </div>
+                )}
+              </div>
+            </div>
 
-              {/* Current Period Net Profit flowing into Equity */}
-              <tr style={{ height: 44, borderBottom: '1px solid rgba(208, 174, 146, 0.2)' }}>
-                <td style={{ padding: '0 20px', fontSize: 13, fontWeight: 600, color: 'var(--posted)' }}>
-                  Current Period Net Profit
-                </td>
-                <td style={{ padding: '0 20px', textAlign: 'right', fontWeight: 600 }}>
-                  <Money value={report?.currentPeriodProfit || '0.00'} />
-                </td>
-              </tr>
+            {/* Total Assets with Double Bottom Border */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 10px',
+                background: 'rgba(235, 215, 190, 0.2)',
+                borderTop: '1px solid var(--brown-900)',
+                borderBottom: '4px double var(--brown-900)',
+                fontWeight: 700,
+                fontSize: 14,
+                marginTop: 24,
+              }}
+            >
+              <span style={{ color: 'var(--brown-900)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                Total Assets
+              </span>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 16, color: 'var(--brown-900)' }}>
+                <Money value={report?.totalAssets || '0.00'} />
+              </div>
+            </div>
+          </div>
 
-              {/* Subtotal Equity */}
-              <tr style={{ height: 36, background: 'rgba(249, 242, 228, 0.3)' }}>
-                <td style={{ padding: '0 20px', fontSize: 12, fontWeight: 600, color: 'var(--brown-700)', fontStyle: 'italic' }}>
-                  Total Capital & Reserves
-                </td>
-                <td style={{ padding: '0 20px', textAlign: 'right', fontWeight: 600 }}>
-                  <Money value={report?.totalCapital || '0.00'} />
-                </td>
-              </tr>
-            </tbody>
-            <tfoot>
-              <tr style={{ background: 'var(--brown-100)', height: 48, fontWeight: 700, borderTop: '2px solid var(--brown-300)' }}>
-                <td style={{ padding: '0 20px', fontSize: 13, textTransform: 'uppercase', color: 'var(--brown-900)' }}>
-                  Total Liabilities & Capital
-                </td>
-                <td style={{ padding: '0 20px', textAlign: 'right', fontSize: 15 }}>
-                  <Money value={report?.totalEquity || '0.00'} />
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+          {/* ── RIGHT COLUMN: LIABILITIES & EQUITY ── */}
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+            <div>
+              {/* 1. Liabilities Section */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '6px 0',
+                  borderBottom: '1px solid var(--brown-900)',
+                  marginBottom: 10,
+                }}
+              >
+                <h2
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'var(--brown-900)',
+                    margin: 0,
+                  }}
+                >
+                  Liabilities
+                </h2>
+                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--brown-500)', textTransform: 'uppercase' }}>
+                  Amount (₹)
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 16 }}>
+                {report?.liabilities && report.liabilities.length > 0 ? (
+                  report.liabilities.map((acc) => (
+                    <div
+                      key={acc.accountId}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 8px',
+                        borderBottom: '1px solid rgba(208, 174, 146, 0.2)',
+                        fontSize: 13,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedDrillAccount({
+                            id: acc.accountId,
+                            name: acc.accountName,
+                          })
+                        }
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--brown-900)',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          fontWeight: 500,
+                          padding: 0,
+                          textAlign: 'left',
+                        }}
+                        title="Click to drill down into ledger entries"
+                      >
+                        <span>{acc.accountName}</span>
+                        <ArrowUpRight size={13} style={{ color: 'var(--brown-400)' }} />
+                      </button>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--brown-900)' }}>
+                        <Money value={acc.balance} />
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ padding: '8px', fontSize: 12, color: 'var(--brown-500)', fontStyle: 'italic' }}>
+                    No liabilities recorded.
+                  </div>
+                )}
+
+                {/* Subtotal: Total Liabilities */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 8px',
+                    borderTop: '1px solid var(--brown-300)',
+                    fontWeight: 600,
+                    fontSize: 12,
+                    color: 'var(--brown-700)',
+                  }}
+                >
+                  <span style={{ textTransform: 'uppercase' }}>Subtotal Liabilities</span>
+                  <div style={{ fontFamily: 'var(--font-mono)' }}>
+                    <Money value={report?.totalLiabilities || '0.00'} />
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Capital & Equity Section */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '6px 0',
+                  borderBottom: '1px solid var(--brown-900)',
+                  marginBottom: 10,
+                  marginTop: 10,
+                }}
+              >
+                <h2
+                  style={{
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    color: 'var(--brown-900)',
+                    margin: 0,
+                  }}
+                >
+                  Capital & Equity
+                </h2>
+                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--brown-500)', textTransform: 'uppercase' }}>
+                  Amount (₹)
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {report?.capital && report.capital.length > 0 ? (
+                  report.capital.map((acc) => (
+                    <div
+                      key={acc.accountId}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 8px',
+                        borderBottom: '1px solid rgba(208, 174, 146, 0.2)',
+                        fontSize: 13,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSelectedDrillAccount({
+                            id: acc.accountId,
+                            name: acc.accountName,
+                          })
+                        }
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--brown-900)',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          fontWeight: 500,
+                          padding: 0,
+                          textAlign: 'left',
+                        }}
+                        title="Click to drill down into ledger entries"
+                      >
+                        <span>{acc.accountName}</span>
+                        <ArrowUpRight size={13} style={{ color: 'var(--brown-400)' }} />
+                      </button>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--brown-900)' }}>
+                        <Money value={acc.balance} />
+                      </div>
+                    </div>
+                  ))
+                ) : null}
+
+                {/* Current Period Net Profit row flowed into equity */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 8px',
+                    borderBottom: '1px solid rgba(208, 174, 146, 0.2)',
+                    fontSize: 13,
+                    background: 'rgba(95, 112, 82, 0.05)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontWeight: 600, color: 'var(--posted)' }}>
+                      Current Period Net Profit
+                    </span>
+                    <span style={{ fontSize: 10, color: 'var(--brown-500)', fontStyle: 'italic' }}>
+                      (Flowed from P&L)
+                    </span>
+                  </div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: 'var(--posted)' }}>
+                    <Money value={report?.currentPeriodProfit || '0.00'} />
+                  </div>
+                </div>
+
+                {/* Subtotal: Total Equity */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '8px 8px',
+                    borderTop: '1px solid var(--brown-300)',
+                    fontWeight: 600,
+                    fontSize: 12,
+                    color: 'var(--brown-700)',
+                  }}
+                >
+                  <span style={{ textTransform: 'uppercase' }}>Subtotal Equity</span>
+                  <div style={{ fontFamily: 'var(--font-mono)' }}>
+                    <Money value={report?.totalEquity || '0.00'} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Total Liabilities & Equity with Double Bottom Border */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 10px',
+                background: 'rgba(235, 215, 190, 0.2)',
+                borderTop: '1px solid var(--brown-900)',
+                borderBottom: '4px double var(--brown-900)',
+                fontWeight: 700,
+                fontSize: 14,
+                marginTop: 24,
+              }}
+            >
+              <span style={{ color: 'var(--brown-900)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                Total Liabilities & Equity
+              </span>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 16, color: 'var(--brown-900)' }}>
+                <Money value={report?.totalEquity && report?.totalLiabilities ? new Decimal(report.totalLiabilities).plus(report.totalEquity).toFixed(2) : (report?.totalAssets || '0.00')} />
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── 4-Level Drill-Down Modal ── */}
+      {/* ── 4-Level Drilldown Modal ── */}
       {selectedDrillAccount && (
         <LedgerDrilldownModal
           accountId={selectedDrillAccount.id}

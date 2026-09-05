@@ -7,17 +7,16 @@ import Money from '../../components/ui/Money';
 import LedgerDrilldownModal from './LedgerDrilldownModal';
 import {
   Printer,
-  CalendarRange,
+  Calendar,
   TrendingUp,
   TrendingDown,
-  ExternalLink,
   RefreshCw,
-  ArrowLeft,
+  ArrowUpRight,
+  Sparkles,
 } from 'lucide-react';
 
 export default function ProfitLossPage() {
   const navigate = useNavigate();
-  const [selectedYear, setSelectedYear] = useState<string>('2026');
   const [fromDate, setFromDate] = useState<string>('2026-01-01');
   const [toDate, setToDate] = useState<string>(
     new Date().toISOString().split('T')[0]
@@ -26,14 +25,6 @@ export default function ProfitLossPage() {
     id: number;
     name: string;
   } | null>(null);
-
-  const handleYearChange = (yr: string) => {
-    setSelectedYear(yr);
-    if (yr !== 'custom') {
-      setFromDate(`${yr}-01-01`);
-      setToDate(`${yr}-12-31`);
-    }
-  };
 
   const {
     data: report,
@@ -48,72 +39,169 @@ export default function ProfitLossPage() {
     ReportsApi.downloadPdf('profit-loss', { from: fromDate, to: toDate });
   };
 
+  const setPreset = (preset: 'month' | 'quarter' | 'year' | 'fy26') => {
+    const today = new Date();
+    const y = today.getFullYear();
+    if (preset === 'month') {
+      const firstDay = new Date(y, today.getMonth(), 1).toISOString().split('T')[0];
+      const lastDay = new Date(y, today.getMonth() + 1, 0).toISOString().split('T')[0];
+      setFromDate(firstDay);
+      setToDate(lastDay);
+    } else if (preset === 'quarter') {
+      const q = Math.floor(today.getMonth() / 3);
+      const firstDay = new Date(y, q * 3, 1).toISOString().split('T')[0];
+      const lastDay = new Date(y, (q + 1) * 3, 0).toISOString().split('T')[0];
+      setFromDate(firstDay);
+      setToDate(lastDay);
+    } else if (preset === 'year') {
+      setFromDate(`${y}-01-01`);
+      setToDate(`${y}-12-31`);
+    } else if (preset === 'fy26') {
+      setFromDate('2026-04-01');
+      setToDate('2027-03-31');
+    }
+  };
+
   const isNetProfitPositive = report
     ? new Decimal(report.netProfit || '0').greaterThanOrEqualTo(0)
     : true;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', maxWidth: 1000, margin: '0 auto' }}>
-      {/* ── Header ── */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 980, margin: '0 auto', width: '100%' }}>
+      {/* ── Top Control Bar (Clean Accounting Toolbar) ── */}
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          borderBottom: '1px solid rgba(208, 174, 146, 0.4)',
-          paddingBottom: 'var(--space-4)',
           flexWrap: 'wrap',
           gap: 12,
+          padding: '4px 0',
         }}
       >
-        <div>
-          <h1
+        {/* Date Filter & Presets */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div
             style={{
-              fontFamily: 'var(--font-display)',
-              fontWeight: 700,
-              fontSize: 28,
-              lineHeight: '34px',
-              color: 'var(--brown-900)',
-              margin: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              background: 'var(--surface)',
+              border: '1px solid var(--brown-300)',
+              padding: '4px 10px',
+              borderRadius: 'var(--radius-sm)',
+              fontSize: 13,
             }}
           >
-            Profit & Loss Statement
-          </h1>
-          <p
-            style={{
-              fontFamily: 'var(--font-body)',
-              fontSize: 14,
-              color: 'var(--brown-700)',
-              marginTop: 4,
-              margin: 0,
-            }}
-          >
-            Income, expenses, and net profitability over a selected date range
-          </p>
+            <Calendar size={14} style={{ color: 'var(--brown-700)' }} />
+            <span style={{ fontWeight: 600, color: 'var(--brown-700)' }}>Period:</span>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                fontSize: 12,
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--brown-900)',
+                outline: 'none',
+                cursor: 'pointer',
+              }}
+            />
+            <span style={{ color: 'var(--brown-400)' }}>to</span>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                fontSize: 12,
+                fontFamily: 'var(--font-mono)',
+                color: 'var(--brown-900)',
+                outline: 'none',
+                cursor: 'pointer',
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <button
+              type="button"
+              onClick={() => setPreset('month')}
+              style={{
+                background: 'var(--surface)',
+                border: '1px solid var(--brown-300)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '5px 9px',
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'var(--brown-700)',
+                cursor: 'pointer',
+              }}
+            >
+              This Month
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreset('quarter')}
+              style={{
+                background: 'var(--surface)',
+                border: '1px solid var(--brown-300)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '5px 9px',
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'var(--brown-700)',
+                cursor: 'pointer',
+              }}
+            >
+              This Quarter
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreset('year')}
+              style={{
+                background: 'var(--surface)',
+                border: '1px solid var(--brown-300)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '5px 9px',
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'var(--brown-700)',
+                cursor: 'pointer',
+              }}
+            >
+              FY 2026
+            </button>
+          </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() => refetch()}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              padding: '8px 14px',
-              fontSize: 13,
-              fontFamily: 'var(--font-body)',
+              padding: '6px 12px',
+              fontSize: 12,
               fontWeight: 600,
               color: 'var(--brown-700)',
-              background: 'transparent',
+              background: 'var(--surface)',
               border: '1px solid var(--brown-300)',
               borderRadius: 'var(--radius-sm)',
               cursor: 'pointer',
             }}
+            title="Refresh statement"
           >
-            <ArrowLeft size={15} />
-            <span>Back</span>
+            <RefreshCw size={13} />
+            <span>Refresh</span>
           </button>
+
           <button
             type="button"
             onClick={handlePrint}
@@ -121,393 +209,363 @@ export default function ProfitLossPage() {
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              padding: '8px 16px',
-              fontSize: 13,
-              fontFamily: 'var(--font-body)',
+              padding: '6px 14px',
+              fontSize: 12,
               fontWeight: 600,
-              color: 'var(--brown-900)',
-              background: 'var(--surface)',
-              border: '1px solid var(--brown-300)',
+              color: 'var(--cream)',
+              background: 'var(--brown-900)',
+              border: 'none',
               borderRadius: 'var(--radius-sm)',
               cursor: 'pointer',
               boxShadow: 'var(--shadow-sm)',
             }}
           >
-            <Printer size={15} />
+            <Printer size={13} />
             <span>Print / PDF</span>
           </button>
         </div>
       </div>
 
-      {/* ── Controls: Year & Date Range Picker ── */}
+      {/* ── Financial Statement Document Sheet (Standard Accounting Presentation) ── */}
       <div
         style={{
-          background: 'var(--cream)',
-          border: '1px solid rgba(208, 174, 146, 0.4)',
+          background: 'var(--surface)',
           borderRadius: 'var(--radius-md)',
-          padding: '14px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 16,
+          boxShadow: '0 2px 8px rgba(74, 58, 52, 0.06)',
+          border: '1px solid rgba(208, 174, 146, 0.45)',
+          padding: '36px 44px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <CalendarRange size={18} style={{ color: 'var(--brown-700)' }} />
-            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--brown-900)', fontFamily: 'var(--font-body)' }}>
-              Year:
-            </span>
-            <select
-              value={selectedYear}
-              onChange={(e) => handleYearChange(e.target.value)}
-              style={{
-                fontFamily: 'var(--font-body)',
-                fontSize: 13,
-                fontWeight: 600,
-                padding: '6px 12px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--brown-300)',
-                background: 'var(--surface)',
-                color: 'var(--brown-900)',
-                cursor: 'pointer',
-              }}
-            >
-              <option value="2026">2026</option>
-              <option value="2025">2025</option>
-              <option value="2024">2024</option>
-              <option value="custom">Custom Range</option>
-            </select>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <label htmlFor="plFromDate" style={{ fontSize: 12, color: 'var(--brown-700)', fontFamily: 'var(--font-body)' }}>
-              From:
-            </label>
-            <input
-              id="plFromDate"
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              style={{
-                fontFamily: 'var(--font-body)',
-                fontSize: 13,
-                padding: '6px 10px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--brown-300)',
-                background: 'var(--surface)',
-                color: 'var(--brown-900)',
-                cursor: 'pointer',
-              }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <label htmlFor="plToDate" style={{ fontSize: 12, color: 'var(--brown-700)', fontFamily: 'var(--font-body)' }}>
-              To:
-            </label>
-            <input
-              id="plToDate"
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              style={{
-                fontFamily: 'var(--font-body)',
-                fontSize: 13,
-                padding: '6px 10px',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--brown-300)',
-                background: 'var(--surface)',
-                color: 'var(--brown-900)',
-                cursor: 'pointer',
-              }}
-            />
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => refetch()}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            background: 'transparent',
-            border: 'none',
-            fontSize: 12,
-            color: 'var(--brown-700)',
-            cursor: 'pointer',
-            textDecoration: 'underline',
-          }}
-        >
-          <RefreshCw size={12} />
-          <span>Update Report</span>
-        </button>
-      </div>
-
-      {/* ── Net Profit Summary Banner ── */}
-      {report && (
+        {/* Document Formal Header */}
         <div
           style={{
-            background: isNetProfitPositive ? 'var(--posted-bg)' : 'var(--danger-bg)',
-            border: `1px solid ${isNetProfitPositive ? 'var(--posted)' : 'var(--danger)'}`,
-            borderRadius: 'var(--radius-md)',
-            padding: '16px 24px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: 12,
+            textAlign: 'center',
+            borderBottom: '2px solid var(--brown-900)',
+            paddingBottom: 20,
+            marginBottom: 24,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {isNetProfitPositive ? (
-              <TrendingUp size={24} style={{ color: 'var(--posted)' }} />
-            ) : (
-              <TrendingDown size={24} style={{ color: 'var(--danger)' }} />
-            )}
-            <div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Net Profit (Income − Expenses)
-              </div>
-              <div
+          <span
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: '0.12em',
+              color: 'var(--brown-500)',
+              textTransform: 'uppercase',
+            }}
+          >
+            Urban Furniture Private Limited
+          </span>
+          <h1
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 24,
+              fontWeight: 700,
+              color: 'var(--brown-900)',
+              margin: '6px 0 4px 0',
+            }}
+          >
+            Statement of Profit & Loss
+          </h1>
+          <p
+            style={{
+              fontFamily: 'var(--font-body)',
+              fontSize: 13,
+              color: 'var(--brown-700)',
+              margin: 0,
+            }}
+          >
+            For the period from {fromDate} to {toDate}
+          </p>
+          <span
+            style={{
+              fontSize: 11,
+              fontStyle: 'italic',
+              color: 'var(--brown-500)',
+              marginTop: 4,
+              display: 'inline-block',
+            }}
+          >
+            (All figures in Indian Rupees ₹ · Click any account to drill down into general ledger)
+          </span>
+        </div>
+
+        {/* ── Statement Content ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* 1. Operating Revenue / Income */}
+          <div>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '6px 0',
+                borderBottom: '1px solid var(--brown-900)',
+                marginBottom: 8,
+              }}
+            >
+              <h2
                 style={{
                   fontFamily: 'var(--font-display)',
+                  fontSize: 14,
                   fontWeight: 700,
-                  fontSize: 26,
-                  color: isNetProfitPositive ? 'var(--posted)' : 'var(--danger)',
-                  marginTop: 2,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: 'var(--brown-900)',
+                  margin: 0,
                 }}
               >
-                <Money value={report.netProfit} />
+                I. Revenue & Operating Income
+              </h2>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--brown-500)', textTransform: 'uppercase' }}>
+                Amount (₹)
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {report?.income && report.income.length > 0 ? (
+                report.income.map((acc) => (
+                  <div
+                    key={acc.accountId}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      borderBottom: '1px solid rgba(208, 174, 146, 0.2)',
+                      fontSize: 13,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedDrillAccount({
+                          id: acc.accountId,
+                          name: acc.accountName,
+                        })
+                      }
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--brown-900)',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        fontWeight: 500,
+                        padding: 0,
+                        textAlign: 'left',
+                      }}
+                      title="Click to drill down into ledger entries"
+                    >
+                      <span>{acc.accountName}</span>
+                      <ArrowUpRight size={13} style={{ color: 'var(--brown-400)' }} />
+                    </button>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--brown-900)' }}>
+                      <Money value={acc.total} />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '12px', fontSize: 13, color: 'var(--brown-500)', fontStyle: 'italic' }}>
+                  No income entries recorded in this period.
+                </div>
+              )}
+
+              {/* Subtotal: Total Income */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 12px',
+                  background: 'rgba(235, 215, 190, 0.2)',
+                  borderTop: '1px solid var(--brown-400)',
+                  borderBottom: '1px solid var(--brown-400)',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  marginTop: 4,
+                }}
+              >
+                <span style={{ color: 'var(--brown-900)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                  Total Revenue (A)
+                </span>
+                <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--brown-900)' }}>
+                  <Money value={report?.totalIncome || '0.00'} />
+                </div>
               </div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 24, fontSize: 13, fontFamily: 'var(--font-body)' }}>
-            <div>
-              <span style={{ color: 'var(--brown-700)', display: 'block', fontSize: 11, textTransform: 'uppercase' }}>Total Income</span>
-              <strong style={{ color: 'var(--brown-900)' }}><Money value={report.totalIncome} /></strong>
-            </div>
-            <div>
-              <span style={{ color: 'var(--brown-700)', display: 'block', fontSize: 11, textTransform: 'uppercase' }}>Total Expenses</span>
-              <strong style={{ color: 'var(--brown-900)' }}><Money value={report.totalExpenses} /></strong>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── Income & Expense Tables ── */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-        {/* SECTION 1: Operating Income */}
-        <div
-          style={{
-            background: 'var(--surface)',
-            border: '1px solid rgba(208, 174, 146, 0.4)',
-            borderRadius: 'var(--radius-md)',
-            boxShadow: 'var(--shadow-sm)',
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              padding: '14px 20px',
-              background: 'var(--brown-100)',
-              borderBottom: '1px solid var(--brown-300)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <h2
+          {/* 2. Operating & Other Expenses */}
+          <div>
+            <div
               style={{
-                fontFamily: 'var(--font-display)',
-                fontWeight: 700,
-                fontSize: 16,
-                color: 'var(--brown-900)',
-                margin: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '6px 0',
+                borderBottom: '1px solid var(--brown-900)',
+                marginBottom: 8,
               }}
             >
-              Operating Income
-            </h2>
-            <span style={{ fontSize: 12, color: 'var(--brown-700)', fontFamily: 'var(--font-body)' }}>
-              Click amounts to inspect ledger
-            </span>
-          </div>
+              <h2
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: 'var(--brown-900)',
+                  margin: 0,
+                }}
+              >
+                II. Cost of Goods & Operating Expenses
+              </h2>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--brown-500)', textTransform: 'uppercase' }}>
+                Amount (₹)
+              </span>
+            </div>
 
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ height: 32, borderBottom: '1px solid rgba(208, 174, 146, 0.2)', background: 'rgba(249, 242, 228, 0.5)' }}>
-                <th style={{ padding: '0 20px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase' }}>
-                  Account
-                </th>
-                <th style={{ padding: '0 20px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>
-                  Amount
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {report?.income && report.income.length > 0 ? (
-                report.income.map((item) => (
-                  <tr
-                    key={item.accountId}
-                    style={{
-                      height: 44,
-                      borderBottom: '1px solid rgba(208, 174, 146, 0.2)',
-                    }}
-                  >
-                    <td style={{ padding: '0 20px', fontSize: 13, fontWeight: 500, color: 'var(--brown-900)' }}>
-                      {item.accountName}
-                    </td>
-                    <td style={{ padding: '0 20px', textAlign: 'right' }}>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDrillAccount({ id: item.accountId, name: item.accountName })}
-                        title="Click to drill down into ledger entries"
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          color: 'var(--brown-900)',
-                          fontWeight: 600,
-                        }}
-                      >
-                        <Money value={item.total} />
-                        <ExternalLink size={11} style={{ color: 'var(--brown-700)' }} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={2} style={{ padding: 20, textAlign: 'center', color: 'var(--brown-700)', fontSize: 13 }}>
-                    No operating income recorded in this period.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-            <tfoot>
-              <tr style={{ background: 'var(--brown-100)', height: 44, fontWeight: 700, borderTop: '2px solid var(--brown-300)' }}>
-                <td style={{ padding: '0 20px', fontSize: 13, textTransform: 'uppercase', color: 'var(--brown-900)' }}>
-                  Total Income
-                </td>
-                <td style={{ padding: '0 20px', textAlign: 'right', fontSize: 15 }}>
-                  <Money value={report?.totalIncome || '0.00'} />
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-
-        {/* SECTION 2: Operating Expenses */}
-        <div
-          style={{
-            background: 'var(--surface)',
-            border: '1px solid rgba(208, 174, 146, 0.4)',
-            borderRadius: 'var(--radius-md)',
-            boxShadow: 'var(--shadow-sm)',
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              padding: '14px 20px',
-              background: 'var(--brown-100)',
-              borderBottom: '1px solid var(--brown-300)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <h2
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontWeight: 700,
-                fontSize: 16,
-                color: 'var(--brown-900)',
-                margin: 0,
-              }}
-            >
-              Operating Expenses
-            </h2>
-            <span style={{ fontSize: 12, color: 'var(--brown-700)', fontFamily: 'var(--font-body)' }}>
-              Click amounts to inspect ledger
-            </span>
-          </div>
-
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ height: 32, borderBottom: '1px solid rgba(208, 174, 146, 0.2)', background: 'rgba(249, 242, 228, 0.5)' }}>
-                <th style={{ padding: '0 20px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase' }}>
-                  Account
-                </th>
-                <th style={{ padding: '0 20px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>
-                  Amount
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
               {report?.expenses && report.expenses.length > 0 ? (
-                report.expenses.map((item) => (
-                  <tr
-                    key={item.accountId}
+                report.expenses.map((acc) => (
+                  <div
+                    key={acc.accountId}
                     style={{
-                      height: 44,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
                       borderBottom: '1px solid rgba(208, 174, 146, 0.2)',
+                      fontSize: 13,
                     }}
                   >
-                    <td style={{ padding: '0 20px', fontSize: 13, fontWeight: 500, color: 'var(--brown-900)' }}>
-                      {item.accountName}
-                    </td>
-                    <td style={{ padding: '0 20px', textAlign: 'right' }}>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedDrillAccount({ id: item.accountId, name: item.accountName })}
-                        title="Click to drill down into ledger entries"
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSelectedDrillAccount({
+                          id: acc.accountId,
+                          name: acc.accountName,
+                        })
+                      }
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--brown-900)',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        fontWeight: 500,
+                        padding: 0,
+                        textAlign: 'left',
+                      }}
+                      title="Click to drill down into ledger entries"
+                    >
+                      <span>{acc.accountName}</span>
+                      <span
                         style={{
-                          background: 'transparent',
-                          border: 'none',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          color: 'var(--brown-900)',
-                          fontWeight: 600,
+                          fontSize: 10,
+                          background: 'rgba(235, 215, 190, 0.4)',
+                          color: 'var(--brown-700)',
+                          padding: '2px 6px',
+                          borderRadius: 4,
+                          textTransform: 'uppercase',
                         }}
                       >
-                        <Money value={item.total} />
-                        <ExternalLink size={11} style={{ color: 'var(--brown-700)' }} />
-                      </button>
-                    </td>
-                  </tr>
+                        {acc.type.replace('_', ' ')}
+                      </span>
+                      <ArrowUpRight size={13} style={{ color: 'var(--brown-400)' }} />
+                    </button>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--brown-900)' }}>
+                      <Money value={acc.total} />
+                    </div>
+                  </div>
                 ))
               ) : (
-                <tr>
-                  <td colSpan={2} style={{ padding: 20, textAlign: 'center', color: 'var(--brown-700)', fontSize: 13 }}>
-                    No operating expenses recorded in this period.
-                  </td>
-                </tr>
+                <div style={{ padding: '12px', fontSize: 13, color: 'var(--brown-500)', fontStyle: 'italic' }}>
+                  No expense entries recorded in this period.
+                </div>
               )}
-            </tbody>
-            <tfoot>
-              <tr style={{ background: 'var(--brown-100)', height: 44, fontWeight: 700, borderTop: '2px solid var(--brown-300)' }}>
-                <td style={{ padding: '0 20px', fontSize: 13, textTransform: 'uppercase', color: 'var(--brown-900)' }}>
-                  Total Expenses
-                </td>
-                <td style={{ padding: '0 20px', textAlign: 'right', fontSize: 15 }}>
+
+              {/* Subtotal: Total Expenses */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '10px 12px',
+                  background: 'rgba(235, 215, 190, 0.2)',
+                  borderTop: '1px solid var(--brown-400)',
+                  borderBottom: '1px solid var(--brown-400)',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  marginTop: 4,
+                }}
+              >
+                <span style={{ color: 'var(--brown-900)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                  Total Expenses (B)
+                </span>
+                <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--brown-900)' }}>
                   <Money value={report?.totalExpenses || '0.00'} />
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Net Profit / (Loss) Bottom Accounting Line */}
+          <div
+            style={{
+              marginTop: 12,
+              padding: '16px 20px',
+              background: isNetProfitPositive ? 'var(--posted-bg)' : 'var(--danger-bg)',
+              border: `1px solid ${isNetProfitPositive ? 'rgba(95, 112, 82, 0.4)' : 'rgba(158, 74, 56, 0.4)'}`,
+              borderTop: '2px solid var(--brown-900)',
+              borderBottom: '4px double var(--brown-900)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              borderRadius: 'var(--radius-sm)',
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  fontSize: 15,
+                  fontWeight: 700,
+                  color: isNetProfitPositive ? 'var(--posted)' : 'var(--danger)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                {isNetProfitPositive ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
+                <span>Net {isNetProfitPositive ? 'Profit' : 'Loss'} for the Period (A − B)</span>
+              </div>
+              <span style={{ fontSize: 11, color: 'var(--brown-700)', marginTop: 2, display: 'block' }}>
+                Recognized net profit flows directly to Balance Sheet Equity reserves.
+              </span>
+            </div>
+
+            <div
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 22,
+                fontWeight: 700,
+                color: isNetProfitPositive ? 'var(--posted)' : 'var(--danger)',
+              }}
+            >
+              <Money value={report?.netProfit || '0.00'} />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── 4-Level Drill-Down Modal ── */}
+      {/* ── 4-Level Drilldown Modal ── */}
       {selectedDrillAccount && (
         <LedgerDrilldownModal
           accountId={selectedDrillAccount.id}
