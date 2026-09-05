@@ -166,7 +166,7 @@ Urban Furniture ERP is engineered with granular data scoping (`scopeFor(user, re
 2. **Accountant**: Day-to-day ledger management, vendor bill verification, customer invoicing, payment registration, and tax auditing.
 3. **Operations / Sales & Purchase Manager**: Quotation, purchase order processing, order tracking, and stock visibility without permission to alter journals or chart of accounts.
 4. **Warehouse / Operational Staff**: Physical stock receipt, dispatch tracking, and document viewing.
-5. **Customer Contact (External Surface)**: Restricted client access to inspect billed tax invoices, review statement history, and settle outstanding balances.
+5. **Customer Contact (Customer Portal)**: Restricted client access to inspect billed tax invoices, review statement history, and settle outstanding balances via Razorpay.
 
 ### Permissions Matrix
 
@@ -200,7 +200,7 @@ Urban Furniture ERP is engineered with granular data scoping (`scopeFor(user, re
 * **Pre-Commitment Budget Enforcement**: Purchase orders validate departmental analytic account balances before confirmation, presenting non-blocking warning banners at 80% and blocking overruns.
 * **Live Material Inventory Synchronization**: Stock on hand is driven by discrete `stock_moves` tables tied to physical fulfillment rather than manual edits.
 * **Showroom-Grade Aesthetic**: Warm walnut and cream palette reflecting natural woods, leather, and tactile showroom craftsmanship.
-* **100% Self-Contained Offline Stack**: Operates without external CDNs, third-party payment gateways, or cloud AI services.
+* **Strict External API Policy (Razorpay Only)**: Operates without external CDNs, cloud AI services, or third-party web scrapers. The **Razorpay Payment Gateway API** is the sole external API integrated for secure online customer payment checkout.
 
 ---
 
@@ -831,9 +831,9 @@ All endpoints adhere strictly to a standardized response envelope:
 | `/api/auth/login` | `POST` | Internal staff authentication; issues HttpOnly cookie | Public |
 | `/api/auth/logout` | `POST` | Invalidates token and clears cookie | Authenticated |
 | `/api/auth/me` | `GET` | Returns active user session profile | Authenticated |
-| `/api/portal/login` | `POST` | External customer contact authentication | Public |
+| `/api/portal/login` | `POST` | Customer portal contact authentication | Public |
 | `/api/portal/invoices` | `GET` | Returns scoped invoices for logged-in customer | Portal Contact |
-| `/api/portal/invoices/:id/pay`| `POST` | Customer records self-service invoice payment | Portal Contact |
+| `/api/portal/invoices/:id/pay`| `POST` | Customer records self-service invoice payment (Razorpay checkout & allocation) | Portal Contact |
 | `/api/contacts` | `GET/POST` | List and create vendor and customer contacts | Internal Staff |
 | `/api/products` | `GET/POST` | Catalog product definitions and cost prices | Internal Staff |
 | `/api/accounts` | `GET` | Chart of Accounts ledger codes | Internal Staff |
@@ -898,7 +898,7 @@ Validation follows a strict two-tier pattern:
 * **Argon2id Password Hashing**: Passwords are hashed with memory-hard Argon2id parameters (`m=65536, t=3, p=4`), offering protection against GPU-based rainbow table attacks.
 * **SQL Injection Immunity**: Zero dynamic string concatenation. All PostgreSQL interactions use parameterized queries with numeric variables (`$1, $2, $3`).
 * **Tenant Scoping & IDOR Defense**: The Customer Portal isolates clients at the query layer. Invoices and payment routes enforce `WHERE customer_id = user.contact_id`.
-* **Zero External Network Calls**: The ERP runs completely offline. No CDNs, no third-party tracking scripts, and no external AI dependencies.
+* **Strict API Isolation (Razorpay Only)**: Zero third-party tracking scripts, cloud AI models, or external CDNs. The **Razorpay Payment Gateway API** is the sole external API integrated across the system, strictly isolated to customer digital payment checkout.
 
 ---
 
@@ -1103,7 +1103,7 @@ Judges can verify the platform end-to-end in **under 5 minutes** following this 
 3. **Progressive Installment Architecture**: Native allocation records prevent data destruction when handling partial payments.
 4. **Live Relational Reporting**: P&L and Balance Sheet reports query normalized ledger lines dynamically, eliminating sync delays.
 5. **Dual-Surface Security**: Administrative ERP tools are separated from client-facing invoice portals, enforcing tenant privacy.
-6. **Zero External Dependencies**: Operates entirely offline without external CDNs or third-party APIs.
+6. **No External APIs Except Razorpay**: Operates as a self-contained local stack with zero cloud AI or CDN dependencies, utilizing only the Razorpay Payment API for digital customer checkout.
 
 ---
 
@@ -1111,7 +1111,7 @@ Judges can verify the platform end-to-end in **under 5 minutes** following this 
 
 The following enhancements represent potential roadmap extensions, intentionally separated from current functionality:
 
-* **E-Way Bill & E-Invoicing API Integration**: Direct integration with GSTN APIs for automated IRN generation and QR code stamping.
+* **Local E-Way Bill & E-Invoicing Formats**: Self-contained generation of JSON structures for compliance printing without external API calls.
 * **Barcode & RFID Scanning**: Hardware scanner support for tracking lumber batches and assembly dispatch.
 * **Multi-Warehouse Stock Balancing**: Inter-warehouse transfer manifests across multiple factory and showroom sites.
 * **Automated Bank Reconciliation**: MT940 and OFX bank statement parsing with rule-based reconciliation heuristics.
@@ -1278,4 +1278,4 @@ curl -s http://localhost:5002/api/verify | jq .
 
 **Urban Furniture ERP** balances accounting rigor with an approachable, showroom-ready user experience. By enforcing double-entry invariants at the database layer, decoupling commercial orders from financial entries, and supporting staged installment workflows, it addresses the core operational challenges faced by furniture businesses.
 
-Built with clean architecture, strict TypeScript types, and zero external dependencies, it provides an enterprise-ready foundation for the **Odoo India Hackathon 2026 Finale**.
+Built with clean architecture, strict TypeScript types, and a self-contained local stack with only Razorpay Payment API integration, it provides an enterprise-ready foundation for the **Odoo India Hackathon 2026 Finale**.
