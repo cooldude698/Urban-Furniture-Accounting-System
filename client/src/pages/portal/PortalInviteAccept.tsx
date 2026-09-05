@@ -61,35 +61,35 @@ export const PortalInviteAccept: React.FC<PortalInviteAcceptProps> = ({
   };
 
   return (
-    <div className="max-w-md mx-auto py-12">
-      <div className="bg-white border border-slate-200 rounded-[12px] p-8 shadow-sm">
+    <div className="max-w-md mx-auto py-12 font-body">
+      <div className="bg-surface border border-brown-300 rounded-[18px] p-8 shadow-md">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-amber-500 rounded-[8px] flex items-center justify-center text-slate-950 font-bold font-display text-xl mx-auto mb-3 shadow-sm">
-            ✓
+          <div className="w-12 h-12 bg-brown-900 text-cream rounded-[10px] flex items-center justify-center font-bold font-display text-lg mx-auto mb-3 shadow-xs">
+            UF
           </div>
-          <h1 className="text-2xl font-bold font-display text-slate-900">
+          <h1 className="text-2xl font-bold font-display text-brown-900">
             Activate Contact Portal
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-brown-600 mt-1 font-body">
             Enter the invite token sent by the Urban Furniture team
           </p>
         </div>
 
         {error && (
-          <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-md mb-6 font-medium">
+          <div className="p-3 bg-danger-bg border border-danger text-danger text-xs rounded-md mb-6 font-medium font-body">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-md mb-6 font-medium">
+          <div className="p-3 bg-posted-bg border border-posted text-posted text-xs rounded-md mb-6 font-medium font-body">
             {success}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-brown-700 mb-1.5 font-body">
               Invitation Token *
             </label>
             <input
@@ -98,12 +98,12 @@ export const PortalInviteAccept: React.FC<PortalInviteAcceptProps> = ({
               value={token}
               onChange={e => setToken(e.target.value)}
               placeholder="Paste invitation token..."
-              className="w-full bg-slate-50 border border-slate-300 rounded-[6px] px-3.5 py-2 text-sm text-slate-900 font-mono focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition-colors"
+              className="w-full bg-cream/30 border border-brown-300 rounded-[8px] px-3.5 py-2 text-sm text-brown-900 font-mono placeholder:text-brown-400 focus:bg-surface focus:border-brown-700 focus:ring-1 focus:ring-brown-700 outline-none transition-colors"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-brown-700 mb-1.5 font-body">
               New Password *
             </label>
             <input
@@ -112,12 +112,12 @@ export const PortalInviteAccept: React.FC<PortalInviteAcceptProps> = ({
               value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="At least 8 characters"
-              className="w-full bg-slate-50 border border-slate-300 rounded-[6px] px-3.5 py-2 text-sm text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition-colors"
+              className="w-full bg-cream/30 border border-brown-300 rounded-[8px] px-3.5 py-2 text-sm text-brown-900 placeholder:text-brown-400 focus:bg-surface focus:border-brown-700 focus:ring-1 focus:ring-brown-700 outline-none transition-colors"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-brown-700 mb-1.5 font-body">
               Confirm Password *
             </label>
             <input
@@ -126,23 +126,23 @@ export const PortalInviteAccept: React.FC<PortalInviteAcceptProps> = ({
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
               placeholder="Repeat your password"
-              className="w-full bg-slate-50 border border-slate-300 rounded-[6px] px-3.5 py-2 text-sm text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none transition-colors"
+              className="w-full bg-cream/30 border border-brown-300 rounded-[8px] px-3.5 py-2 text-sm text-brown-900 placeholder:text-brown-400 focus:bg-surface focus:border-brown-700 focus:ring-1 focus:ring-brown-700 outline-none transition-colors"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 px-4 bg-slate-900 hover:bg-slate-800 text-amber-400 font-semibold rounded-[6px] shadow-sm text-sm transition-colors active:scale-[0.99] disabled:bg-slate-400"
+            className="w-full py-2.5 px-4 bg-brown-900 hover:bg-brown-800 text-cream font-bold font-display rounded-[10px] shadow-sm text-xs uppercase tracking-wider transition-colors active:scale-[0.99] disabled:opacity-60 cursor-pointer"
           >
-            {loading ? 'Setting Password...' : 'Activate Portal Account'}
+            {loading ? 'SETTING PASSWORD…' : 'ACTIVATE PORTAL ACCOUNT'}
           </button>
         </form>
 
         <div className="mt-6 text-center">
           <button
             onClick={onBackToLogin}
-            className="text-xs text-slate-500 hover:text-slate-800 underline"
+            className="text-xs font-semibold text-brown-700 hover:text-brown-900 underline font-body cursor-pointer"
           >
             ← Back to Portal Login
           </button>

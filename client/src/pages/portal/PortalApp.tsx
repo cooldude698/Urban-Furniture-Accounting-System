@@ -49,7 +49,7 @@ export const PortalApp: React.FC = () => {
 
   if (checkingAuth) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center text-amber-400 font-mono text-sm">
+      <div className="min-h-screen bg-cream flex items-center justify-center text-brown-800 font-display text-sm font-semibold">
         Initializing Portal Surface...
       </div>
     );
@@ -60,7 +60,7 @@ export const PortalApp: React.FC = () => {
       <div className="mb-4 text-right">
         <a
           href="/sales"
-          className="text-xs text-slate-500 hover:text-slate-800 underline font-medium"
+          className="text-xs text-brown-600 hover:text-brown-900 underline font-medium font-body"
         >
           ← Switch to Internal ERP Surface
         </a>

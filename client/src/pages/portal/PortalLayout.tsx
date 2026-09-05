@@ -13,32 +13,32 @@ interface PortalLayoutProps {
 
 export const PortalLayout: React.FC<PortalLayoutProps> = ({ user, onLogout, children }) => {
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-body">
+    <div className="min-h-screen bg-cream text-brown-900 flex flex-col font-body">
       {/* Top Portal Header */}
-      <header className="bg-slate-900 text-white px-8 py-4 flex items-center justify-between shadow-md border-b border-slate-800">
-        <div className="flex items-center space-x-4">
-          <div className="w-8 h-8 bg-amber-500 rounded-[6px] flex items-center justify-center text-slate-950 font-bold font-display text-base shadow-sm">
-            U
+      <header className="bg-surface text-brown-900 px-8 py-3.5 flex items-center justify-between shadow-xs border-b border-brown-300/40 sticky top-0 z-40">
+        <div className="flex items-center space-x-3.5">
+          <div className="w-8 h-8 bg-brown-900 rounded-[6px] flex items-center justify-center text-cream font-bold font-display text-sm shadow-xs">
+            UF
           </div>
           <div>
-            <span className="font-display font-bold text-lg tracking-tight block text-white">
+            <span className="font-display font-bold text-base tracking-tight block text-brown-900 leading-tight">
               Urban Furniture
             </span>
-            <span className="text-[10px] uppercase font-mono tracking-widest text-amber-400 font-semibold block">
+            <span className="text-[10px] uppercase font-mono tracking-widest text-brown-600 font-semibold block">
               Customer Portal Surface
             </span>
           </div>
         </div>
 
         {user && (
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-5">
             <div className="text-right hidden sm:block">
-              <span className="text-xs font-semibold text-white block">{user.full_name}</span>
-              <span className="text-[11px] text-slate-400 font-mono">{user.email}</span>
+              <span className="text-xs font-semibold text-brown-900 block">{user.full_name}</span>
+              <span className="text-[11px] text-brown-600 font-mono">{user.email}</span>
             </div>
             <button
               onClick={onLogout}
-              className="px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-[6px] transition-colors"
+              className="px-3.5 py-1.5 text-xs font-semibold bg-transparent hover:bg-brown-100 text-brown-800 border border-brown-400 rounded-[8px] transition-colors font-body cursor-pointer"
             >
               Sign Out
             </button>
@@ -47,14 +47,15 @@ export const PortalLayout: React.FC<PortalLayoutProps> = ({ user, onLogout, chil
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 max-w-6xl w-full mx-auto py-8 px-6">
+      <main className="flex-1 max-w-6xl w-full mx-auto py-8 px-6 font-body">
         {children}
       </main>
 
       {/* Footer */}
-      <footer className="py-6 border-t border-slate-200 text-center text-xs text-slate-500 font-medium">
+      <footer className="py-6 border-t border-brown-300/30 text-center text-xs text-brown-600 font-medium font-body bg-cream">
         Urban Furniture Customer Portal • Secure Restricted Surface • Offline Double-Entry Ledger
       </footer>
     </div>
   );
 };
+
