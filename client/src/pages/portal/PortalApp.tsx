@@ -10,11 +10,13 @@ import { PortalInvoiceDetail } from './PortalInvoiceDetail';
 import { PortalBillList } from './PortalBillList';
 import { PortalBillDetail } from './PortalBillDetail';
 import { PortalPaymentList } from './PortalPaymentList';
+import { PortalCataloguePage } from './PortalCataloguePage';
+import { PortalProductViewerPage } from './PortalProductViewerPage';
 
 /**
  * Portal route tree.
  *
- * Public  – /portal/login, /portal/accept-invite
+ * Public  – /portal/login, /portal/accept-invite, /portal/catalogue, /portal/catalogue/:id
  * Protected (behind PortalAuthGuard) – /portal/invoices, /portal/invoices/:id,
  *                                       /portal/payments,
  *                                       /portal/bills, /portal/bills/:id
@@ -28,6 +30,8 @@ export const PortalApp: React.FC = () => {
       {/* ── Public portal routes ── */}
       <Route path="login" element={<PortalLogin />} />
       <Route path="accept-invite" element={<PortalInviteAccept />} />
+      <Route path="catalogue" element={<PortalCataloguePage />} />
+      <Route path="catalogue/:id" element={<PortalProductViewerPage />} />
 
       {/* ── Authenticated portal routes ── */}
       <Route element={<PortalAuthGuard />}>

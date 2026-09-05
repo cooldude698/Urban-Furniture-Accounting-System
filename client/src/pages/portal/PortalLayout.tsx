@@ -57,6 +57,7 @@ export const PortalLayout: React.FC = () => {
             }}
           >
             {[
+              { to: '/portal/catalogue', label: 'Catalogue' },
               { to: '/portal/invoices', label: 'Customer Invoices' },
               { to: '/portal/payments', label: 'Payment Logs' },
               { to: '/portal/bills', label: 'Vendor Bills' },
