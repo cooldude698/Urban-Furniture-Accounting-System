@@ -338,4 +338,62 @@ export class PaymentService {
       dueDate: r.dueDate ? new Date(r.dueDate).toISOString().split('T')[0] : '',
     }));
   }
+
+  /**
+   * Get payment history for a vendor bill in chronological order with running balance
+   */
+  static async getPaymentHistoryForBill(billId: number): Promise<PaymentHistoryItem[]> {
+    const billRes = await pool.query<{ total: string }>(
+      'SELECT total FROM vendor_bills WHERE id = $1',
+      [billId]
+    );
+    if (billRes.rows.length === 0) return [];
+
+    const totalBill = new Decimal(billRes.rows[0].total);
+
+    const allocRes = await pool.query<{
+      allocation_id: number;
+      payment_id: number;
+      payment_number: string;
+      payment_date: string;
+      method: 'cash' | 'bank';
+      direction: 'inbound' | 'outbound';
+      amount: string;
+    }>(
+      `SELECT 
+         pa.id as allocation_id,
+         p.id as payment_id,
+         p.number as payment_number,
+         p.payment_date,
+         p.method,
+         p.direction,
+         pa.amount
+       FROM payment_allocations pa
+       JOIN payments p ON p.id = pa.payment_id
+       WHERE pa.bill_id = $1
+       ORDER BY p.payment_date ASC, pa.id ASC`,
+      [billId]
+    );
+
+    let runningRemaining = totalBill;
+    const history: PaymentHistoryItem[] = [];
+
+    for (const row of allocRes.rows) {
+      const allocated = new Decimal(row.amount);
+      runningRemaining = runningRemaining.minus(allocated);
+      history.push({
+        allocationId: row.allocation_id,
+        paymentId: row.payment_id,
+        paymentNumber: row.payment_number,
+        paymentDate: row.payment_date ? new Date(row.payment_date).toISOString().split('T')[0] : '',
+        method: row.method,
+        direction: row.direction,
+        amount: allocated.toFixed(2),
+        runningRemaining: runningRemaining.toFixed(2),
+      });
+    }
+
+    return history;
+  }
 }
+
