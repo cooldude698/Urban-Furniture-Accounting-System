@@ -67,6 +67,7 @@ export interface VoiceBillSession {
   confidenceNotes?: { en: string[]; hi: string[] };
   disagreementWarnings?: { en: string[]; hi: string[] };
   slotSources?: SlotSourceMeta;
+  pendingSlot?: 'product' | 'quantity' | 'unitPrice' | 'customerName' | 'phone';
 }
 
 export interface ChatMessageResponse {
@@ -659,13 +660,17 @@ Output:`;
     session.lastUpdateNote = undefined;
 
     // 0. Session Self-Healing & Cleanup:
-    // Remove any erroneously added line items where the product name is an Indian person name (e.g. "rahul")
-    // and correct any corrupted astronomical unit prices (>= 10,000,000)
+    // Remove any erroneously added line items where the product name is an Indian person name (e.g. "rahul", "aryan")
+    // or if productName equals customerName, or single non-product word with no productId
     let sessionNeedsRecalc = false;
     session.lineItems = session.lineItems.filter(item => {
       const pName = (item.productName || '').toLowerCase().trim();
       const pWords = pName.split(/\s+/).filter(w => w.length > 0);
-      const isPerson = pWords.length > 0 && pWords.every(w => isIndianName(w));
+      const isPerson =
+        pWords.length > 0 &&
+        (pWords.every(w => isIndianName(w)) ||
+         (session.customerName && pName === session.customerName.toLowerCase().trim()) ||
+         (!item.productId && pWords.length <= 2 && !/(?:desk|chair|table|sofa|planks|wood|bookshelf|cabinet|bed|furniture|stool|bench|drawer|shelf|board|wardrobe|stand|rack)/i.test(pName)));
 
       if (isPerson) {
         if (!session.customerName) {
@@ -811,6 +816,63 @@ Output:`;
         readyForConfirm: false,
         isConfirmed: false,
       };
+    }
+
+    // 0e. Conversational Context-Aware Slot Answering:
+    // If the assistant previously asked a targeted question for a missing slot (e.g. "Please provide the customer name"):
+    if (session.pendingSlot) {
+      const trimmed = text.trim();
+
+      // Case A: Waiting for customerName
+      if (session.pendingSlot === 'customerName') {
+        const isExplicitProductAdd = /^(?:add|jodo|dalo|खरीदना|चाहिए|जोड़ो|डालो)\b/i.test(trimmed);
+        const hasCatalogAnchor = /(?:price|rate|qty|quantity|₹|rupees)/i.test(trimmed);
+        if (!isExplicitProductAdd && !hasCatalogAnchor && trimmed.length >= 2 && trimmed.split(/\s+/).length <= 4) {
+          session.customerName = VoiceBillParser.capitalizeWords(trimmed);
+          session.pendingSlot = undefined;
+          this.recalculateTotals(session);
+          return this.checkNextStepOrConfirm(session, lang);
+        }
+      }
+
+      // Case B: Waiting for phone
+      if (session.pendingSlot === 'phone') {
+        const cleanDigits = trimmed.replace(/\D/g, '');
+        if (cleanDigits.length >= 10 && cleanDigits.length <= 13) {
+          session.phone = cleanDigits.slice(-10);
+          session.pendingSlot = undefined;
+          this.recalculateTotals(session);
+          return this.checkNextStepOrConfirm(session, lang);
+        }
+      }
+
+      // Case C: Waiting for quantity
+      if (session.pendingSlot === 'quantity' && session.lineItems.length > 0) {
+        const num = VoiceBillParser.parseNumberToken(trimmed) ?? parseInt(trimmed, 10);
+        if (num !== null && !isNaN(num) && num > 0 && num < 10000) {
+          const last = session.lineItems[session.lineItems.length - 1];
+          last.qty = num;
+          last.isQtyAssumed = false;
+          last.qtyNeedsReview = false;
+          session.pendingSlot = undefined;
+          this.recalculateTotals(session);
+          return this.checkNextStepOrConfirm(session, lang);
+        }
+      }
+
+      // Case D: Waiting for unitPrice
+      if (session.pendingSlot === 'unitPrice' && session.lineItems.length > 0) {
+        const num = VoiceBillParser.parseNumberToken(trimmed) ?? parseFloat(trimmed.replace(/[₹rsINR,\s]/gi, ''));
+        if (num !== null && !isNaN(num) && num > 0 && num < 10000000) {
+          const last = session.lineItems[session.lineItems.length - 1];
+          last.unitPrice = num;
+          last.isPriceAssumed = false;
+          last.priceNeedsReview = false;
+          session.pendingSlot = undefined;
+          this.recalculateTotals(session);
+          return this.checkNextStepOrConfirm(session, lang);
+        }
+      }
     }
 
     // 1. Fetch catalog product names for elimination pass
@@ -1296,54 +1358,67 @@ Output:`;
     this.recalculateTotals(session);
 
     // 6. Check for Missing Slots and generate targeted single follow-up question
+    return this.checkNextStepOrConfirm(session, lang);
+  }
+
+  /**
+   * Helper that evaluates the session, updates session.pendingSlot, and either prompts for the next missing slot or transitions to ready_for_confirm.
+   */
+  static checkNextStepOrConfirm(session: VoiceBillSession, lang: SupportedLanguage): ChatMessageResponse {
     const line = session.lineItems[session.lineItems.length - 1];
 
     if (!line || (!line.productId && !line.productName)) {
+      session.pendingSlot = 'product';
+      session.status = 'collecting';
       const reply =
         lang === 'hi'
           ? 'कृपया वह उत्पाद बताएं जिसे आप बिल में जोड़ना चाहते हैं।'
           : 'Which product would you like to add to the bill?';
-      session.status = 'collecting';
       return { reply, language: lang, session, readyForConfirm: false, isConfirmed: false };
     }
 
     if (!line.qty || line.qty <= 0) {
+      session.pendingSlot = 'quantity';
+      session.status = 'collecting';
       const reply =
         lang === 'hi'
           ? `कृपया ${line.matchedName || line.productName} की मात्रा बताएं।`
           : `Please specify the quantity for ${line.matchedName || line.productName}.`;
-      session.status = 'collecting';
       return { reply, language: lang, session, readyForConfirm: false, isConfirmed: false };
     }
 
     if (!line.unitPrice || line.unitPrice <= 0) {
+      session.pendingSlot = 'unitPrice';
+      session.status = 'collecting';
       const reply =
         lang === 'hi'
           ? `कृपया ${line.matchedName || line.productName} की प्रति यूनिट कीमत (रुपये) बताएं।`
           : `Please specify the unit price for ${line.matchedName || line.productName}.`;
-      session.status = 'collecting';
       return { reply, language: lang, session, readyForConfirm: false, isConfirmed: false };
     }
 
     if (!session.customerName) {
+      session.pendingSlot = 'customerName';
+      session.status = 'collecting';
       const reply =
         lang === 'hi'
           ? 'कृपया ग्राहक का नाम बताएं।'
           : 'Please provide the customer name.';
-      session.status = 'collecting';
       return { reply, language: lang, session, readyForConfirm: false, isConfirmed: false };
     }
 
     if (!session.phone) {
+      session.pendingSlot = 'phone';
+      session.status = 'collecting';
       const reply =
         lang === 'hi'
           ? 'कृपया ग्राहक का 10-अंकीय फ़ोन नंबर बताएं।'
           : 'Please provide the customer phone number.';
-      session.status = 'collecting';
       return { reply, language: lang, session, readyForConfirm: false, isConfirmed: false };
     }
 
     // 7. Everything filled -> Transition to ready_for_confirm
+    session.pendingSlot = undefined;
     session.status = 'ready_for_confirm';
 
     let confirmMsg =

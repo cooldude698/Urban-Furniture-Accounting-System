@@ -6,7 +6,7 @@
 export const INDIAN_NAMES_LIST: string[] = [
   // Latin / English spellings
   'aakash', 'aarti', 'aarav', 'abhishek', 'advik', 'ajay', 'akash', 'alok', 'aman', 'amit',
-  'anand', 'anil', 'anita', 'anjali', 'ansh', 'arav', 'arjun', 'ashish', 'atharv', 'ayush',
+  'anand', 'anil', 'anita', 'anjali', 'ansh', 'arav', 'arjun', 'aryan', 'aaryan', 'ashish', 'atharv', 'ayush',
   'barkha', 'bharat', 'bhavna', 'bhupesh', 'brijesh', 'chetan', 'daksh', 'deepak', 'deepika',
   'dev', 'devansh', 'dharmesh', 'dinesh', 'divya', 'ganesh', 'gaurav', 'geeta', 'gopal', 'harsh',
   'hitesh', 'jagdish', 'jignesh', 'jyoti', 'kabeer', 'kabir', 'kamal', 'kamlesh', 'karan',
@@ -24,7 +24,7 @@ export const INDIAN_NAMES_LIST: string[] = [
 
   // Devanagari spellings
   'आकाश', 'आरती', 'आरव', 'अभिषेक', 'अद्विक', 'अजय', 'आलोक', 'अमन', 'अमित', 'आनंद',
-  'अनिल', 'अनीता', 'अंजलि', 'अंश', 'अर्जुन', 'आशीष', 'अथर्व', 'आयुष', 'बरखा', 'भरत',
+  'अनिल', 'अनीता', 'अंजलि', 'अंश', 'अर्जुन', 'आर्यन', 'आशीष', 'अथर्व', 'आयुष', 'बरखा', 'भरत',
   'भावना', 'भूपेश', 'बृजेश', 'चेतन', 'दक्ष', 'दीपक', 'दीपिका', 'देव', 'देवांश', 'धर्मेश',
   'दिनेश', 'दिव्या', 'गणेश', 'गौरव', 'गीता', 'गोपाल', 'हर्ष', 'हितेश', 'जगदीश', 'जिग्नेश',
   'ज्योति', 'कबीर', 'कमल', 'कमलेश', 'करण', 'कार्तिक', 'कविता', 'केशव', 'किरण', 'कृष्ण',
