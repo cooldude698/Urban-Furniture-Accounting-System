@@ -197,7 +197,7 @@ export default function Signup() {
               </div>
             )}
 
-            {/* Wireframe Centered Button: SIGN OUT / SIGN UP */}
+            {/* Wireframe Centered Button: SIGN OUT */}
             <div style={styles.btnWrapper}>
               <button
                 type="submit"
@@ -212,15 +212,15 @@ export default function Signup() {
                   cursor: loading || !isFormValid ? 'not-allowed' : 'pointer',
                 }}
               >
-                {loading ? 'SIGNING UP…' : 'SIGN UP'}
+                {loading ? 'SUBMITTING…' : 'SIGN OUT'}
               </button>
             </div>
 
-            {/* Forgot Password | Sign Up / Sign In footer */}
+            {/* Forgot Password | Sign Up footer matching exact wireframe */}
             <div style={styles.linksRow}>
               <Link to="/forgot-password" style={styles.link}>Forgot Password</Link>
               <span style={styles.linkDivider}>|</span>
-              <Link to="/login" style={styles.link}>Sign In</Link>
+              <Link to="/signup" style={styles.link}>Sign Up</Link>
             </div>
           </form>
         </div>
