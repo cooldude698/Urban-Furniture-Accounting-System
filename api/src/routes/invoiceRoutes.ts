@@ -102,3 +102,42 @@ invoiceRouter.get('/:id/payments', async (req: Request, res: Response) => {
   }
 });
 
+// 6. GET /api/invoices/:id/pdf - Export PDF (server-side Puppeteer)
+invoiceRouter.get('/:id/pdf', async (req: Request, res: Response) => {
+  try {
+    const invId = parseInt(String(req.params.id), 10);
+    if (isNaN(invId)) {
+      return sendError(res, 'INVALID_ID', 'Invoice ID must be a number', 400);
+    }
+
+    const invoice = await InvoiceService.getInvoiceById(invId);
+    if (!invoice) {
+      return sendError(res, 'NOT_FOUND', `Customer invoice #${invId} not found`, 404);
+    }
+
+    const { PdfService } = await import('../services/pdfService');
+
+    // Option to view rendered HTML directly
+    if (req.query.format === 'html') {
+      const html = PdfService.generateInvoiceHtml(invoice);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.send(html);
+    }
+
+    try {
+      const pdfBuffer = await PdfService.generateInvoicePdf(invoice);
+      const filename = `Invoice-${invoice.number.replace(/\//g, '_')}.pdf`;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+      return res.send(pdfBuffer);
+    } catch (pdfErr: any) {
+      console.warn('Puppeteer launch fallback to printable HTML:', pdfErr.message);
+      const html = PdfService.generateInvoiceHtml(invoice);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.send(html);
+    }
+  } catch (err: any) {
+    return sendError(res, 'SERVER_ERROR', err.message, 500);
+  }
+});
+
