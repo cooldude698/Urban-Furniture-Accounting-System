@@ -1,111 +1,184 @@
+/* ── Self-hosted fonts via @fontsource (zero CDN — bundled woff2) ─ */
+/* Montserrat: 600, 700 — Display / KPI numbers */
+@import '@fontsource/montserrat/600.css';
+@import '@fontsource/montserrat/700.css';
+
+/* DM Sans: 400, 500 — Body text */
+@import '@fontsource/dm-sans/400.css';
+@import '@fontsource/dm-sans/500.css';
+
+/* IBM Plex Mono: 400, 500 — Money / ledger figures */
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
+/* ── Tailwind v4 ─────────────────────────────────────────────────── */
+@import "tailwindcss";
+
+@theme {
+  /* Map CSS tokens into Tailwind theme */
+  --color-brown-900: var(--brown-900);
+  --color-brown-700: var(--brown-700);
+  --color-brown-500: var(--brown-500);
+  --color-brown-300: var(--brown-300);
+  --color-brown-100: var(--brown-100);
+  --color-cream: var(--cream);
+  --color-surface: var(--surface);
+  --color-posted: var(--posted);
+  --color-posted-bg: var(--posted-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+
+  --font-family-display: var(--font-display);
+  --font-family-body: var(--font-body);
+  --font-family-mono: var(--font-mono);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+}
+
+/* ── Design tokens ─────────────────────────────────────────────── */
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  /* Neutrals — walnut scale */
+  --brown-900: #4A3A34;
+  --brown-700: #77574A;
+  --brown-500: #A8836C;
+  --brown-300: #D0AE92;
+  --brown-100: #EBD7BE;
+  --cream:     #F9F2E4;
+  --surface:   #FFFFFF;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+  /* Semantic */
+  --posted:    #5F7052;
+  --posted-bg: #EDF1E8;
+  --warning:   #C08A3E;
+  --warning-bg:#FBF1DF;
+  --danger:    #9E4A38;
+  --danger-bg: #F8EAE6;
+  --info:      #77574A;
+  --draft:     #A8836C;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Typography */
+  --font-display: 'Montserrat', sans-serif;
+  --font-body:    'DM Sans', sans-serif;
+  --font-mono:    'IBM Plex Mono', monospace;
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  /* Shadows — tinted with brown, never pure black */
+  --shadow-sm: 0 1px 2px rgba(74, 58, 52, 0.06);
+  --shadow-md: 0 4px 12px rgba(74, 58, 52, 0.08);
+  --shadow-lg: 0 12px 32px rgba(74, 58, 52, 0.12);
+
+  /* Spacing base: 4px */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
+/* ── Global reset / base ───────────────────────────────────────── */
+*, *::before, *::after {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
 }
 
 body {
-  margin: 0;
-}
-
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
-}
-
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
-}
-
-code {
+  font-family: var(--font-body);
   font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+  line-height: 24px;
+  color: var(--brown-900);
+  background-color: var(--cream);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Typography scale ──────────────────────────────────────────── */
+.text-display {
+  font-family: var(--font-display);
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 700;
+}
+
+.text-h1 {
+  font-family: var(--font-display);
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+}
+
+.text-h2 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  line-height: 26px;
+  font-weight: 600;
+}
+
+.text-body {
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 24px;
+}
+
+.text-sm {
+  font-family: var(--font-body);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.text-xs {
+  font-family: var(--font-body);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+/* ── Money / mono ──────────────────────────────────────────────── */
+.font-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.money {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* ── Focus ring ────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid var(--brown-700);
+  outline-offset: 2px;
+}
+
+/* ── Transitions ───────────────────────────────────────────────── */
+.transition-base {
+  transition: all 150ms ease-out;
+}
+
+/* ── Utility ───────────────────────────────────────────────────── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
