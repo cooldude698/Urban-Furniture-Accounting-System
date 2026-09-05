@@ -12,6 +12,8 @@ export interface ProductInput {
   mrp?: string;
   tax_rate: string;
   stock_qty?: string;
+  model_url?: string;
+  image_url?: string;
 }
 
 export interface ProductDTO {
@@ -25,6 +27,8 @@ export interface ProductDTO {
   mrp: string | null;
   tax_rate: string;
   stock_qty: string;
+  model_url: string | null;
+  image_url: string | null;
   is_archived: boolean;
   created_at: string;
   updated_at: string;
@@ -62,8 +66,8 @@ export class ProductService {
     const sku = input.sku || this.generateSku(input.category || 'GEN', input.name);
     const res = await pool.query(
       `INSERT INTO products 
-        (sku, name, type, category, sales_price, cost_price, mrp, tax_rate, stock_qty)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        (sku, name, type, category, sales_price, cost_price, mrp, tax_rate, stock_qty, model_url, image_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
       [
         sku,
@@ -75,6 +79,8 @@ export class ProductService {
         input.mrp ? new Decimal(input.mrp).toFixed(2) : null,
         new Decimal(input.tax_rate || 0).toFixed(2),
         new Decimal(input.stock_qty || 0).toFixed(2),
+        input.model_url || null,
+        input.image_url || null,
       ]
     );
     return this.mapRow(res.rows[0]);
@@ -119,6 +125,14 @@ export class ProductService {
     if (input.stock_qty !== undefined) {
       values.push(new Decimal(input.stock_qty).toFixed(2));
       fields.push(`stock_qty = $${values.length}`);
+    }
+    if (input.model_url !== undefined) {
+      values.push(input.model_url || null);
+      fields.push(`model_url = $${values.length}`);
+    }
+    if (input.image_url !== undefined) {
+      values.push(input.image_url || null);
+      fields.push(`image_url = $${values.length}`);
     }
 
     if (fields.length === 0) return this.getById(id);
@@ -182,6 +196,8 @@ export class ProductService {
       mrp: row.mrp !== null ? String(row.mrp) : null,
       tax_rate: String(row.tax_rate),
       stock_qty: String(row.stock_qty),
+      model_url: row.model_url || null,
+      image_url: row.image_url || null,
       is_archived: row.is_archived,
       created_at: row.created_at,
       updated_at: row.updated_at,

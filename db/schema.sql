@@ -43,6 +43,8 @@ CREATE TABLE products (
   mrp           DECIMAL(14,2),
   tax_rate      DECIMAL(5,2) NOT NULL DEFAULT 0,
   stock_qty     DECIMAL(12,2) NOT NULL DEFAULT 0, -- cache only; v_stock_on_hand is the truth
+  model_url     TEXT,
+  image_url     TEXT,
   is_archived   BOOLEAN NOT NULL DEFAULT false,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()

@@ -15,6 +15,8 @@ export const ProductSchema = z.object({
   tax_rate: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Tax rate must be a valid decimal string').default('0.00'),
   stock_qty: z.number().optional().default(0),
   min_stock_threshold: z.number().int().nonnegative().optional().default(5),
+  model_url: z.string().nullable().optional(),
+  image_url: z.string().nullable().optional(),
   is_archived: z.boolean().default(false),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
