@@ -6,7 +6,10 @@ import { InvoiceLineGrid, InvoiceGridLine } from './components/InvoiceLineGrid';
 import { BlockingWarning } from './components/Warnings';
 import { PaymentHistoryPanel } from './components/PaymentHistoryPanel';
 import { CustomerInvoiceDTO } from '@shared/schemas/invoice';
-import { ShoppingCart, CreditCard } from 'lucide-react';
+import { ShoppingCart, CreditCard, BookOpen } from 'lucide-react';
+import { JournalEntryModal } from '../../components/purchase/JournalEntryModal';
+
+
 
 export interface CustomerInvoiceFormPageProps {
   invoiceId?: number | null;
@@ -33,6 +36,8 @@ export const CustomerInvoiceFormPage: React.FC<CustomerInvoiceFormPageProps> = (
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [isJournalModalOpen, setIsJournalModalOpen] = useState<boolean>(false);
+
 
   // Fetch dropdown data
   useEffect(() => {
@@ -232,7 +237,15 @@ export const CustomerInvoiceFormPage: React.FC<CustomerInvoiceFormPageProps> = (
               onClick={() => navigate(`/sales/orders/${invoice.soId}`)}
             />
           )}
+          {invoice?.journalEntryId && (
+            <SmartButton
+              label={`Journal Entry #${invoice.journalEntryId}`}
+              icon={BookOpen}
+              onClick={() => setIsJournalModalOpen(true)}
+            />
+          )}
         </div>
+
       </div>
 
       <div className="px-6">
@@ -339,7 +352,18 @@ export const CustomerInvoiceFormPage: React.FC<CustomerInvoiceFormPageProps> = (
           />
         )}
       </div>
+
+      {/* Journal Entry Double-Entry Modal */}
+      {invoice?.journalEntryId && (
+        <JournalEntryModal
+          journalEntryId={invoice.journalEntryId}
+          isOpen={isJournalModalOpen}
+          onClose={() => setIsJournalModalOpen(false)}
+          sourceDocNumber={invoice.number}
+        />
+      )}
     </div>
   );
 };
+
 export default CustomerInvoiceFormPage;
