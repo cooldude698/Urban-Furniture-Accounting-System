@@ -2,6 +2,8 @@ import { PoolClient } from 'pg';
 import Decimal from 'decimal.js';
 import { SequenceService } from './sequenceService';
 import { AuditService } from './auditService';
+import { withTransaction } from '../db/withTransaction';
+import { emitLedgerChanged } from './ledgerEvents';
 
 export type DocumentType = 'bill' | 'invoice' | 'payment';
 
@@ -53,24 +55,59 @@ export class PostingService {
    *
    * @param type 'bill' | 'invoice' | 'payment'
    * @param id The document primary key ID
-   * @param tx The active PoolClient transaction
+   * @param tx The active PoolClient transaction (or creates one if omitted)
    */
   static async postDocument(
     type: DocumentType,
     id: number,
-    tx: PoolClient
+    tx?: PoolClient
   ): Promise<PostResult> {
+    if (!tx) {
+      return await withTransaction(async (client) => {
+        return await this.postDocument(type, id, client);
+      });
+    }
+
+    let result: PostResult;
     switch (type) {
       case 'bill':
-        return this.postBill(id, tx);
+        result = await this.postBill(id, tx);
+        break;
       case 'invoice':
-        return this.postInvoice(id, tx);
+        result = await this.postInvoice(id, tx);
+        break;
       case 'payment':
-        return this.postPayment(id, tx);
+        result = await this.postPayment(id, tx);
+        break;
       default:
         throw new Error(`Unsupported document type for posting: ${type}`);
     }
+
+    // Register post-commit ledger broadcast strictly after COMMIT
+    const txAny = tx as any;
+    if (txAny && !txAny._hasLedgerHook) {
+      txAny._hasLedgerHook = true;
+      if (Array.isArray(txAny._postCommitHooks)) {
+        txAny._postCommitHooks.push(async () => {
+          await emitLedgerChanged();
+        });
+      } else {
+        const origQuery = txAny.query.bind(txAny);
+        txAny.query = async function (...args: any[]) {
+          const queryRes = await origQuery(...args);
+          if (typeof args[0] === 'string' && args[0].trim().toUpperCase() === 'COMMIT') {
+            setTimeout(() => {
+              emitLedgerChanged().catch((err) => console.error('[Socket.IO] broadcast error:', err));
+            }, 0);
+          }
+          return queryRes;
+        };
+      }
+    }
+
+    return result;
   }
+
 
   /**
    * Posts a Vendor Bill
