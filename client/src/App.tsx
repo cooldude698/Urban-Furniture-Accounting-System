@@ -58,6 +58,7 @@ import BalanceSheetPage from './pages/reports/BalanceSheetPage';
 import ProfitLossPage from './pages/reports/ProfitLossPage';
 import BudgetReportPage from './pages/reports/BudgetReportPage';
 import VerifyPage from './pages/reports/VerifyPage';
+import AnalyticsPage from './pages/reports/AnalyticsPage';
 
 // Customer Portal
 import PortalApp from './pages/portal/PortalApp';
@@ -157,6 +158,7 @@ export function App() {
           <Route path="balance-sheet" element={<BalanceSheetPage />} />
           <Route path="profit-loss" element={<ProfitLossPage />} />
           <Route path="budget" element={<BudgetReportPage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
         </Route>
 
         {/* ── System Ledger Audit (/verify) ── */}

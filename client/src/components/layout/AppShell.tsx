@@ -23,6 +23,7 @@ import {
   Scale,
   TrendingUp,
   ShieldCheck,
+  BarChart2,
 } from 'lucide-react';
 import { MegaMenu } from './MegaMenu';
 import api from '../../lib/axios';
@@ -59,6 +60,7 @@ const MODULE_SUBNAV_MAP: Record<string, SubNavItem[]> = {
     { label: 'Balance Sheet', to: '/report/balance-sheet', icon: Scale },
     { label: 'Profit & Loss', to: '/report/profit-loss', icon: TrendingUp },
     { label: 'Budget Performance', to: '/report/budget', icon: FileBarChart },
+    { label: 'Analytics Engine', to: '/report/analytics', icon: BarChart2 },
     { label: 'System Integrity', to: '/integrity', icon: ShieldCheck },
   ],
 };
