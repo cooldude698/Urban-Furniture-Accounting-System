@@ -12,8 +12,9 @@ import { Account } from '@shared/schemas/account.schema';
 import { AnalyticAccount } from '@shared/schemas/analytic.schema';
 import { SmartButton } from '../../components/SmartButton';
 import { NonBlockingWarning } from '../../components/NonBlockingWarning';
+import { RegisterPaymentModal } from '../../components/purchase/RegisterPaymentModal';
 import { Money } from '../../components/Money';
-import { CheckCircle2, DollarSign, ShoppingCart, PieChart, Ban, Trash2, Plus } from 'lucide-react';
+import { CheckCircle2, DollarSign, ShoppingCart, PieChart, Ban, Trash2, Plus, BookOpen, Clock } from 'lucide-react';
 import Decimal from 'decimal.js';
 
 interface VendorBillFormPageProps {
@@ -22,7 +23,9 @@ interface VendorBillFormPageProps {
   onSaved: (id: number) => void;
   onHome: () => void;
   onViewPO?: (poId: number) => void;
+  onViewJournalEntry?: (journalEntryId: number) => void;
 }
+
 
 export const VendorBillFormPage: React.FC<VendorBillFormPageProps> = ({
   billId,
@@ -30,6 +33,7 @@ export const VendorBillFormPage: React.FC<VendorBillFormPageProps> = ({
   onSaved,
   onHome,
   onViewPO,
+  onViewJournalEntry,
 }) => {
   const isNew = !billId;
 
@@ -46,9 +50,33 @@ export const VendorBillFormPage: React.FC<VendorBillFormPageProps> = ({
   const [dueDate, setDueDate] = useState<string>(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [lines, setLines] = useState<BillLine[]>([]);
 
+  const [payments, setPayments] = useState<any[]>([]);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState<boolean>(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
+
+  const refreshBillData = async (id: number) => {
+    try {
+      setLoading(true);
+      const data = await VendorBillsApi.getById(id);
+      setBill(data);
+      setVendorId(data.vendor_id);
+      setBillReference(data.bill_reference || '');
+      setPoId(data.po_id || null);
+      setBillDate(data.bill_date);
+      setDueDate(data.due_date);
+      setLines(data.lines);
+
+      const pms = await VendorBillsApi.getPayments(id);
+      setPayments(pms);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     ContactsApi.getAll(false, 'vendor').then(data => {
@@ -80,21 +108,10 @@ export const VendorBillFormPage: React.FC<VendorBillFormPageProps> = ({
     AnalyticsApi.getAll(false).then(setAnalytics).catch(console.error);
 
     if (billId) {
-      setLoading(true);
-      VendorBillsApi.getById(billId)
-        .then(data => {
-          setBill(data);
-          setVendorId(data.vendor_id);
-          setBillReference(data.bill_reference || '');
-          setPoId(data.po_id || null);
-          setBillDate(data.bill_date);
-          setDueDate(data.due_date);
-          setLines(data.lines);
-        })
-        .catch(err => setError(err.message))
-        .finally(() => setLoading(false));
+      refreshBillData(billId);
     }
   }, [billId]);
+
 
   const handleProductChange = (index: number, productId: number) => {
     const product = products.find(p => p.id === productId);
@@ -293,22 +310,34 @@ export const VendorBillFormPage: React.FC<VendorBillFormPageProps> = ({
       error={error}
       extraButtons={
         <div className="flex items-center gap-2">
-          {/* CRITICAL: PO Smart button appears ONLY if bill.po_id is not null */}
+          {/* Source PO Smart button */}
           <SmartButton
-            label="PO Order"
+            label="Source PO"
             count={bill?.po_id ? `PO #${bill.po_id}` : undefined}
             icon={ShoppingCart}
             visible={Boolean(bill?.po_id)}
             onClick={() => bill?.po_id && onViewPO?.(bill.po_id)}
           />
 
-          {/* Budget Smart button */}
+          {/* Journal Entry Smart button */}
           <SmartButton
-            label="Budget Analysis"
-            count="Active"
-            icon={PieChart}
-            visible={!isNew}
-            onClick={() => alert(`Analytics linked: ${lines.filter(l => l.analytic_account_id).length} line items`)}
+            label="Journal Entry"
+            count={bill?.journal_entry_id ? `#${bill.journal_entry_id}` : undefined}
+            icon={BookOpen}
+            visible={Boolean(bill?.journal_entry_id)}
+            onClick={() => bill?.journal_entry_id && onViewJournalEntry?.(bill.journal_entry_id)}
+          />
+
+          {/* Payments Smart button */}
+          <SmartButton
+            label="Payments"
+            count={payments.length > 0 ? String(payments.length) : undefined}
+            icon={DollarSign}
+            visible={payments.length > 0}
+            onClick={() => {
+              const el = document.getElementById('payment-history-section');
+              if (el) el.scrollIntoView({ behavior: 'smooth' });
+            }}
           />
 
           {/* Confirm Button */}
@@ -324,16 +353,16 @@ export const VendorBillFormPage: React.FC<VendorBillFormPageProps> = ({
             </button>
           )}
 
-          {/* Pay Button */}
-          {isConfirmed && (
+          {/* Register Payment Button */}
+          {isConfirmed && bill?.payment_status !== 'paid' && (
             <button
               type="button"
-              onClick={() => alert('Payment allocation registration modal')}
+              onClick={() => setIsPaymentModalOpen(true)}
               disabled={loading}
               className="inline-flex items-center gap-1.5 bg-brown-800 hover:bg-brown-900 text-cream px-3.5 py-1.5 rounded-lg font-medium text-sm transition-colors shadow-sm"
             >
               <DollarSign className="w-4 h-4" />
-              Pay
+              Register Payment
             </button>
           )}
 
@@ -351,6 +380,7 @@ export const VendorBillFormPage: React.FC<VendorBillFormPageProps> = ({
           )}
         </div>
       }
+
     >
       <div className="space-y-6">
         {activeWarning && (
@@ -360,8 +390,52 @@ export const VendorBillFormPage: React.FC<VendorBillFormPageProps> = ({
           />
         )}
 
+        {/* Document & Payment Status Ribbon */}
+        {bill && (
+          <div className="flex items-center justify-between p-3.5 bg-brown-50/80 rounded-xl border border-brown-200">
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold text-brown-600 uppercase tracking-wider">
+                Document Status:
+              </span>
+              <span
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider border ${
+                  bill.status === 'confirmed'
+                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                    : bill.status === 'cancelled'
+                    ? 'bg-red-50 text-red-700 border-red-200'
+                    : 'bg-stone-100 text-stone-700 border-stone-300'
+                }`}
+              >
+                {bill.status}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold text-brown-600 uppercase tracking-wider">
+                Payment Settlement:
+              </span>
+              <span
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider border ${
+                  bill.payment_status === 'paid'
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                    : bill.payment_status === 'partial'
+                    ? 'bg-amber-100 text-amber-800 border-amber-300'
+                    : 'bg-red-50 text-red-700 border-red-200'
+                }`}
+              >
+                {bill.payment_status === 'paid'
+                  ? 'Paid in Full'
+                  : bill.payment_status === 'partial'
+                  ? 'Partially Paid'
+                  : 'Not Paid'}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Header Details */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-brown-50/50 rounded-xl border border-brown-200">
+
           <div>
             <label className="block text-xs font-semibold text-brown-700 uppercase tracking-wider mb-1">
               Vendor Bill No.
@@ -609,7 +683,72 @@ export const VendorBillFormPage: React.FC<VendorBillFormPageProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Payment History & Installments Section */}
+        {payments && payments.length > 0 && (
+          <div
+            id="payment-history-section"
+            className="border border-brown-200 rounded-xl overflow-hidden bg-surface shadow-sm mt-6"
+          >
+            <div className="px-4 py-3 bg-brown-100/60 border-b border-brown-200 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-brown-700" />
+                <h4 className="text-xs font-bold uppercase tracking-wider text-brown-800">
+                  Payment Allocations & Installments ({payments.length})
+                </h4>
+              </div>
+              <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                Total Paid: ₹{Number(bill?.amount_paid || '0').toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-brown-50/70 border-b border-brown-200 text-brown-600 font-semibold uppercase tracking-wider">
+                  <th className="py-2.5 px-4">Payment #</th>
+                  <th className="py-2.5 px-4">Payment Date</th>
+                  <th className="py-2.5 px-4">Payment Method</th>
+                  <th className="py-2.5 px-4 text-right">Amount Paid</th>
+                  <th className="py-2.5 px-4 text-right">Balance Due</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-brown-100">
+                {payments.map((p, idx) => (
+                  <tr key={idx} className="hover:bg-brown-50/50 transition-colors">
+                    <td className="py-2.5 px-4 font-mono font-medium text-brown-900">
+                      {p.paymentNumber}
+                    </td>
+                    <td className="py-2.5 px-4 text-brown-700">{p.paymentDate}</td>
+                    <td className="py-2.5 px-4 text-brown-700 capitalize">
+                      <span className="inline-flex items-center gap-1 bg-brown-100/80 px-2.5 py-0.5 rounded-full text-[11px] font-medium text-brown-800">
+                        {p.method}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-4 text-right font-mono font-bold text-emerald-700">
+                      ₹{Number(p.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </td>
+                    <td className="py-2.5 px-4 text-right font-mono text-brown-600">
+                      ₹{Number(p.runningRemaining).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
+
+      {/* Register Payment Modal */}
+      {bill && (
+        <RegisterPaymentModal
+          bill={bill}
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          onPaymentSuccess={() => {
+            if (billId) refreshBillData(billId);
+          }}
+        />
+      )}
     </FormView>
   );
 };
+

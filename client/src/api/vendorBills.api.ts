@@ -31,4 +31,17 @@ export const VendorBillsApi = {
     apiRequest<VendorBill>(`/api/bills/${id}/cancel`, {
       method: 'POST',
     }),
+
+  getPayments: (id: number) =>
+    apiRequest<any[]>(`/api/bills/${id}/payments`),
+
+  registerPayment: (
+    id: number,
+    data: { amount: string | number; method: 'cash' | 'bank'; paymentDate?: string }
+  ) =>
+    apiRequest<any>(`/api/bills/${id}/payments`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
+

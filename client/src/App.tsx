@@ -850,8 +850,12 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
                   setSelectedPOId(poId);
                   setActiveView('po-form');
                 }}
+                onViewJournalEntry={jeId => {
+                  alert(`Linked to Journal Entry #${jeId}. The journal entry records balanced Debits and Credits for this transaction in the General Ledger.`);
+                }}
               />
             )}
+
 
             {/* Vendor Statement / Payment */}
             {activeView === 'vendor-statement' && (
