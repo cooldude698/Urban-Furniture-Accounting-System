@@ -1,6 +1,7 @@
 import { pool } from '../db/pool';
 import { VoiceBillParser, ParsedSlots, SupportedLanguage, CONVERSATIONAL_STOP_WORDS } from './voiceBillParser';
 import { InvoiceService } from './invoiceService';
+import { PaymentService } from './paymentService';
 import { isIndianName } from '../data/indianNames';
 import Decimal from 'decimal.js';
 
@@ -58,6 +59,8 @@ export interface VoiceBillSession {
   ambiguousCandidates?: { id: number; name: string; salesPrice: string }[];
   invoiceId?: number;
   invoiceNumber?: string;
+  paymentNumber?: string;
+  paymentStatus?: 'paid' | 'not_paid';
   pdfUrl?: string;
   grandTotal: string;
   updatedAt: Date;
@@ -828,6 +831,93 @@ Output:`;
       };
     }
 
+    // 0d. Check for Settle / Confirm Command (e.g. "settle the bill", "confirm", "bill settle kardo", "pay now")
+    if (VoiceBillParser.isSettleOrConfirm(text)) {
+      if (session.status === 'confirmed') {
+        const reply = lang === 'hi'
+          ? `यह बिल पहले ही इनवॉइस ${session.invoiceNumber} के रूप में सेटल हो चुका है।`
+          : `This bill has already been settled and confirmed as Invoice ${session.invoiceNumber}.`;
+        return {
+          reply,
+          language: lang,
+          session,
+          readyForConfirm: false,
+          isConfirmed: true,
+        };
+      }
+
+      if (session.lineItems.length === 0) {
+        const reply = lang === 'hi'
+          ? 'बिल सेटल करने से पहले कृपया उत्पाद जोड़ें (जैसे: "2 टीक डेस्क")।'
+          : 'Please add products before settling the bill (e.g., "2 Teak Desks").';
+        return {
+          reply,
+          language: lang,
+          session,
+          readyForConfirm: false,
+          isConfirmed: false,
+        };
+      }
+
+      if (!session.customerName) {
+        session.pendingSlot = 'customerName';
+        const reply = lang === 'hi'
+          ? 'बिल सेटल करने के लिए कृपया ग्राहक का नाम बताएं (जैसे: "राहुल")।'
+          : 'Please provide the customer name before settling the bill (e.g., "Rahul").';
+        return {
+          reply,
+          language: lang,
+          session,
+          readyForConfirm: false,
+          isConfirmed: false,
+        };
+      }
+
+      // Check if quantity is assumed on any line item
+      const unconfirmedQtyItem = session.lineItems.find(item => !item.qty || item.qty <= 0 || item.isQtyAssumed);
+      if (unconfirmedQtyItem) {
+        session.pendingSlot = 'quantity';
+        const reply = lang === 'hi'
+          ? `कृपया ${unconfirmedQtyItem.productName} की मात्रा बताएं।`
+          : `Please specify the quantity for ${unconfirmedQtyItem.productName}.`;
+        return {
+          reply,
+          language: lang,
+          session,
+          readyForConfirm: false,
+          isConfirmed: false,
+        };
+      }
+
+      // All requirements met -> Immediately settle the bill in the database!
+      try {
+        const confirmResult = await VoiceBillService.confirmBill(session.sessionId);
+        const reply = lang === 'hi'
+          ? `🎉 बिल सफलतापूर्वक सेटल हो गया है!\n• इनवॉइस: ${confirmResult.invoiceNumber}\n• भुगतान: ₹${confirmResult.total} (नकद सेटल)\n• लेज़र और इन्वेंटरी डेटाबेस में अपडेट हो गए हैं।`
+          : `🎉 Bill settled and recorded in the database successfully!\n• Customer Invoice: ${confirmResult.invoiceNumber}\n• Payment: ₹${confirmResult.total} (Cash Settled)\n• Double-entry ledger and inventory updated.`;
+
+        return {
+          reply,
+          language: lang,
+          session,
+          readyForConfirm: false,
+          isConfirmed: true,
+        };
+      } catch (err: any) {
+        console.error('Error auto-settling bill via voice/chat:', err);
+        const reply = lang === 'hi'
+          ? `बिल सेटल करने में त्रुटि: ${err.message || 'त्रुटि'}`
+          : `Error settling bill: ${err.message || 'Error'}`;
+        return {
+          reply,
+          language: lang,
+          session,
+          readyForConfirm: true,
+          isConfirmed: false,
+        };
+      }
+    }
+
     // 0e. Conversational Context-Aware Slot Answering:
     // If the assistant previously asked a targeted question for a missing slot (e.g. "Please provide the customer name"):
     if (session.pendingSlot) {
@@ -1475,11 +1565,16 @@ Output:`;
   }
 
   /**
-   * Finalize and confirm the bill into an official Customer Invoice
+   * Finalize, confirm, and settle the bill into an official Customer Invoice and Payment
    */
-  static async confirmBill(sessionId: string): Promise<{
+  static async confirmBill(
+    sessionId: string,
+    options?: { paymentMethod?: 'cash' | 'bank'; settlePayment?: boolean }
+  ): Promise<{
     invoiceId: number;
     invoiceNumber: string;
+    paymentNumber?: string;
+    paymentStatus: string;
     pdfUrl: string;
     customerName: string;
     total: string;
@@ -1564,15 +1659,42 @@ Output:`;
     // 4. Confirm invoice via InvoiceService (triggers ledger posting & stock movement in transaction)
     await InvoiceService.confirmInvoice(invoice.id);
 
-    // 5. Update session state
+    // 5. Register and post payment settlement in database so invoice is fully SETTLED (PAID)
+    let paymentNumber: string | undefined;
+    const shouldSettle = options?.settlePayment !== false;
+    if (shouldSettle) {
+      try {
+        const method = options?.paymentMethod || 'cash';
+        const payment = await PaymentService.createPayment({
+          direction: 'inbound',
+          partnerId: customerId,
+          method,
+          paymentDate: todayStr,
+          amount: invoice.total,
+          allocations: [{
+            invoiceId: invoice.id,
+            amount: invoice.total,
+          }],
+        });
+        paymentNumber = payment.number;
+      } catch (payErr) {
+        console.warn('Failed to auto-settle payment for confirmed bill:', payErr);
+      }
+    }
+
+    // 6. Update session state
     session.status = 'confirmed';
     session.invoiceId = invoice.id;
     session.invoiceNumber = invoice.number;
+    session.paymentNumber = paymentNumber;
+    session.paymentStatus = paymentNumber ? 'paid' : 'not_paid';
     session.pdfUrl = `/api/invoices/${invoice.id}/pdf`;
 
     return {
       invoiceId: invoice.id,
       invoiceNumber: invoice.number,
+      paymentNumber,
+      paymentStatus: paymentNumber ? 'paid' : 'not_paid',
       pdfUrl: `/api/invoices/${invoice.id}/pdf`,
       customerName: session.customerName,
       total: invoice.total,

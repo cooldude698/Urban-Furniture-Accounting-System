@@ -254,6 +254,23 @@ export class VoiceBillParser {
   }
 
   /**
+   * Identifies intent to settle or confirm the bill into the database
+   */
+  static isSettleOrConfirm(text: string): boolean {
+    const clean = text.trim().toLowerCase();
+    const patterns = [
+      /^(?:settle|confirm|finalize|done|pay|pay now|checkout|कन्फर्म|सेटल|पक्का|भुगतान)[\s!.]*$/i,
+      /^(?:settle|confirm|finalize|pay)\s+(?:the\s+)?(?:bill|invoice|account|payment|order)[\s!.]*$/i,
+      /^(?:bill|invoice)\s+(?:settle|confirm|finalize|pay)(?:\s+(?:kardo|karo|kijiye))?[\s!.]*$/i,
+      /^(?:please\s+)?(?:settle|confirm|finalize|pay)\s+(?:the\s+)?(?:bill|invoice)[\s!.]*$/i,
+      /^(?:okay|ok|yes|haan|ha|haa)?[\s,.]*(?:settle|confirm|finalize)\s+(?:the\s+)?(?:bill|invoice)?[\s!.]*$/i,
+      /(?:बिल|इनवॉइस)\s*(?:सेटल|कन्फर्म|पक्का|फाइनल|पास)\s*(?:करो|कर\s*दो|कर\s*दीजिए|कीजिए|हो\s*गया)/i,
+      /(?:सेटल|कन्फर्म|पक्का)\s*(?:करो|कर\s*दो|कर\s*दीजिए|कीजिए)/i,
+    ];
+    return patterns.some(p => p.test(clean));
+  }
+
+  /**
    * Converts word tokens or digits into a numeric value
    */
   static parseNumberToken(token: string): number | null {

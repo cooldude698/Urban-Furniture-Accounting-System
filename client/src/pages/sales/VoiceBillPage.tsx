@@ -88,6 +88,8 @@ interface VoiceBillSession {
   ambiguousCandidates?: { id: number; name: string; salesPrice: string }[];
   invoiceId?: number;
   invoiceNumber?: string;
+  paymentNumber?: string;
+  paymentStatus?: 'paid' | 'not_paid';
   pdfUrl?: string;
   grandTotal: string;
   updatedAt: string;
@@ -448,6 +450,10 @@ export const VoiceBillPage: React.FC = () => {
         setMessages(prev => [...prev, replyMsg]);
         setSession(json.data.session);
 
+        if (json.data.isConfirmed && soundEnabled) {
+          playChime('success');
+        }
+
         if (voiceReadback) {
           speakText(json.data.reply, speechLang);
         }
@@ -472,7 +478,7 @@ export const VoiceBillPage: React.FC = () => {
       const res = await fetch('/api/voice-bill/confirm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId }),
+        body: JSON.stringify({ sessionId, paymentMethod: 'cash' }),
       });
 
       const json = await res.json();
@@ -484,8 +490,8 @@ export const VoiceBillPage: React.FC = () => {
           sender: 'assistant',
           text:
             session.language === 'hi'
-              ? `🎉 बधाई हो! इनवॉइस ${json.data.invoiceNumber} सफलतापूर्वक पोस्ट हो गया है।\nकुल राशि: ₹${json.data.total}\nलेज़र प्रविष्टियां (Debtors / Sales Income) तैयार हैं।`
-              : `🎉 Congratulations! Customer Invoice ${json.data.invoiceNumber} has been confirmed and posted to the general ledger.\nTotal Amount: ₹${json.data.total}`,
+              ? `🎉 बधाई हो! इनवॉइस ${json.data.invoiceNumber} सफलतापूर्वक सेटल हो गया है।\nकुल राशि: ₹${json.data.total} (नकद भुगतान दर्ज: ${json.data.paymentNumber || 'SETTLED'})\nलेज़र प्रविष्टियां और इन्वेंटरी डेटाबेस में अपडेट हो गए हैं।`
+              : `🎉 Congratulations! Customer Invoice ${json.data.invoiceNumber} has been settled and posted to the database.\nTotal Amount: ₹${json.data.total} (${json.data.paymentNumber ? `Payment ${json.data.paymentNumber} Settled` : 'Cash Paid'})\nGeneral ledger and inventory updated.`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
         setMessages(prev => [...prev, successMsg]);
@@ -494,14 +500,16 @@ export const VoiceBillPage: React.FC = () => {
           status: 'confirmed',
           invoiceId: json.data.invoiceId,
           invoiceNumber: json.data.invoiceNumber,
+          paymentNumber: json.data.paymentNumber,
+          paymentStatus: json.data.paymentStatus || 'paid',
           pdfUrl: json.data.pdfUrl,
         } : null));
 
         if (voiceReadback) {
           speakText(
             session.language === 'hi'
-              ? `बिल तैयार है, कुल राशि ₹${json.data.total}`
-              : `Invoice ${json.data.invoiceNumber} confirmed. Total amount is rupees ${json.data.total}`,
+              ? `बिल सेटल हो गया है, कुल राशि ₹${json.data.total}`
+              : `Invoice ${json.data.invoiceNumber} settled. Total amount is rupees ${json.data.total}`,
             speechLang
           );
         }
@@ -1235,11 +1243,11 @@ export const VoiceBillPage: React.FC = () => {
                   className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold font-display text-xs uppercase tracking-wider rounded-[10px] transition-all shadow-md flex items-center justify-center gap-2 active:scale-[0.99] disabled:opacity-50 cursor-pointer"
                 >
                   {confirming ? (
-                    'Generating Customer Invoice & Posting Ledger...'
+                    'Settling Bill & Posting to Database...'
                   ) : (
                     <>
                       <CheckCircle2 className="w-4 h-4" />
-                      <span>Confirm & Post Invoice to Ledger</span>
+                      <span>Settle & Post Bill to Ledger (Cash / Paid)</span>
                     </>
                   )}
                 </button>
@@ -1248,12 +1256,19 @@ export const VoiceBillPage: React.FC = () => {
               {session?.status === 'confirmed' && (
                 <div className="space-y-2">
                   <div className="p-2.5 bg-emerald-100 border border-emerald-300 text-emerald-950 rounded-[8px] text-xs flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 font-bold">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-                      <span>Posted: {session.invoiceNumber}</span>
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                        <span>Settled: {session.invoiceNumber}</span>
+                      </div>
+                      {session.paymentNumber && (
+                        <div className="text-[10px] text-emerald-800 font-mono">
+                          Payment: {session.paymentNumber} • Cash Settled
+                        </div>
+                      )}
                     </div>
-                    <span className="text-[10px] bg-emerald-700 text-white px-2 py-0.5 rounded font-mono">
-                      POSTED
+                    <span className="text-[10px] bg-emerald-700 text-white px-2 py-0.5 rounded font-mono font-bold">
+                      SETTLED (PAID)
                     </span>
                   </div>
 
