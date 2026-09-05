@@ -176,7 +176,7 @@ export const PortalCataloguePage: React.FC = () => {
               }}
             >
               <Sparkles size={11} />
-              320 Handcrafted Pieces
+              {products.length ? `${products.length} Curated Masterpieces` : 'Curated Masterpieces'}
             </span>
           </div>
 

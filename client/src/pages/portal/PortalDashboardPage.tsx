@@ -299,7 +299,7 @@ export const PortalDashboardPage: React.FC = () => {
               }}
             >
               <Layers size={15} />
-              <span>Browse 320 Products</span>
+              <span>Browse Furniture Collection</span>
             </button>
           </div>
         </div>
