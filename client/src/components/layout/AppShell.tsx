@@ -41,73 +41,81 @@ export default function AppShell() {
             position: 'relative',
           }}
         >
-          {/* Brand + Nav Items */}
-          <div style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-            <NavLink
-              to="/dashboard"
-              onClick={() => setIsMegaMenuOpen(false)}
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontWeight: 700,
-                fontSize: 18,
-                color: 'var(--brown-900)',
-                marginRight: 32,
-                letterSpacing: '-0.01em',
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-              }}
-            >
-              <span>Urban Furniture</span>
-            </NavLink>
+          {/* Brand on Left */}
+          <NavLink
+            to="/dashboard"
+            onClick={() => setIsMegaMenuOpen(false)}
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontWeight: 700,
+              fontSize: 18,
+              color: 'var(--brown-900)',
+              letterSpacing: '-0.01em',
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              zIndex: 2,
+            }}
+          >
+            <span>Urban Furniture</span>
+          </NavLink>
 
-            {/* 4 Main Nav Items: Clicking any item opens the exact 4-column wireframe menu */}
-            <nav style={{ display: 'flex', alignItems: 'center', height: '100%', gap: 4 }}>
-              {navModules.map(menuName => {
-                const isActive = location.pathname.startsWith(`/${menuName.toLowerCase()}`);
+          {/* Centered Navigation Modules */}
+          <nav
+            style={{
+              position: 'absolute',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              display: 'flex',
+              alignItems: 'center',
+              height: '100%',
+              gap: 4,
+            }}
+          >
+            {navModules.map(menuName => {
+              const isActive = location.pathname.startsWith(`/${menuName.toLowerCase()}`);
 
-                return (
-                  <button
-                    key={menuName}
-                    type="button"
-                    onClick={() => setIsMegaMenuOpen(prev => !prev)}
+              return (
+                <button
+                  key={menuName}
+                  type="button"
+                  onClick={() => setIsMegaMenuOpen(prev => !prev)}
+                  style={{
+                    fontFamily: 'var(--font-body)',
+                    fontWeight: isActive || isMegaMenuOpen ? 700 : 500,
+                    fontSize: 14,
+                    color: isActive || isMegaMenuOpen ? 'var(--brown-900)' : 'var(--brown-700)',
+                    background: isMegaMenuOpen ? 'rgba(235, 215, 190, 0.3)' : 'transparent',
+                    border: 'none',
+                    borderBottom: isActive
+                      ? '2px solid var(--brown-900)'
+                      : '2px solid transparent',
+                    padding: '0 16px',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 5,
+                    cursor: 'pointer',
+                    transition: 'all 120ms ease-out',
+                    outline: 'none',
+                    borderRadius: '6px 6px 0 0',
+                  }}
+                  title="Open navigation menu"
+                >
+                  <span>{menuName}</span>
+                  <ChevronDown
+                    size={13}
                     style={{
-                      fontFamily: 'var(--font-body)',
-                      fontWeight: isActive || isMegaMenuOpen ? 700 : 500,
-                      fontSize: 14,
-                      color: isActive || isMegaMenuOpen ? 'var(--brown-900)' : 'var(--brown-700)',
-                      background: isMegaMenuOpen ? 'rgba(235, 215, 190, 0.3)' : 'transparent',
-                      border: 'none',
-                      borderBottom: isActive
-                        ? '2px solid var(--brown-900)'
-                        : '2px solid transparent',
-                      padding: '0 16px',
-                      height: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 5,
-                      cursor: 'pointer',
-                      transition: 'all 120ms ease-out',
-                      outline: 'none',
-                      borderRadius: '6px 6px 0 0',
+                      transform: isMegaMenuOpen ? 'rotate(180deg)' : 'none',
+                      transition: 'transform 150ms ease-out',
+                      opacity: 0.7,
                     }}
-                    title="Open on click navigation menu"
-                  >
-                    <span>{menuName}</span>
-                    <ChevronDown
-                      size={13}
-                      style={{
-                        transform: isMegaMenuOpen ? 'rotate(180deg)' : 'none',
-                        transition: 'transform 150ms ease-out',
-                        opacity: 0.7,
-                      }}
-                    />
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
+                  />
+                </button>
+              );
+            })}
+          </nav>
 
           {/* Unified 4-Column Mega Menu matching wireframe */}
           <MegaMenu
@@ -116,7 +124,7 @@ export default function AppShell() {
           />
 
           {/* Right Header Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, zIndex: 2 }}>
             <NavLink
               to="/dashboard"
               style={{
