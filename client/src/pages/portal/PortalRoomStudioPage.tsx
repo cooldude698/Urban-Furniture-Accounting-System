@@ -163,15 +163,15 @@ export const PortalRoomStudioPage: React.FC = () => {
     scene.background = new THREE.Color(0xF9F6F0); // Warm luminous studio backdrop
     sceneRef.current = scene;
 
-    // Camera — wide 56° lens positioned for the initial "Walk In" entrance view
+    // Camera — wide 56° lens positioned directly inside room entrance looking at living space
     const camera = new THREE.PerspectiveCamera(
       56,
       container.clientWidth / container.clientHeight,
       0.1,
       100
     );
-    // Default Walk In position: standing at entrance looking into the warm room
-    camera.position.set(0.4, 1.65, 3.2);
+    // Initial Walk-In perspective: standing at living room threshold looking towards sofa & sunlit window
+    camera.position.set(0.2, 1.45, 0.4);
     cameraRef.current = camera;
 
     // Orbit Controls
@@ -179,9 +179,9 @@ export const PortalRoomStudioPage: React.FC = () => {
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.maxPolarAngle = Math.PI / 2 - 0.02; // Prevent going beneath floor
-    controls.minDistance = 1.0;
-    controls.maxDistance = 12.0;
-    controls.target.set(-0.2, 0.9, -0.6); // Look towards living area
+    controls.minDistance = 0.8;
+    controls.maxDistance = 14.0;
+    controls.target.set(0.0, 0.85, -1.8); // Center look target on living room
     controlsRef.current = controls;
 
     // ── Luminous Architectural Lighting Setup ──
@@ -296,23 +296,42 @@ export const PortalRoomStudioPage: React.FC = () => {
             if (mesh.material) {
               const mat = mesh.material as THREE.MeshStandardMaterial;
 
-              // Brighten walls to warm off-white lime-wash plaster
+              // Clean, bright, warm Japandi lime-wash plaster (strip dirty low-res texture)
               if (mat.name === 'beige_wall_001' || mat.name.includes('wall')) {
-                mat.color = new THREE.Color(0xFBF8F2);
-                mat.roughness = 0.88;
-                mat.metalness = 0.01;
-                mat.side = THREE.DoubleSide; // Prevents dark faces when viewed from angles
+                mat.map = null; // Strips the muddy dark beige bitmap
+                mat.color = new THREE.Color(0xFDFBF7); // Radiant, serene warm lime plaster
+                mat.roughness = 0.94;
+                mat.metalness = 0.0;
+                mat.side = THREE.DoubleSide; // Prevents backface culling artifacts
+                mat.needsUpdate = true;
               }
 
               // Laminate wood floor satin finish
               if (mat.name === 'laminate_floor_02' || mat.name.includes('floor')) {
-                mat.roughness = 0.45;
-                mat.metalness = 0.04;
+                mat.roughness = 0.42;
+                mat.metalness = 0.02;
+                mat.needsUpdate = true;
               }
 
-              // Window trim
+              // Baseboard / wood trim
+              if (mat.name === 'plywood') {
+                mat.roughness = 0.55;
+                mat.needsUpdate = true;
+              }
+
+              // Architectural dark espresso window trim
               if (mat.name === 'Plastic') {
-                mat.color = new THREE.Color(0x4A3A34); // Espresso window frame
+                mat.color = new THREE.Color(0x382E2B);
+                mat.roughness = 0.5;
+                mat.needsUpdate = true;
+              }
+
+              // Architectural glass windows
+              if (mat.name === 'Glass') {
+                mat.transparent = true;
+                mat.opacity = 0.3;
+                mat.roughness = 0.1;
+                mat.needsUpdate = true;
               }
             }
           }
@@ -331,26 +350,6 @@ export const PortalRoomStudioPage: React.FC = () => {
       undefined,
       (err) => console.warn('Room structure model load warning:', err)
     );
-
-    // Load Lighting Fixtures (Ceiling Pendant & Standing Floor Lamp)
-    const fixtureLoader = new GLTFLoader();
-    fixtureLoader.setDRACOLoader(dracoLoader);
-
-    fixtureLoader.load('/Models/Ceiling Light by Quaternius - sRNcgQFbLB.glb', (gltf) => {
-      const model = gltf.scene;
-      model.scale.set(1.1, 1.1, 1.1);
-      model.position.set(0, 2.7, 0.6);
-      scene.add(model);
-      ceilingLightGroupRef.current = model;
-    });
-
-    fixtureLoader.load('/Models/Standing lamp by jeremy - 7AqWZQIaCQf.glb', (gltf) => {
-      const model = gltf.scene;
-      model.scale.set(1.0, 1.0, 1.0);
-      model.position.set(-2.8, 0, -2.8);
-      scene.add(model);
-      standingLampGroupRef.current = model;
-    });
 
     // ── Interactive Direct Dragging on Floor Canvas ──
     const raycaster = new THREE.Raycaster();
@@ -414,6 +413,7 @@ export const PortalRoomStudioPage: React.FC = () => {
         if (matchedId && matchedGroup) {
           draggedGroup = matchedGroup;
           activeInstanceId = matchedId;
+          controls.enabled = false; // Immediately lock OrbitControls so camera doesn't fight dragging
           setSelectedInstanceId(matchedId);
 
           if (raycaster.ray.intersectPlane(floorPlane, planeIntersect)) {
@@ -432,10 +432,8 @@ export const PortalRoomStudioPage: React.FC = () => {
 
       const dist = Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y);
 
-      // Once pointer moves > 3px while hovering a piece, activate smooth floor dragging
-      if (dist > 3 && draggedGroup && !isDraggingPiece) {
+      if (dist > 3 && draggedGroup) {
         isDraggingPiece = true;
-        controls.enabled = false; // Disable orbit camera rotation while gliding piece
       }
 
       if (isDraggingPiece && draggedGroup) {
@@ -445,9 +443,9 @@ export const PortalRoomStudioPage: React.FC = () => {
         raycaster.setFromCamera(mouse, camera);
 
         if (raycaster.ray.intersectPlane(floorPlane, planeIntersect)) {
-          // Keep within architectural room floor (-3.6m to 3.6m)
-          const targetX = Math.max(-3.6, Math.min(3.6, planeIntersect.x + dragOffset.x));
-          const targetZ = Math.max(-3.6, Math.min(3.6, planeIntersect.z + dragOffset.z));
+          // Keep within architectural living room floor
+          const targetX = Math.max(-2.8, Math.min(2.8, planeIntersect.x + dragOffset.x));
+          const targetZ = Math.max(-3.4, Math.min(0.8, planeIntersect.z + dragOffset.z));
 
           draggedGroup.position.x = targetX;
           draggedGroup.position.z = targetZ;
@@ -461,6 +459,8 @@ export const PortalRoomStudioPage: React.FC = () => {
     };
 
     const handlePointerUp = (event: PointerEvent) => {
+      controls.enabled = true; // Always restore camera orbit controls on release
+
       if (isDraggingPiece && draggedGroup && activeInstanceId) {
         const finalX = draggedGroup.position.x;
         const finalZ = draggedGroup.position.z;
@@ -474,23 +474,10 @@ export const PortalRoomStudioPage: React.FC = () => {
           )
         );
       } else if (!isDraggingPiece && isPointerDown) {
-        // Just a click — check if clicked empty floor to deselect
+        // Just a click — if clicked empty space, deselect
         const dist = Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y);
-        if (dist < 4) {
-          const m = getCanvasMouse(event);
-          mouse.x = m.x;
-          mouse.y = m.y;
-          raycaster.setFromCamera(mouse, camera);
-
-          const placedMeshes: THREE.Object3D[] = [];
-          placedMeshesRef.current.forEach((group) => {
-            placedMeshes.push(...group.children);
-          });
-
-          const intersects = raycaster.intersectObjects(placedMeshes, true);
-          if (intersects.length === 0) {
-            setSelectedInstanceId(null);
-          }
+        if (dist < 4 && !draggedGroup) {
+          setSelectedInstanceId(null);
         }
       }
 
@@ -571,13 +558,13 @@ export const PortalRoomStudioPage: React.FC = () => {
     setCameraView(view);
     if (view === 'walkin') {
       // Eye level inside room facing living space
-      animateCameraTo([0.4, 1.65, 3.2], [-0.2, 0.9, -0.6]);
+      animateCameraTo([0.2, 1.45, 0.4], [0.0, 0.85, -1.8]);
     } else if (view === 'overview') {
-      // Elevated architectural dollhouse perspective
-      animateCameraTo([0.0, 4.4, 5.2], [0.0, 0.6, -0.4]);
+      // Elevated architectural dollhouse perspective (unobstructed diagonal downview)
+      animateCameraTo([2.8, 5.5, 2.2], [0.0, 0.4, -1.4]);
     } else if (view === 'topdown') {
-      // 2D/3D Top-down plan view
-      animateCameraTo([0.0, 7.6, 0.01], [0.0, 0.0, 0.0]);
+      // 2D/3D Top-down plan view directly over living room
+      animateCameraTo([0.0, 8.5, -1.4], [0.0, 0.0, -1.4]);
     }
   };
 
@@ -772,10 +759,10 @@ export const PortalRoomStudioPage: React.FC = () => {
     const intersect = new THREE.Vector3();
 
     let targetX = 0;
-    let targetZ = 0;
+    let targetZ = -1.0;
     if (ray.ray.intersectPlane(floorPlane, intersect)) {
-      targetX = Math.max(-3.6, Math.min(3.6, intersect.x));
-      targetZ = Math.max(-3.6, Math.min(3.6, intersect.z));
+      targetX = Math.max(-2.8, Math.min(2.8, intersect.x));
+      targetZ = Math.max(-3.2, Math.min(0.8, intersect.z));
     }
 
     const model = catalogModels.find((m) => m.id === modelId || m.filename === modelId);
@@ -791,7 +778,7 @@ export const PortalRoomStudioPage: React.FC = () => {
     if (preloadedModelUrl) {
       const match = catalogModels.find((m) => m.url === preloadedModelUrl || m.filename === preloadedModelUrl);
       if (match) {
-        handleAddFurniture(match, [0, 0, 0]);
+        handleAddFurniture(match, [0, 0, -1.0]);
         return;
       }
     }
@@ -802,9 +789,9 @@ export const PortalRoomStudioPage: React.FC = () => {
       const table = catalogModels.find((m) => m.filename.includes('Table Round Small'));
       const chair = catalogModels.find((m) => m.filename.includes('Poly') || m.filename.includes('Chair by Quaternius'));
 
-      if (couch) handleAddFurniture(couch, [0, 0, -1.5]);
-      if (table) handleAddFurniture(table, [0, 0, -0.2]);
-      if (chair) handleAddFurniture(chair, [1.6, 0, -0.4]);
+      if (couch) handleAddFurniture(couch, [0, 0, -1.8]);
+      if (table) handleAddFurniture(table, [0, 0, -0.6]);
+      if (chair) handleAddFurniture(chair, [1.3, 0, -0.7]);
     }
   }, [catalogModels, preloadedModelUrl]);
 
