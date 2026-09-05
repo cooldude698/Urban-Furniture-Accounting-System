@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import api from '../lib/axios';
 
 export default function Login() {
-  const [loginId, setLoginId] = useState('adminuf');
-  const [password, setPassword] = useState('Admin@12345');
+  const [loginId, setLoginId] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -28,19 +28,6 @@ export default function Login() {
       <div style={styles.card}>
         <h1 style={styles.title}>Urban Furniture</h1>
         <p style={styles.subtitle}>Sign in to your account</p>
-
-        <div style={{ padding: '8px 12px', background: '#F5EFEB', borderRadius: 6, marginBottom: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, border: '1px solid #E5DFD7' }}>
-          <div>
-            <strong style={{ color: '#4A3B32' }}>🔑 Demo Admin:</strong> <span style={{ fontFamily: 'monospace', color: '#7B7267' }}>adminuf / Admin@12345</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => { setLoginId('adminuf'); setPassword('Admin@12345'); }}
-            style={{ fontSize: 11, background: '#4A3B32', color: '#fff', border: 'none', borderRadius: 4, padding: '3px 8px', cursor: 'pointer', fontWeight: 600 }}
-          >
-            Auto-Fill
-          </button>
-        </div>
 
         <form onSubmit={handleSubmit} style={styles.form} noValidate>
           <div style={styles.field}>

@@ -6,13 +6,13 @@ interface PortalLoginProps {
 }
 
 export const PortalLogin: React.FC<PortalLoginProps> = ({ onLoginSuccess, onOpenInviteModal }) => {
-  // Pre-filled with demo credentials so you never have to re-type them
-  const [loginId, setLoginId] = useState('cust_urban_a');
-  const [password, setPassword] = useState('SecretPassword123!');
+  const [loginId, setLoginId] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const performLogin = async (idToUse: string, pwdToUse: string) => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     setError(null);
     setLoading(true);
 
@@ -20,7 +20,7 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onLoginSuccess, onOpen
       const res = await fetch('/api/portal/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ login_id: idToUse, password: pwdToUse }),
+        body: JSON.stringify({ login_id: loginId, password }),
       });
 
       const json = await res.json();
@@ -36,21 +36,10 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onLoginSuccess, onOpen
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await performLogin(loginId, password);
-  };
-
-  const handleQuickDemoLogin = async () => {
-    setLoginId('cust_urban_a');
-    setPassword('SecretPassword123!');
-    await performLogin('cust_urban_a', 'SecretPassword123!');
-  };
-
   return (
-    <div className="max-w-md mx-auto py-12 font-body">
+    <div className="max-w-md mx-auto py-12">
       <div className="bg-white border border-slate-200 rounded-[12px] p-8 shadow-sm">
-        <div className="text-center mb-6">
+        <div className="text-center mb-8">
           <div className="w-12 h-12 bg-amber-500 rounded-[8px] flex items-center justify-center text-slate-950 font-bold font-display text-xl mx-auto mb-3 shadow-sm">
             U
           </div>
@@ -62,35 +51,13 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onLoginSuccess, onOpen
           </p>
         </div>
 
-        {/* Demo Credentials Quick Fill Banner */}
-        <div className="mb-6 p-3.5 bg-amber-500/10 border border-amber-500/30 rounded-[8px]">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold text-amber-900 block">
-                🔑 Pre-filled Demo Credentials
-              </span>
-              <span className="text-[11px] font-mono text-amber-800">
-                cust_urban_a / SecretPassword123!
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={handleQuickDemoLogin}
-              disabled={loading}
-              className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs rounded-[6px] shadow-xs transition-colors"
-            >
-              1-Click Sign In
-            </button>
-          </div>
-        </div>
-
         {error && (
           <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-md mb-6 font-medium">
             {error}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">
               Login ID
