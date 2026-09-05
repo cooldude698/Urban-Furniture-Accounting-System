@@ -37,6 +37,28 @@ export interface RecentActivityItem {
   type?: string;
 }
 
+export interface MonthlyTrendItem {
+  month: string;
+  label: string;
+  revenue: string;
+  expense: string;
+  net: string;
+}
+
+export interface OperationalAlerts {
+  overdueInvoices: {
+    count: number;
+    total: string;
+  };
+  lowStockProducts: {
+    count: number;
+  };
+  pendingDrafts: {
+    salesOrders: number;
+    purchaseOrders: number;
+  };
+}
+
 export const DashboardApi = {
   /**
    * GET /api/dashboard/stats
@@ -90,5 +112,37 @@ export const DashboardApi = {
     }
 
     return [];
+  },
+
+  /**
+   * GET /api/dashboard/trends
+   * Revenue vs Expense breakdown
+   */
+  getTrends: async (): Promise<MonthlyTrendItem[]> => {
+    try {
+      const res = await api.get<{ data: MonthlyTrendItem[]; error: any }>('/api/dashboard/trends');
+      if (res.data.data && Array.isArray(res.data.data)) {
+        return res.data.data;
+      }
+    } catch (err) {
+      console.error('Failed to fetch dashboard trends', err);
+    }
+    return [];
+  },
+
+  /**
+   * GET /api/dashboard/alerts
+   * Overdue invoices and inventory alerts
+   */
+  getAlerts: async (): Promise<OperationalAlerts | null> => {
+    try {
+      const res = await api.get<{ data: OperationalAlerts; error: any }>('/api/dashboard/alerts');
+      if (res.data.data) {
+        return res.data.data;
+      }
+    } catch (err) {
+      console.error('Failed to fetch dashboard alerts', err);
+    }
+    return null;
   },
 };

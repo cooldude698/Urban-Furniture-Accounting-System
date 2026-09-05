@@ -6,6 +6,9 @@ export interface AccountDTO {
   type: string;
   is_archived: boolean;
   created_at: string;
+  balance?: string;
+  total_debit?: string;
+  total_credit?: string;
 }
 
 export interface JournalDTO {
@@ -29,16 +32,25 @@ export interface AnalyticAccountDTO {
 export class AccountService {
   // --- Accounts ---
   static async getAllAccounts(includeArchived = false, type?: string): Promise<AccountDTO[]> {
-    let query = 'SELECT * FROM accounts WHERE 1=1';
+    let query = `
+      SELECT
+        a.*,
+        COALESCE(tb.balance, 0)::TEXT AS balance,
+        COALESCE(tb.total_debit, 0)::TEXT AS total_debit,
+        COALESCE(tb.total_credit, 0)::TEXT AS total_credit
+      FROM accounts a
+      LEFT JOIN v_trial_balance tb ON tb.account_id = a.id
+      WHERE 1=1
+    `;
     const params: any[] = [];
     if (!includeArchived) {
-      query += ' AND is_archived = false';
+      query += ' AND a.is_archived = false';
     }
     if (type) {
       params.push(type);
-      query += ` AND type = $${params.length}`;
+      query += ` AND a.type = $${params.length}`;
     }
-    query += ' ORDER BY id ASC';
+    query += ' ORDER BY a.id ASC';
     const res = await pool.query(query, params);
     return res.rows;
   }

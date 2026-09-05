@@ -21,6 +21,7 @@ import { analyticRouter } from './routes/analyticRoutes';
 import { poRouter } from './routes/purchaseOrderRoutes';
 import { billRouter } from './routes/vendorBillRoutes';
 import { budgetRouter } from './routes/budgetRoutes';
+import { dashboardRouter } from './routes/dashboardRoutes';
 import { sendError } from './utils/response';
 
 dotenv.config();
@@ -66,6 +67,7 @@ app.use('/api/purchase-orders', poRouter);
 app.use('/api/bills', billRouter);
 app.use('/api/vendor-bills', billRouter);
 app.use('/api/budgets', budgetRouter);
+app.use('/api/dashboard', dashboardRouter);
 
 
 // 404 handler
