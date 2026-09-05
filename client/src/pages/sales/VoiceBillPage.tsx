@@ -793,7 +793,7 @@ export const VoiceBillPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      handleSendMessage(`1 ${prod.name}`);
+                      handleSendMessage(prod.name);
                     }}
                     className="px-2.5 py-1 bg-brown-900 hover:bg-brown-800 text-cream text-[11px] font-semibold rounded-[6px] flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
                   >

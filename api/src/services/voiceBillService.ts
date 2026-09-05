@@ -388,6 +388,15 @@ Output: {"line_items": [{"product": "oak wood planks", "qty": null, "price": nul
 Input: naam suresh, phone number 9123456780, do table chahiye, price 8000
 Output: {"line_items": [{"product": "table", "qty": 2, "price": 8000, "discount_percent": null}]}
 
+Input: add wooden chair
+Output: {"line_items": [{"product": "wooden chair", "qty": null, "price": null, "discount_percent": null}]}
+
+Input: chair chahiye
+Output: {"line_items": [{"product": "chair", "qty": null, "price": null, "discount_percent": null}]}
+
+Input: teak desk
+Output: {"line_items": [{"product": "teak desk", "qty": null, "price": null, "discount_percent": null}]}
+
 Input: hello there how are you
 Output: {"line_items": []}
 
@@ -397,9 +406,10 @@ Output: {"line_items": []}
 Rules:
 1. Return ONLY valid JSON in shape: {"line_items": [{"product": string or null, "qty": number or null, "price": number or null, "discount_percent": number or null}]}.
 2. If a field is not mentioned or unclear, use null — do not guess or invent values.
-3. Units of count (e.g. piece, pieces, pcs, pc, units, items, पीस, नग) are NOT product names. If a message contains only a quantity and a unit (e.g. "two pieces", "2 pcs", "दो पीस"), extract the qty and set product to null.
-4. If the user does NOT mention any furniture or product in the input (e.g. they only provide customer name, phone number, a number like "0", or conversational replies), return {"line_items": []}. NEVER invent, assume, or hallucinate products.
-5. Greetings, conversational pleasantries, questions, catalog inquiries, and polite phrases (e.g. "hello", "hi", "how are you", "namaste", "नमस्ते", "what do you sell", "show products", "thanks", "help") are NOT products to bill. Return {"line_items": []}.
+3. NEVER default qty to 1. If the user mentions a product without an explicit quantity count or number, qty MUST be null.
+4. Units of count (e.g. piece, pieces, pcs, pc, units, items, पीस, नग) are NOT product names. If a message contains only a quantity and a unit (e.g. "two pieces", "2 pcs", "दो पीस"), extract the qty and set product to null.
+5. If the user does NOT mention any furniture or product in the input (e.g. they only provide customer name, phone number, a number like "0", or conversational replies), return {"line_items": []}. NEVER invent, assume, or hallucinate products.
+6. Greetings, conversational pleasantries, questions, catalog inquiries, and polite phrases (e.g. "hello", "hi", "how are you", "namaste", "नमस्ते", "what do you sell", "show products", "thanks", "help") are NOT products to bill. Return {"line_items": []}.
 {catalog_grounding}
 Now extract from this input, following the exact same JSON shape, using null for anything not mentioned — do not guess:
 Input: {user_input}
@@ -827,8 +837,26 @@ Output:`;
       if (session.pendingSlot === 'customerName') {
         const isExplicitProductAdd = /^(?:add|jodo|dalo|खरीदना|चाहिए|जोड़ो|डालो)\b/i.test(trimmed);
         const hasCatalogAnchor = /(?:price|rate|qty|quantity|₹|rupees)/i.test(trimmed);
-        if (!isExplicitProductAdd && !hasCatalogAnchor && trimmed.length >= 2 && trimmed.split(/\s+/).length <= 4) {
-          session.customerName = VoiceBillParser.capitalizeWords(trimmed);
+        if (!isExplicitProductAdd && !hasCatalogAnchor) {
+          // Check if user provided phone number along with the name (e.g. "Aryan 9876543210" or "Aryan, phone 9876543210")
+          const phoneFound = VoiceBillParser.extractPhoneNumber(trimmed);
+          if (phoneFound) {
+            session.phone = phoneFound;
+          }
+
+          // Strip out phone digits, +91, keywords to isolate the customer name
+          let cleanName = trimmed
+            .replace(/(?:phone|number|mobile|contact|फ़ोन|फोन|नंबर|मोबाइल|mob)[\s:=]*\+?(?:91[\s-]?)?\d[\d\s-]{8,14}\d/gi, ' ')
+            .replace(/(?:\+?91[\s-]?)?\d{10,13}/g, ' ')
+            .replace(/\b(?:customer|client|name|naam|नाम|is|hai|he|है)\b/gi, ' ')
+            .trim();
+
+          if (cleanName.length >= 2) {
+            session.customerName = VoiceBillParser.capitalizeWords(cleanName);
+          } else if (!session.customerName && trimmed.length >= 2 && !/^\d+$/.test(trimmed)) {
+            session.customerName = VoiceBillParser.capitalizeWords(trimmed);
+          }
+
           session.pendingSlot = undefined;
           this.recalculateTotals(session);
           return this.checkNextStepOrConfirm(session, lang);
@@ -837,9 +865,9 @@ Output:`;
 
       // Case B: Waiting for phone
       if (session.pendingSlot === 'phone') {
-        const cleanDigits = trimmed.replace(/\D/g, '');
-        if (cleanDigits.length >= 10 && cleanDigits.length <= 13) {
-          session.phone = cleanDigits.slice(-10);
+        const phone = VoiceBillParser.extractPhoneNumber(trimmed);
+        if (phone) {
+          session.phone = phone;
           session.pendingSlot = undefined;
           this.recalculateTotals(session);
           return this.checkNextStepOrConfirm(session, lang);
@@ -848,12 +876,28 @@ Output:`;
 
       // Case C: Waiting for quantity
       if (session.pendingSlot === 'quantity' && session.lineItems.length > 0) {
-        const num = VoiceBillParser.parseNumberToken(trimmed) ?? parseInt(trimmed, 10);
+        let num: number | null = null;
+        // Check for digit match in input, e.g. "2", "5 pieces", "qty 4"
+        const digitMatch = trimmed.match(/\b(\d{1,4})\b/);
+        if (digitMatch) {
+          num = parseInt(digitMatch[1], 10);
+        } else {
+          const normalized = VoiceBillParser.normalizeNumberWordsInText(VoiceBillParser.normalizeDigits(trimmed));
+          const normDigitMatch = normalized.match(/\b(\d{1,4})\b/);
+          if (normDigitMatch) {
+            num = parseInt(normDigitMatch[1], 10);
+          } else {
+            num = VoiceBillParser.parseNumberToken(trimmed);
+          }
+        }
+
         if (num !== null && !isNaN(num) && num > 0 && num < 10000) {
           const last = session.lineItems[session.lineItems.length - 1];
           last.qty = num;
           last.isQtyAssumed = false;
           last.qtyNeedsReview = false;
+          last.qtySource = 'deterministic';
+          session.isQtyAssumed = false;
           session.pendingSlot = undefined;
           this.recalculateTotals(session);
           return this.checkNextStepOrConfirm(session, lang);
@@ -868,6 +912,8 @@ Output:`;
           last.unitPrice = num;
           last.isPriceAssumed = false;
           last.priceNeedsReview = false;
+          last.priceSource = 'deterministic';
+          session.isPriceAssumed = false;
           session.pendingSlot = undefined;
           this.recalculateTotals(session);
           return this.checkNextStepOrConfirm(session, lang);
@@ -984,8 +1030,12 @@ Output:`;
         parsed.quantity = detParsed.quantity;
         slotSources.qty = 'deterministic';
       } else if (llmQty !== null && llmQty !== undefined && llmQty > 0) {
-        parsed.quantity = llmQty;
-        slotSources.qty = 'llm';
+        // Only accept LLM quantity if the raw input text actually contains an explicit number token!
+        const hasQuantityToken = /\b\d+\b/.test(text) || VoiceBillParser.hasNumberWord(text);
+        if (hasQuantityToken) {
+          parsed.quantity = llmQty;
+          slotSources.qty = 'llm';
+        }
       }
 
       // 5. PRICE: Cross-check against deterministic parser (money-critical field)
@@ -1073,14 +1123,14 @@ Output:`;
       }
     }
 
-    // Global phone safety check: If text contains a 10-13 digit number, ensure parsed.phone captures it
-    const cleanDigitsMatch = text.replace(/[\s\-+]/g, '').match(/\d{10,13}/);
-    if (cleanDigitsMatch) {
-      const extractedPhone = cleanDigitsMatch[0].slice(-10);
-      parsed.phone = extractedPhone;
+    // Global phone safety check: If text contains a phone number, ensure session.phone and parsed.phone capture it
+    const globalPhone = VoiceBillParser.extractPhoneNumber(text);
+    if (globalPhone) {
+      parsed.phone = globalPhone;
+      session.phone = globalPhone;
       slotSources.phone = slotSources.phone || 'deterministic';
       // Ensure unitPrice is never assigned this phone number or an astronomical number
-      if (parsed.unitPrice && (String(parsed.unitPrice).includes(extractedPhone) || parsed.unitPrice >= 10000000)) {
+      if (parsed.unitPrice && (String(parsed.unitPrice).includes(globalPhone) || parsed.unitPrice >= 10000000)) {
         delete parsed.unitPrice;
         delete slotSources.unitPrice;
       }
@@ -1123,34 +1173,14 @@ Output:`;
         this.recalculateTotals(session);
         VoiceBillService.updateSessionStatus(session);
 
-        const reply =
+        const replyPrefix =
           lang === 'hi'
-            ? `${removedItem.matchedName || removedItem.productName} बिल से हटा दिया गया है।`
-            : `Removed "${removedItem.matchedName || removedItem.productName}" from the bill.`;
+            ? `${removedItem.matchedName || removedItem.productName} बिल से हटा दिया गया है। `
+            : `Removed "${removedItem.matchedName || removedItem.productName}" from the bill. `;
 
-        let followUp = '';
-        if (session.lineItems.length > 0) {
-          const last = session.lineItems[session.lineItems.length - 1];
-          if (!last.qty || last.qty <= 0) {
-            followUp = lang === 'hi' ? ` कृपया ${last.matchedName || last.productName} की मात्रा बताएं।` : ` Please specify the quantity for ${last.matchedName || last.productName}.`;
-          } else if (!last.unitPrice || last.unitPrice <= 0) {
-            followUp = lang === 'hi' ? ` कृपया ${last.matchedName || last.productName} की कीमत बताएं।` : ` Please specify the unit price for ${last.matchedName || last.productName}.`;
-          } else if (!session.customerName) {
-            followUp = lang === 'hi' ? ' कृपया ग्राहक का नाम बताएं।' : ' Please provide the customer name.';
-          } else if (!session.phone) {
-            followUp = lang === 'hi' ? ' कृपया ग्राहक का 10-अंकीय फ़ोन नंबर बताएं।' : ' Please provide the customer phone number.';
-          }
-        } else {
-          followUp = lang === 'hi' ? ' आप कौन सा उत्पाद जोड़ना चाहते हैं?' : ' What product would you like to add?';
-        }
-
-        return {
-          reply: reply + followUp,
-          language: lang,
-          session,
-          readyForConfirm: session.status === 'ready_for_confirm',
-          isConfirmed: false,
-        };
+        const nextRes = this.checkNextStepOrConfirm(session, lang);
+        nextRes.reply = replyPrefix + nextRes.reply;
+        return nextRes;
       } else {
         const reply = lang === 'hi'
           ? 'हटाने के लिए बिल में कोई उत्पाद नहीं मिला।'
@@ -1377,7 +1407,7 @@ Output:`;
       return { reply, language: lang, session, readyForConfirm: false, isConfirmed: false };
     }
 
-    if (!line.qty || line.qty <= 0) {
+    if (!line.qty || line.qty <= 0 || line.isQtyAssumed) {
       session.pendingSlot = 'quantity';
       session.status = 'collecting';
       const reply =
