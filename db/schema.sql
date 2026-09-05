@@ -591,3 +591,25 @@ CREATE VIEW v_stock_on_hand AS
 SELECT product_id, COALESCE(SUM(qty_change), 0) AS stock_qty
 FROM stock_moves
 GROUP BY product_id;
+
+-- ============================================================
+-- Payment Gateway Intents (Razorpay adapter)
+-- ============================================================
+
+CREATE TABLE payment_intents (
+  id                  SERIAL PRIMARY KEY,
+  invoice_id          INT NOT NULL REFERENCES customer_invoices(id),
+  contact_id          INT NOT NULL REFERENCES contacts(id),
+  amount              DECIMAL(14,2) NOT NULL CHECK (amount > 0),
+  gateway             TEXT NOT NULL DEFAULT 'razorpay',
+  gateway_order_id    TEXT NOT NULL UNIQUE,
+  gateway_payment_id  TEXT UNIQUE,
+  status              TEXT NOT NULL DEFAULT 'pending'
+                      CHECK (status IN ('pending','success','failed','abandoned')),
+  payment_id          INT REFERENCES payments(id),
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  verified_at         TIMESTAMPTZ
+);
+CREATE INDEX idx_pi_invoice ON payment_intents(invoice_id);
+CREATE INDEX idx_pi_status  ON payment_intents(status);
+

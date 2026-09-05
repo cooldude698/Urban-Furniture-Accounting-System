@@ -56,26 +56,17 @@ export const AnalyticFormPage: React.FC<AnalyticFormPageProps> = ({
   };
 
   useEffect(() => {
+    if (!analyticId) {
+      setLinkedBudgets([]);
+      return;
+    }
+
     // Fetch budgets to filter lines matching this analytic account
     BudgetApi.getAll()
       .then(budgets => {
-        if (!analyticId) {
-          // If brand new, provide the illustrative sample from wireframe or empty
-          setLinkedBudgets([
-            {
-              budgetName: 'January 2026',
-              startDate: '01/01/2026',
-              endDate: '31/01/2026',
-              committed: '200000',
-              achieved: '10000',
-            },
-          ]);
-          return;
-        }
-
         const rows: LinkedBudgetRow[] = [];
         budgets.forEach(b => {
-          const matchingLines = b.lines.filter(l => l.analytic_account_id === analyticId);
+          const matchingLines = (b.lines || []).filter(l => l.analytic_account_id === analyticId);
           matchingLines.forEach(l => {
             rows.push({
               budgetName: b.name,
@@ -86,21 +77,7 @@ export const AnalyticFormPage: React.FC<AnalyticFormPageProps> = ({
             });
           });
         });
-
-        if (rows.length === 0) {
-          // Illustrative sample if none linked yet
-          setLinkedBudgets([
-            {
-              budgetName: 'January 2026',
-              startDate: '01/01/2026',
-              endDate: '31/01/2026',
-              committed: '200000',
-              achieved: '10000',
-            },
-          ]);
-        } else {
-          setLinkedBudgets(rows);
-        }
+        setLinkedBudgets(rows);
       })
       .catch(console.error);
 
@@ -271,15 +248,32 @@ export const AnalyticFormPage: React.FC<AnalyticFormPageProps> = ({
                   </tr>
                 </thead>
                 <tbody>
-                  {linkedBudgets.map((row, idx) => (
-                    <tr key={idx} style={styles.bodyRow}>
-                      <td style={styles.tdBudgetName}>{row.budgetName}</td>
-                      <td style={styles.tdDate}>{row.startDate}</td>
-                      <td style={styles.tdDate}>{row.endDate}</td>
-                      <td style={styles.tdAmount}>{row.committed}</td>
-                      <td style={styles.tdAmount}>{row.achieved}</td>
+                  {linkedBudgets.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        style={{
+                          textAlign: 'center',
+                          padding: '28px 12px',
+                          color: '#77574A',
+                          fontStyle: 'italic',
+                          fontSize: 13.5,
+                        }}
+                      >
+                        No budgets are currently linked to this Analytic Account.
+                      </td>
                     </tr>
-                  ))}
+                  ) : (
+                    linkedBudgets.map((row, idx) => (
+                      <tr key={idx} style={styles.bodyRow}>
+                        <td style={styles.tdBudgetName}>{row.budgetName}</td>
+                        <td style={styles.tdDate}>{row.startDate}</td>
+                        <td style={styles.tdDate}>{row.endDate}</td>
+                        <td style={styles.tdAmount}>{row.committed}</td>
+                        <td style={styles.tdAmount}>{row.achieved}</td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

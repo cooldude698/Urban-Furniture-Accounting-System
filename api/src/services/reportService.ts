@@ -283,9 +283,28 @@ export class ReportService {
       WHERE bl.id = $1;
     `;
 
-    const lineRes = await pool.query(lineQuery, [lineId]);
+    let lineRes = await pool.query(lineQuery, [lineId]);
     if (lineRes.rows.length === 0) {
-      return null;
+      const fallbackQuery = `
+        SELECT 
+          bl.id AS budget_line_id,
+          bl.budget_id,
+          b.name AS budget_name,
+          b.period_start,
+          b.period_end,
+          bl.analytic_account_id,
+          aa.name AS analytic_account_name,
+          aa.type AS analytic_type
+        FROM budget_lines bl
+        JOIN budgets b ON b.id = bl.budget_id
+        JOIN analytic_accounts aa ON aa.id = bl.analytic_account_id
+        WHERE bl.analytic_account_id = $1
+        ORDER BY bl.id DESC LIMIT 1;
+      `;
+      lineRes = await pool.query(fallbackQuery, [lineId]);
+      if (lineRes.rows.length === 0) {
+        return null;
+      }
     }
 
     const line = lineRes.rows[0];

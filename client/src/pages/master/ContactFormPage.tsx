@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ContactsApi } from '../../api/contacts.api';
 import { Contact, CreateContactInput, ContactType } from '@shared/schemas/contact.schema';
-import { Upload, ShoppingCart, Receipt, BookOpen, Archive, CheckCircle, ShieldCheck, Key, Copy } from 'lucide-react';
+import { Upload, ShoppingCart, Receipt, BookOpen, Archive, CheckCircle, ShieldCheck, Key, Copy, X, AlertCircle } from 'lucide-react';
 import { SmartButton } from '../../components/SmartButton';
 
 interface ContactFormPageProps {
@@ -13,6 +13,49 @@ interface ContactFormPageProps {
   onViewBills?: (vendorId: number) => void;
   onViewPOs?: (vendorId: number) => void;
   onViewStatement?: (contactId: number) => void;
+}
+
+// Client-side image compression to prevent payload too large errors
+function compressImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+        const maxDim = 480;
+
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(e.target?.result as string);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.onerror = () => resolve(e.target?.result as string);
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 export const ContactFormPage: React.FC<ContactFormPageProps> = ({
@@ -54,7 +97,6 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Portal User Access State
@@ -118,11 +160,12 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
             setPortalLoginId('');
           }
         })
-        .catch(() => setPortalUser(null));
+        .catch(() => {
+          setPortalUser(null);
+        });
     } else {
       setContact(null);
       setCounts(null);
-      setSelectedFile(null);
       setImagePreview(null);
       setPortalUser(null);
       setEnablePortal(false);
@@ -147,17 +190,30 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
     }
   }, [contactId]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
-      setSelectedFile(file);
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = reader.result as string;
-        setImagePreview(base64);
-        setFormData(prev => ({ ...prev, image_path: base64 }));
-      };
-      reader.readAsDataURL(file);
+      if (!file.type.startsWith('image/')) {
+        setError('Please select a valid image file (PNG, JPG, or WEBP).');
+        return;
+      }
+      try {
+        setError(null);
+        const compressedBase64 = await compressImage(file);
+        setImagePreview(compressedBase64);
+        setFormData(prev => ({ ...prev, image_path: compressedBase64 }));
+      } catch (err: any) {
+        setError('Failed to process image: ' + err.message);
+      }
+    }
+  };
+
+  const handleRemoveImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setImagePreview(null);
+    setFormData(prev => ({ ...prev, image_path: null }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -179,7 +235,6 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
         is_archived: false,
       });
       setCountry('India');
-      setSelectedFile(null);
       setImagePreview(null);
       setPortalUser(null);
       setEnablePortal(false);
@@ -242,21 +297,81 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
   };
 
   const handleSave = async () => {
+    setError(null);
+    setSuccessMsg(null);
+
+    // 1. Validate Name
     if (!formData.name.trim()) {
       setError('Contact Name is required.');
       return;
     }
+    if (formData.name.trim().length < 2) {
+      setError('Contact Name must be at least 2 characters long.');
+      return;
+    }
+
+    // 2. Validate Email (if provided)
+    if (formData.email && formData.email.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(formData.email.trim())) {
+        setError('Please enter a valid Email address with domain (e.g. contact@example.com).');
+        return;
+      }
+    }
+
+    // 3. Validate Phone (if provided)
+    if (formData.mobile && formData.mobile.trim()) {
+      const cleanedPhone = formData.mobile.replace(/[\s\-]/g, '');
+      if (!/^\+?[0-9]{10,14}$/.test(cleanedPhone)) {
+        setError('Phone number must contain between 10 and 14 digits.');
+        return;
+      }
+    }
+
+    // 4. Validate PIN Code (Indian pincode is strictly 6 digits)
+    if (formData.pincode && formData.pincode.trim()) {
+      if (!/^\d{6}$/.test(formData.pincode.trim())) {
+        setError('PIN code must be exactly 6 numeric digits.');
+        return;
+      }
+    }
+
+    // 5. Validate Portal access inputs if enabled
+    if (enablePortal && !portalUser) {
+      if (!formData.email || !formData.email.trim()) {
+        setError('Contact Email is required when creating a Portal User.');
+        return;
+      }
+      if (portalLoginId.trim() && (portalLoginId.trim().length < 6 || portalLoginId.trim().length > 12)) {
+        setError('Portal Login ID must be between 6 and 12 characters.');
+        return;
+      }
+      if (portalPassword && portalPassword.length < 8) {
+        setError('Portal Password must be at least 8 characters if specified.');
+        return;
+      }
+    }
 
     try {
       setLoading(true);
-      setError(null);
-      setSuccessMsg(null);
 
       let saved: Contact;
       if (isNew) {
-        saved = await ContactsApi.create(formData);
+        saved = await ContactsApi.create({
+          ...formData,
+          name: formData.name.trim(),
+          email: formData.email?.trim() || '',
+          mobile: formData.mobile?.trim() || '',
+          pincode: formData.pincode?.trim() || '',
+        });
       } else {
-        saved = await ContactsApi.update(contactId!, formData);
+        saved = await ContactsApi.update(contactId!, {
+          ...formData,
+          name: formData.name.trim(),
+          email: formData.email?.trim() || '',
+          mobile: formData.mobile?.trim() || '',
+          pincode: formData.pincode?.trim() || '',
+        });
       }
 
       // If portal access is enabled and not yet created, create portal user
@@ -280,8 +395,9 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
       const updated = await ContactsApi.archive(contactId, !contact.is_archived);
       setContact(updated);
       setFormData(prev => ({ ...prev, is_archived: updated.is_archived }));
+      setSuccessMsg(updated.is_archived ? 'Contact archived.' : 'Contact unarchived.');
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'Failed to toggle archive state');
     } finally {
       setLoading(false);
     }
@@ -318,8 +434,7 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
                 onMouseEnter={() => setHoveredBtn('confirm')}
                 onMouseLeave={() => setHoveredBtn(null)}
                 style={{
-                  ...styles.wireframeBtn,
-                  ...(hoveredBtn === 'confirm' ? styles.wireframeBtnHover : {}),
+                  ...styles.wireframeBtnPrimary,
                   opacity: loading ? 0.7 : 1,
                   cursor: loading ? 'not-allowed' : 'pointer',
                 }}
@@ -347,21 +462,22 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
           {/* Feedback Banners */}
           {error && (
             <div style={styles.errorBanner} role="alert">
+              <AlertCircle size={16} style={{ marginRight: 8, flexShrink: 0 }} />
               <span>{error}</span>
             </div>
           )}
           {successMsg && (
             <div style={styles.successBanner} role="status">
-              <CheckCircle size={15} style={{ marginRight: 6 }} />
+              <CheckCircle size={16} style={{ marginRight: 8, flexShrink: 0 }} />
               <span>{successMsg}</span>
             </div>
           )}
 
-          {/* Contact Name Row */}
+          {/* Contact Name & Type Header Section */}
           <div style={styles.contactNameSection}>
             <div style={styles.contactNameRow}>
               <label htmlFor="contact-name" style={styles.contactNameLabel}>
-                Contact Name
+                Contact Name *
               </label>
               <div style={styles.nameInputContainer}>
                 <input
@@ -370,15 +486,16 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
                   required
                   value={formData.name}
                   onChange={e => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g. Anand Chauhan"
                   style={styles.nameLineInput}
                   autoComplete="off"
                 />
               </div>
             </div>
 
-            {/* Subtle Contact Type Selector */}
+            {/* Contact Type Selector */}
             <div style={styles.typeSelectorRow}>
-              <span style={styles.typeLabel}>Type:</span>
+              <span style={styles.typeLabel}>TYPE:</span>
               <div style={styles.typePillGroup}>
                 {(['customer', 'vendor', 'both'] as ContactType[]).map(t => (
                   <button
@@ -397,9 +514,9 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
             </div>
           </div>
 
-          {/* Main Grid: Left column fields, Right column Upload Image + Pincode */}
+          {/* Main Form Grid */}
           <div style={styles.formGrid}>
-            {/* Left Column: Email, Phone, Address (Street, City, State, Country) */}
+            {/* Left Column: Email, Phone, Address Stack */}
             <div style={styles.leftCol}>
               {/* Email */}
               <div style={styles.formRow}>
@@ -409,8 +526,8 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
                     type="email"
                     value={formData.email || ''}
                     onChange={e => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="Unique Email"
-                    style={styles.centerLineInput}
+                    placeholder="name@example.com"
+                    style={styles.leftLineInput}
                   />
                 </div>
               </div>
@@ -422,8 +539,12 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
                   <input
                     type="tel"
                     value={formData.mobile || ''}
-                    onChange={e => setFormData({ ...formData, mobile: e.target.value })}
-                    placeholder=""
+                    onChange={e => {
+                      const val = e.target.value.replace(/[^\d+]/g, '').slice(0, 15);
+                      setFormData({ ...formData, mobile: val });
+                    }}
+                    placeholder="10-digit mobile number"
+                    maxLength={15}
                     style={styles.leftLineInput}
                   />
                 </div>
@@ -431,7 +552,7 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
 
               {/* Address Stack */}
               <div style={styles.addressStack}>
-                {/* Street (first line with "Address" label) */}
+                {/* Street */}
                 <div style={styles.formRow}>
                   <label style={styles.rowLabel}>Address</label>
                   <div style={styles.inputCell}>
@@ -439,13 +560,13 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
                       type="text"
                       value={formData.address || ''}
                       onChange={e => setFormData({ ...formData, address: e.target.value })}
-                      placeholder="Street"
-                      style={styles.centerLineInput}
+                      placeholder="Street address line 1"
+                      style={styles.leftLineInput}
                     />
                   </div>
                 </div>
 
-                {/* City (stacked below Street, matching indentation) */}
+                {/* City */}
                 <div style={styles.formRow}>
                   <div style={styles.rowLabelSpacer} />
                   <div style={styles.inputCell}>
@@ -454,12 +575,12 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
                       value={formData.city || ''}
                       onChange={e => setFormData({ ...formData, city: e.target.value })}
                       placeholder="City"
-                      style={styles.centerLineInput}
+                      style={styles.leftLineInput}
                     />
                   </div>
                 </div>
 
-                {/* State (stacked below City) */}
+                {/* State */}
                 <div style={styles.formRow}>
                   <div style={styles.rowLabelSpacer} />
                   <div style={styles.inputCell}>
@@ -468,34 +589,54 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
                       value={formData.state || ''}
                       onChange={e => setFormData({ ...formData, state: e.target.value })}
                       placeholder="State"
-                      style={styles.centerLineInput}
+                      style={styles.leftLineInput}
                     />
                   </div>
                 </div>
 
-                {/* Country (stacked below State) */}
+                {/* PIN Code */}
                 <div style={styles.formRow}>
-                  <div style={styles.rowLabelSpacer} />
+                  <label style={styles.rowLabel}>PIN Code</label>
+                  <div style={styles.inputCell}>
+                    <input
+                      type="text"
+                      value={formData.pincode || ''}
+                      onChange={e => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                        setFormData({ ...formData, pincode: val });
+                      }}
+                      placeholder="6-digit PIN code"
+                      maxLength={6}
+                      style={styles.leftLineInput}
+                    />
+                  </div>
+                </div>
+
+                {/* Country */}
+                <div style={styles.formRow}>
+                  <label style={styles.rowLabel}>Country</label>
                   <div style={styles.inputCell}>
                     <input
                       type="text"
                       value={country}
                       onChange={e => setCountry(e.target.value)}
                       placeholder="Country"
-                      style={styles.centerLineInput}
+                      style={styles.leftLineInput}
                     />
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Right Column: Upload Image Box + Pincode */}
+            {/* Right Column: Profile Image Card */}
             <div style={styles.rightCol}>
-              {/* Upload Image Box */}
+              <div style={styles.photoCardHeader}>
+                <span style={styles.photoLabel}>Profile Photo</span>
+              </div>
               <div
                 onClick={() => fileInputRef.current?.click()}
                 style={styles.uploadCard}
-                title="Click to upload image"
+                title="Click to select image"
                 role="button"
                 tabIndex={0}
                 onKeyDown={e => {
@@ -511,14 +652,15 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
                       alt="Contact avatar"
                       style={styles.previewImg}
                     />
-                    <div style={styles.previewHoverText}>
-                      Change Image
+                    <div style={styles.previewOverlay}>
+                      <span>Change Image</span>
                     </div>
                   </div>
                 ) : (
                   <div style={styles.uploadPlaceholder}>
-                    <Upload size={24} style={styles.uploadIcon} />
+                    <Upload size={28} style={styles.uploadIcon} />
                     <span style={styles.uploadText}>Upload Image</span>
+                    <span style={styles.uploadSubtext}>PNG or JPG</span>
                   </div>
                 )}
                 <input
@@ -530,16 +672,17 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
                 />
               </div>
 
-              {/* Pincode line directly underneath Upload Image box */}
-              <div style={styles.pincodeRow}>
-                <input
-                  type="text"
-                  value={formData.pincode || ''}
-                  onChange={e => setFormData({ ...formData, pincode: e.target.value })}
-                  placeholder="Pincode"
-                  style={styles.centerLineInput}
-                />
-              </div>
+              {imagePreview && (
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    style={styles.removeImageBtn}
+                  >
+                    <X size={13} style={{ marginRight: 4 }} /> Remove Photo
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -631,7 +774,7 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
                         onChange={e => setPortalLoginId(e.target.value)}
                         placeholder="e.g. rahul01"
                         maxLength={12}
-                        style={styles.centerLineInput}
+                        style={styles.leftLineInput}
                       />
                     </div>
                     <div style={styles.portalInputRow}>
@@ -641,7 +784,7 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
                         value={portalPassword}
                         onChange={e => setPortalPassword(e.target.value)}
                         placeholder="Leave blank to generate an invitation link"
-                        style={styles.centerLineInput}
+                        style={styles.leftLineInput}
                       />
                     </div>
 
@@ -755,7 +898,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 32,
+    marginBottom: 24,
   } as React.CSSProperties,
 
   leftBtnGroup: {
@@ -783,6 +926,20 @@ const styles = {
     outline: 'none',
   } as React.CSSProperties,
 
+  wireframeBtnPrimary: {
+    padding: '7px 24px',
+    border: '1.5px solid var(--brown-900, #4A3A34)',
+    borderRadius: 12,
+    fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
+    fontWeight: 700,
+    fontSize: 13,
+    color: 'var(--cream, #F9F2E4)',
+    background: 'var(--brown-900, #4A3A34)',
+    cursor: 'pointer',
+    transition: 'all 150ms ease',
+    outline: 'none',
+  } as React.CSSProperties,
+
   wireframeBtnHover: {
     background: 'var(--brown-900, #4A3A34)',
     color: 'var(--cream, #F9F2E4)',
@@ -793,10 +950,12 @@ const styles = {
     border: '1px solid var(--danger, #9E4A38)',
     color: 'var(--danger, #9E4A38)',
     borderRadius: 8,
-    padding: '8px 14px',
+    padding: '10px 14px',
     fontSize: 13,
     marginBottom: 20,
-    fontWeight: 500,
+    fontWeight: 600,
+    display: 'flex',
+    alignItems: 'center',
   } as React.CSSProperties,
 
   successBanner: {
@@ -804,31 +963,34 @@ const styles = {
     border: '1px solid #3E7B44',
     color: '#2B5E30',
     borderRadius: 8,
-    padding: '8px 14px',
+    padding: '10px 14px',
     fontSize: 13,
     marginBottom: 20,
-    fontWeight: 500,
+    fontWeight: 600,
     display: 'flex',
     alignItems: 'center',
   } as React.CSSProperties,
 
   contactNameSection: {
-    marginBottom: 28,
+    marginBottom: 24,
+    paddingBottom: 16,
+    borderBottom: '1px dashed var(--brown-200, #DFBF9F)',
   } as React.CSSProperties,
 
   contactNameRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: 20,
+    gap: 16,
     width: '100%',
   } as React.CSSProperties,
 
   contactNameLabel: {
     fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
     fontWeight: 700,
-    fontSize: 16,
+    fontSize: 15,
     color: 'var(--brown-900, #4A3A34)',
     whiteSpace: 'nowrap' as const,
+    minWidth: 120,
   } as React.CSSProperties,
 
   nameInputContainer: {
@@ -843,7 +1005,7 @@ const styles = {
     borderBottom: '1.5px solid var(--brown-700, #77574A)',
     borderRadius: 0,
     background: 'transparent',
-    padding: '4px 6px',
+    padding: '6px 4px',
     fontFamily: 'var(--font-body, "DM Sans", sans-serif)',
     fontSize: 16,
     fontWeight: 600,
@@ -855,31 +1017,32 @@ const styles = {
   typeSelectorRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: 10,
-    marginTop: 10,
-    paddingLeft: 4,
+    gap: 12,
+    marginTop: 14,
+    paddingLeft: 2,
   } as React.CSSProperties,
 
   typeLabel: {
     fontSize: 12,
-    fontWeight: 600,
-    color: 'var(--brown-600, #8C6A58)',
+    fontWeight: 700,
+    color: 'var(--brown-700, #77574A)',
     textTransform: 'uppercase' as const,
     letterSpacing: '0.04em',
+    minWidth: 50,
   } as React.CSSProperties,
 
   typePillGroup: {
     display: 'flex',
-    gap: 6,
+    gap: 8,
   } as React.CSSProperties,
 
   typePill: {
-    padding: '3px 12px',
+    padding: '4px 14px',
     borderRadius: 14,
     border: '1px solid var(--brown-300, #D2B79F)',
     background: 'transparent',
     color: 'var(--brown-700, #77574A)',
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: 600,
     cursor: 'pointer',
     transition: 'all 120ms ease',
@@ -893,15 +1056,15 @@ const styles = {
 
   formGrid: {
     display: 'grid',
-    gridTemplateColumns: '1.4fr 1fr',
-    columnGap: 44,
+    gridTemplateColumns: '1.5fr 1fr',
+    columnGap: 40,
     alignItems: 'start',
   } as React.CSSProperties,
 
   leftCol: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: 18,
+    gap: 16,
   } as React.CSSProperties,
 
   formRow: {
@@ -914,14 +1077,14 @@ const styles = {
   rowLabel: {
     fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
     fontWeight: 700,
-    fontSize: 14,
+    fontSize: 13,
     color: 'var(--brown-900, #4A3A34)',
-    minWidth: 70,
+    minWidth: 80,
     whiteSpace: 'nowrap' as const,
   } as React.CSSProperties,
 
   rowLabelSpacer: {
-    minWidth: 70,
+    minWidth: 80,
   } as React.CSSProperties,
 
   inputCell: {
@@ -930,31 +1093,17 @@ const styles = {
     alignItems: 'center',
   } as React.CSSProperties,
 
-  centerLineInput: {
-    width: '100%',
-    border: 'none',
-    borderBottom: '1.5px solid var(--brown-700, #77574A)',
-    borderRadius: 0,
-    background: 'transparent',
-    padding: '4px 6px',
-    fontFamily: 'var(--font-body, "DM Sans", sans-serif)',
-    fontSize: 14,
-    color: 'var(--brown-900, #4A3A34)',
-    textAlign: 'center' as const,
-    outline: 'none',
-    transition: 'border-color 150ms ease',
-  } as React.CSSProperties,
-
   leftLineInput: {
     width: '100%',
     border: 'none',
     borderBottom: '1.5px solid var(--brown-700, #77574A)',
     borderRadius: 0,
     background: 'transparent',
-    padding: '4px 6px',
+    padding: '6px 4px',
     fontFamily: 'var(--font-body, "DM Sans", sans-serif)',
     fontSize: 14,
     color: 'var(--brown-900, #4A3A34)',
+    textAlign: 'left' as const,
     outline: 'none',
     transition: 'border-color 150ms ease',
   } as React.CSSProperties,
@@ -962,38 +1111,76 @@ const styles = {
   addressStack: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: 18,
+    gap: 14,
+    marginTop: 4,
   } as React.CSSProperties,
 
   rightCol: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: 20,
     alignItems: 'center',
   } as React.CSSProperties,
 
-  uploadCard: {
+  photoCardHeader: {
+    marginBottom: 8,
     width: '100%',
-    maxWidth: 240,
-    height: 190,
-    border: '1.5px solid var(--brown-700, #77574A)',
-    borderRadius: 18,
-    background: 'rgba(235, 215, 190, 0.15)',
+    maxWidth: 220,
+  } as React.CSSProperties,
+
+  photoLabel: {
+    fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
+    fontWeight: 700,
+    fontSize: 13,
+    color: 'var(--brown-900, #4A3A34)',
+  } as React.CSSProperties,
+
+  uploadCard: {
+    width: 220,
+    height: 180,
+    borderRadius: 16,
+    border: '1.5px dashed var(--brown-400, #B8977E)',
+    background: 'var(--brown-50, #F8F3ED)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
     overflow: 'hidden',
     position: 'relative' as const,
-    transition: 'all 150ms ease',
+    transition: 'all 180ms ease',
+  } as React.CSSProperties,
+
+  previewWrapper: {
+    width: '100%',
+    height: '100%',
+    position: 'relative' as const,
+  } as React.CSSProperties,
+
+  previewImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover' as const,
+    display: 'block',
+  } as React.CSSProperties,
+
+  previewOverlay: {
+    position: 'absolute' as const,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    background: 'rgba(74, 58, 52, 0.75)',
+    color: 'var(--cream, #F9F2E4)',
+    textAlign: 'center' as const,
+    padding: '6px 0',
+    fontSize: 12,
+    fontWeight: 600,
   } as React.CSSProperties,
 
   uploadPlaceholder: {
     display: 'flex',
     flexDirection: 'column' as const,
     alignItems: 'center',
-    gap: 10,
-    color: 'var(--brown-700, #77574A)',
+    gap: 6,
+    color: 'var(--brown-500, #A8836C)',
   } as React.CSSProperties,
 
   uploadIcon: {
@@ -1001,61 +1188,174 @@ const styles = {
   } as React.CSSProperties,
 
   uploadText: {
-    fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
-    fontWeight: 700,
-    fontSize: 15,
-    color: 'var(--brown-900, #4A3A34)',
-    letterSpacing: '-0.01em',
+    fontSize: 13,
+    fontWeight: 600,
+    color: 'var(--brown-800, #5C453A)',
   } as React.CSSProperties,
 
-  previewWrapper: {
-    width: '100%',
-    height: '100%',
-    position: 'relative' as const,
+  uploadSubtext: {
+    fontSize: 11,
+    color: 'var(--brown-500, #A8836C)',
+  } as React.CSSProperties,
+
+  removeImageBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: 'var(--danger, #9E4A38)',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center',
+    padding: '4px 8px',
   } as React.CSSProperties,
 
-  previewImg: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover' as const,
+  portalSection: {
+    marginTop: 28,
+    paddingTop: 20,
+    borderTop: '1px solid var(--brown-200, #DFBF9F)',
   } as React.CSSProperties,
 
-  previewHoverText: {
-    position: 'absolute' as const,
-    bottom: 8,
+  portalHeaderRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 14,
+  } as React.CSSProperties,
+
+  portalSectionTitle: {
+    fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
+    fontWeight: 700,
+    fontSize: 14,
+    color: 'var(--brown-900, #4A3A34)',
+  } as React.CSSProperties,
+
+  portalActiveBadge: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#16A34A',
+    background: '#ECFDF5',
     padding: '3px 10px',
-    background: 'rgba(74, 58, 52, 0.85)',
-    color: 'var(--cream, #F9F2E4)',
-    borderRadius: 6,
-    fontSize: 11,
+    borderRadius: 12,
+    border: '1px solid #A7F3D0',
+    display: 'flex',
+    alignItems: 'center',
+  } as React.CSSProperties,
+
+  portalInfoBox: {
+    background: '#FAF6F0',
+    border: '1px solid var(--brown-200, #DFBF9F)',
+    borderRadius: 12,
+    padding: '14px 18px',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 8,
+  } as React.CSSProperties,
+
+  portalFieldRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    fontSize: 13,
+  } as React.CSSProperties,
+
+  portalFieldLabel: {
+    color: 'var(--brown-600, #8C6A58)',
+    minWidth: 80,
     fontWeight: 600,
   } as React.CSSProperties,
 
-  pincodeRow: {
-    width: '100%',
-    maxWidth: 240,
-    marginTop: 2,
+  portalFieldValue: {
+    color: 'var(--brown-900, #4A3A34)',
+    fontFamily: 'var(--font-mono, "IBM Plex Mono", monospace)',
+  } as React.CSSProperties,
+
+  inviteUrlBox: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTop: '1px dashed var(--brown-300, #D2B79F)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  } as React.CSSProperties,
+
+  copyBtn: {
+    padding: '4px 10px',
+    borderRadius: 6,
+    border: '1px solid var(--brown-400, #B8977E)',
+    background: '#FFF',
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#4A3A34',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+  } as React.CSSProperties,
+
+  portalSetupBox: {
+    background: '#FAF6F0',
+    border: '1px solid var(--brown-200, #DFBF9F)',
+    borderRadius: 12,
+    padding: '14px 18px',
+  } as React.CSSProperties,
+
+  checkboxLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    fontSize: 13,
+    fontWeight: 600,
+    color: 'var(--brown-900, #4A3A34)',
+    cursor: 'pointer',
+  } as React.CSSProperties,
+
+  portalInputsGrid: {
+    marginTop: 14,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 12,
+  } as React.CSSProperties,
+
+  portalInputRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 16,
+  } as React.CSSProperties,
+
+  portalInputLabel: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: 'var(--brown-700, #77574A)',
+    minWidth: 160,
+  } as React.CSSProperties,
+
+  createPortalBtn: {
+    padding: '6px 14px',
+    borderRadius: 8,
+    border: 'none',
+    background: 'var(--brown-800, #5C453A)',
+    color: 'var(--cream, #F9F2E4)',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
   } as React.CSSProperties,
 
   smartBarContainer: {
-    marginTop: 36,
+    marginTop: 28,
     paddingTop: 20,
-    borderTop: '1px solid var(--brown-200, #E4D5C7)',
+    borderTop: '1px solid var(--brown-200, #DFBF9F)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     flexWrap: 'wrap' as const,
-    gap: 12,
+    gap: 16,
   } as React.CSSProperties,
 
   smartButtonsGroup: {
     display: 'flex',
     alignItems: 'center',
-    gap: 10,
-    flexWrap: 'wrap' as const,
+    gap: 12,
   } as React.CSSProperties,
 
   archiveActionGroup: {
@@ -1065,159 +1365,27 @@ const styles = {
   } as React.CSSProperties,
 
   gstinBadge: {
-    fontSize: 12,
-    fontFamily: 'var(--font-mono, monospace)',
-    color: 'var(--brown-600, #8C6A58)',
-    padding: '3px 8px',
-    background: 'var(--brown-100, #F3EAE0)',
+    fontSize: 11,
+    fontFamily: 'var(--font-mono, "IBM Plex Mono", monospace)',
+    color: 'var(--brown-700, #77574A)',
+    background: 'var(--brown-100, #EBD7BE)',
+    padding: '4px 10px',
     borderRadius: 6,
+    fontWeight: 600,
   } as React.CSSProperties,
 
   archiveBtn: {
-    display: 'flex',
-    alignItems: 'center',
     padding: '6px 14px',
     borderRadius: 8,
-    border: '1px solid var(--brown-300, #D2B79F)',
-    background: 'transparent',
-    color: 'var(--brown-700, #77574A)',
+    border: '1px solid var(--brown-400, #B8977E)',
+    background: '#FFF',
+    color: 'var(--brown-800, #5C453A)',
     fontSize: 12,
     fontWeight: 600,
     cursor: 'pointer',
-    transition: 'all 120ms ease',
-  } as React.CSSProperties,
-
-  portalSection: {
-    marginTop: 28,
-    padding: '18px 20px',
-    background: 'rgba(235, 215, 190, 0.25)',
-    borderRadius: 14,
-    border: '1px solid #D2B79F',
-  } as React.CSSProperties,
-
-  portalHeaderRow: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  } as React.CSSProperties,
-
-  portalSectionTitle: {
-    fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
-    fontWeight: 700,
-    fontSize: 14.5,
-    color: '#382A24',
-  } as React.CSSProperties,
-
-  portalActiveBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    fontSize: 11.5,
-    fontWeight: 700,
-    color: '#16A34A',
-    background: 'rgba(22, 163, 74, 0.1)',
-    padding: '3px 10px',
-    borderRadius: 20,
-    border: '1px solid rgba(22, 163, 74, 0.25)',
-  } as React.CSSProperties,
-
-  portalInfoBox: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 8,
-    fontSize: 13,
-  } as React.CSSProperties,
-
-  portalFieldRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-  } as React.CSSProperties,
-
-  portalFieldLabel: {
-    width: 120,
-    color: '#77574A',
-    fontWeight: 600,
-  } as React.CSSProperties,
-
-  portalFieldValue: {
-    color: '#382A24',
-    fontFamily: 'var(--font-mono, monospace)',
-    fontWeight: 500,
-  } as React.CSSProperties,
-
-  inviteUrlBox: {
-    marginTop: 8,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10,
-    background: '#FFFFFF',
-    padding: '8px 12px',
-    borderRadius: 8,
-    border: '1px solid #E4D5C7',
-  } as React.CSSProperties,
-
-  copyBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    padding: '4px 10px',
-    borderRadius: 6,
-    background: '#77574A',
-    color: '#FFFFFF',
-    border: 'none',
-    fontSize: 11,
-    fontWeight: 600,
-    cursor: 'pointer',
-  } as React.CSSProperties,
-
-  portalSetupBox: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 12,
-  } as React.CSSProperties,
-
-  checkboxLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    fontSize: 13.5,
-    fontWeight: 600,
-    color: '#382A24',
-    cursor: 'pointer',
-  } as React.CSSProperties,
-
-  portalInputsGrid: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 10,
-    paddingLeft: 24,
-  } as React.CSSProperties,
-
-  portalInputRow: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 12,
-  } as React.CSSProperties,
-
-  portalInputLabel: {
-    width: 220,
-    fontSize: 12.5,
-    color: '#77574A',
-    fontWeight: 500,
-  } as React.CSSProperties,
-
-  createPortalBtn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    padding: '6px 14px',
-    borderRadius: 8,
-    background: '#77574A',
-    color: '#FFFFFF',
-    border: 'none',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-    transition: 'background 120ms ease',
   } as React.CSSProperties,
 };
 
+export default ContactFormPage;
