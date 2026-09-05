@@ -13,6 +13,8 @@ export interface DraftLineItem {
   discountPercent: number;
   taxRate: number;
   lineTotal: string;
+  isPriceAssumed?: boolean;
+  isQtyAssumed?: boolean;
 }
 
 export interface VoiceBillSession {
@@ -31,6 +33,10 @@ export interface VoiceBillSession {
   pdfUrl?: string;
   grandTotal: string;
   updatedAt: Date;
+  isNameInferred?: boolean;
+  isPriceAssumed?: boolean;
+  isQtyAssumed?: boolean;
+  confidenceNotes?: { en: string[]; hi: string[] };
 }
 
 export interface ChatMessageResponse {
@@ -250,21 +256,37 @@ export class VoiceBillService {
       };
     }
 
-    // 1. Run Parser
-    const parsed: ParsedSlots = VoiceBillParser.parse(text);
+    // 1. Fetch catalog product names for elimination pass and run Parser
+    let knownProductNames: string[] = [];
+    try {
+      const prodRes = await pool.query(`SELECT name FROM products WHERE is_archived = false;`);
+      knownProductNames = prodRes.rows.map((r: any) => r.name);
+    } catch (err) {
+      console.warn('Failed to query products for parser:', err);
+    }
+
+    const parsed: ParsedSlots = VoiceBillParser.parse(text, knownProductNames);
 
     // 2. Handle slot updates (e.g. "change quantity to 4")
     if (parsed.isUpdate && parsed.updateField) {
       if (parsed.updateField === 'quantity' && parsed.quantity) {
         if (session.lineItems.length > 0) {
           session.lineItems[session.lineItems.length - 1].qty = parsed.quantity;
+          session.lineItems[session.lineItems.length - 1].isQtyAssumed = false;
+          session.isQtyAssumed = false;
           session.lastUpdateNote = lang === 'hi' ? parsed.updateNote?.hi : parsed.updateNote?.en;
         }
       } else if (parsed.updateField === 'unitPrice' && parsed.unitPrice) {
         if (session.lineItems.length > 0) {
           session.lineItems[session.lineItems.length - 1].unitPrice = parsed.unitPrice;
+          session.lineItems[session.lineItems.length - 1].isPriceAssumed = false;
+          session.isPriceAssumed = false;
           session.lastUpdateNote = lang === 'hi' ? parsed.updateNote?.hi : parsed.updateNote?.en;
         }
+      } else if (parsed.updateField === 'customerName' && parsed.customerName) {
+        session.customerName = parsed.customerName;
+        session.isNameInferred = false;
+        session.lastUpdateNote = lang === 'hi' ? parsed.updateNote?.hi : parsed.updateNote?.en;
       }
       this.recalculateTotals(session);
     }
@@ -272,11 +294,23 @@ export class VoiceBillService {
     // 3. Merge Customer Name
     if (parsed.customerName) {
       session.customerName = parsed.customerName;
+      session.isNameInferred = Boolean(parsed.isNameInferred);
     }
 
     // 4. Merge Phone Number
     if (parsed.phone) {
       session.phone = parsed.phone;
+    }
+
+    // Propagate confidence notes
+    if (parsed.confidenceNotes) {
+      session.confidenceNotes = parsed.confidenceNotes;
+    }
+    if (parsed.isQtyAssumed) {
+      session.isQtyAssumed = true;
+    }
+    if (parsed.isPriceAssumed) {
+      session.isPriceAssumed = true;
     }
 
     // 5. Handle Product Selection from candidates or parser
@@ -301,6 +335,8 @@ export class VoiceBillService {
             discountPercent: parsed.discountPercent || 0,
             taxRate: parseFloat(matchRes.matchedProduct.taxRate) || 0,
             lineTotal: '0.00',
+            isQtyAssumed: parsed.isQtyAssumed,
+            isPriceAssumed: parsed.isPriceAssumed,
           };
           session.lineItems.push(currentItem);
         } else {
@@ -308,9 +344,13 @@ export class VoiceBillService {
           currentItem.productName = parsed.productName;
           currentItem.matchedName = matchRes.matchedProduct.name;
           currentItem.productId = matchRes.matchedProduct.id;
-          if (parsed.quantity) currentItem.qty = parsed.quantity;
+          if (parsed.quantity) {
+            currentItem.qty = parsed.quantity;
+            currentItem.isQtyAssumed = parsed.isQtyAssumed;
+          }
           if (parsed.unitPrice) {
             currentItem.unitPrice = parsed.unitPrice;
+            currentItem.isPriceAssumed = parsed.isPriceAssumed;
           } else if (!currentItem.unitPrice || currentItem.unitPrice === 0) {
             currentItem.unitPrice = parseFloat(matchRes.matchedProduct.salesPrice) || 0;
           }
@@ -346,6 +386,8 @@ export class VoiceBillService {
             discountPercent: parsed.discountPercent || 0,
             taxRate: 0,
             lineTotal: '0.00',
+            isQtyAssumed: parsed.isQtyAssumed,
+            isPriceAssumed: parsed.isPriceAssumed,
           };
           session.lineItems.push(currentItem);
         }
@@ -354,8 +396,14 @@ export class VoiceBillService {
       // If no product in this message, update existing line item's qty or price if provided
       if (session.lineItems.length > 0) {
         const lastItem = session.lineItems[session.lineItems.length - 1];
-        if (parsed.quantity && !parsed.isUpdate) lastItem.qty = parsed.quantity;
-        if (parsed.unitPrice && !parsed.isUpdate) lastItem.unitPrice = parsed.unitPrice;
+        if (parsed.quantity && !parsed.isUpdate) {
+          lastItem.qty = parsed.quantity;
+          lastItem.isQtyAssumed = parsed.isQtyAssumed;
+        }
+        if (parsed.unitPrice && !parsed.isUpdate) {
+          lastItem.unitPrice = parsed.unitPrice;
+          lastItem.isPriceAssumed = parsed.isPriceAssumed;
+        }
         if (parsed.discountPercent !== undefined) lastItem.discountPercent = parsed.discountPercent;
       }
     }
@@ -420,6 +468,11 @@ export class VoiceBillService {
 
     if (session.lastUpdateNote) {
       confirmMsg = `${session.lastUpdateNote}. ${confirmMsg}`;
+    }
+
+    if (session.confidenceNotes && session.confidenceNotes[lang] && session.confidenceNotes[lang].length > 0) {
+      const notes = session.confidenceNotes[lang].join('; ');
+      confirmMsg = `[${notes}]\n\n${confirmMsg}`;
     }
 
     return {

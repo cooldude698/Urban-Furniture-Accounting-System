@@ -28,6 +28,8 @@ interface DraftLineItem {
   discountPercent: number;
   taxRate: number;
   lineTotal: string;
+  isPriceAssumed?: boolean;
+  isQtyAssumed?: boolean;
 }
 
 interface VoiceBillSession {
@@ -46,6 +48,10 @@ interface VoiceBillSession {
   pdfUrl?: string;
   grandTotal: string;
   updatedAt: string;
+  isNameInferred?: boolean;
+  isPriceAssumed?: boolean;
+  isQtyAssumed?: boolean;
+  confidenceNotes?: { en: string[]; hi: string[] };
 }
 
 interface ChatMessage {
@@ -414,21 +420,53 @@ export const VoiceBillPage: React.FC = () => {
                 </span>
               </div>
 
+              {/* Confidence Notice Banner (if any slot was inferred without anchors) */}
+              {(session.isNameInferred || session.isPriceAssumed || session.isQtyAssumed) && (
+                <div className="flex items-start sm:items-center gap-2.5 p-3 bg-amber-50/90 border border-amber-300 rounded-[8px] text-amber-900 text-xs">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
+                  <div className="flex-1">
+                    <span className="font-semibold">
+                      {session.language === 'hi' ? 'सूचना: ' : 'Note: '}
+                    </span>
+                    {session.language === 'hi'
+                      ? 'कुछ विवरण बिना कीवर्ड के सीधे क्रम से पहचाने गए हैं। कृपया पुष्टि करने से पहले जाँच लें।'
+                      : 'Some values were inferred from positional input without keywords. Please verify before confirming.'}
+                  </div>
+                </div>
+              )}
+
               {/* Customer Info */}
               <div className="grid grid-cols-2 gap-4 text-xs bg-cream/50 p-3 rounded-lg border border-brown-200/60">
                 <div>
                   <span className="text-brown-500 font-semibold block uppercase tracking-wider text-[10px]">
                     Customer (ग्राहक)
                   </span>
-                  <span className="text-brown-900 font-bold text-sm">
-                    {session.customerName || '—'}
-                  </span>
+                  <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                    <span className="text-brown-900 font-bold text-sm">
+                      {session.customerName || '—'}
+                    </span>
+                    {session.isNameInferred && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (inputRef.current) {
+                            inputRef.current.focus();
+                            setInputText('name is ');
+                          }
+                        }}
+                        className="inline-flex items-center text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200 transition-colors font-medium cursor-pointer shadow-xs"
+                        title="Tap to correct customer name"
+                      >
+                        (detected — tap to correct)
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <span className="text-brown-500 font-semibold block uppercase tracking-wider text-[10px]">
                     Phone (फ़ोन)
                   </span>
-                  <span className="text-brown-900 font-mono font-semibold text-sm">
+                  <span className="text-brown-900 font-mono font-semibold text-sm block mt-0.5">
                     {session.phone || '—'}
                   </span>
                 </div>
@@ -452,8 +490,28 @@ export const VoiceBillPage: React.FC = () => {
                         <td className="py-2.5 px-3 font-medium text-brown-900">
                           {item.matchedName || item.productName}
                         </td>
-                        <td className="py-2.5 px-3 text-right font-mono">{item.qty}</td>
-                        <td className="py-2.5 px-3 text-right font-mono">₹{item.unitPrice.toFixed(2)}</td>
+                        <td className="py-2.5 px-3 text-right font-mono">
+                          <div>{item.qty}</div>
+                          {(item.isQtyAssumed || session.isQtyAssumed) && (
+                            <span
+                              className="inline-block text-[10px] text-amber-800 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 font-sans font-medium"
+                              title="Quantity assumed from input"
+                            >
+                              (assumed — please confirm)
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono">
+                          <div>₹{item.unitPrice.toFixed(2)}</div>
+                          {(item.isPriceAssumed || session.isPriceAssumed) && (
+                            <span
+                              className="inline-block text-[10px] text-amber-800 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 font-sans font-medium"
+                              title="Price assumed from input"
+                            >
+                              (assumed — please confirm)
+                            </span>
+                          )}
+                        </td>
                         <td className="py-2.5 px-3 text-right font-mono">
                           {item.discountPercent > 0 ? `${item.discountPercent}%` : '0%'}
                         </td>

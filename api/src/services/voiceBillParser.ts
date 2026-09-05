@@ -1,3 +1,5 @@
+import { isIndianName } from '../data/indianNames';
+
 export interface ParsedSlots {
   customerName?: string;
   phone?: string;
@@ -9,6 +11,11 @@ export interface ParsedSlots {
   updateField?: 'quantity' | 'unitPrice' | 'customerName' | 'phone' | 'productName';
   updateNote?: { en: string; hi: string };
   rawTokens?: string[];
+  // Elimination pass confidence & detection flags
+  isNameInferred?: boolean;
+  isPriceAssumed?: boolean;
+  isQtyAssumed?: boolean;
+  confidenceNotes?: { en: string[]; hi: string[] };
 }
 
 export type SupportedLanguage = 'en' | 'hi';
@@ -207,7 +214,7 @@ export class VoiceBillParser {
   /**
    * Main deterministic parsing method
    */
-  static parse(inputText: string): ParsedSlots {
+  static parse(inputText: string, knownProductNames?: string[]): ParsedSlots {
     const slots: ParsedSlots = {};
     if (!inputText || !inputText.trim()) {
       return slots;
@@ -260,13 +267,13 @@ export class VoiceBillParser {
     // 2. Extract Phone Number
     // Look for anchor OR raw 10-digit Indian phone number
     const phoneAnchorMatch = normalizedText.match(
-      /(?:phone|number|mobile|contact|फ़ोन|फोन|नंबर|मोबाइल|mob)[\s:=]*(\+?91[\s-]?)?([6-9]\d{9})\b/i
+      /(?:phone|number|mobile|contact|फ़ोन|फोन|नंबर|मोबाइल|mob)[\s:=]*(\+?91[\s-]?)?(\d{10})\b/i
     );
     if (phoneAnchorMatch) {
       slots.phone = phoneAnchorMatch[2];
     } else {
       // Direct 10-digit mobile number pattern
-      const directPhoneMatch = normalizedText.match(/\b([6-9]\d{9})\b/);
+      const directPhoneMatch = normalizedText.match(/\b(\d{10})\b/);
       if (directPhoneMatch) {
         slots.phone = directPhoneMatch[1];
       }
@@ -363,7 +370,10 @@ export class VoiceBillParser {
         if (
           !stopWords.includes(potentialProd.toLowerCase()) &&
           potentialProd.length >= 3 &&
-          !/^\d+$/.test(potentialProd)
+          !/^\d+$/.test(potentialProd) &&
+          potentialQty < 10000 &&
+          String(potentialQty) !== slots.phone &&
+          !/^\d{10}$/.test(patternMatch[1])
         ) {
           if (!slots.quantity) slots.quantity = potentialQty;
           slots.productName = potentialProd;
@@ -413,6 +423,285 @@ export class VoiceBillParser {
       }
     }
 
+    // 8. ELIMINATION PASS (Runs only for slots that remain unfilled, on anchor-free positional inputs)
+    const hasMissingSlots =
+      !slots.phone || !slots.customerName || !slots.productName || !slots.quantity || !slots.unitPrice;
+    if (hasMissingSlots && !slots.isUpdate) {
+      this.runEliminationPass(normalizedText, slots, knownProductNames);
+    }
+
     return slots;
+  }
+
+  /**
+   * Fast trigram similarity calculation (equivalent to pg_trgm similarity)
+   */
+  static trigramSimilarity(s1: string, s2: string): number {
+    if (!s1 || !s2) return 0;
+    const a = s1.toLowerCase().trim();
+    const b = s2.toLowerCase().trim();
+    if (a === b) return 1.0;
+    if (a.length === 0 || b.length === 0) return 0;
+
+    const getTrigrams = (str: string): Set<string> => {
+      const padded = `  ${str} `;
+      const set = new Set<string>();
+      for (let i = 0; i < padded.length - 2; i++) {
+        set.add(padded.substring(i, i + 3));
+      }
+      return set;
+    };
+
+    const t1 = getTrigrams(a);
+    const t2 = getTrigrams(b);
+    let common = 0;
+    for (const tri of t1) {
+      if (t2.has(tri)) common++;
+    }
+    const union = t1.size + t2.size - common;
+    return union === 0 ? 0 : common / union;
+  }
+
+  /**
+   * Capitalizes first letter of each word in a string
+   */
+  static capitalizeWords(str: string): string {
+    return str
+      .trim()
+      .split(/\s+/)
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ');
+  }
+
+  /**
+   * Elimination Pass: Deterministically classifies remaining unconsumed tokens in exact priority order:
+   * 1. Phone (10-digit regex)
+   * 2. Numbers (magnitude disambiguation: >= 100 -> unitPrice, < 100 -> quantity). Never infer discount.
+   * 3. Product (fuzzy matching against Product Master / catalog)
+   * 4. Customer Name (match against bundled static Indian first names list)
+   * 5. Leftovers (remain unclassified, triggering targeted slot follow-ups)
+   */
+  static runEliminationPass(normalizedText: string, slots: ParsedSlots, knownProductNames?: string[]): void {
+    let workingText = normalizedText;
+
+    // Remove tokens already consumed in Pass 1 to prevent double-matching
+    if (slots.phone) {
+      workingText = workingText.replace(new RegExp(`(?:\\+?91[\\s-]?)?${slots.phone}`, 'g'), ' ');
+    }
+    if (slots.customerName) {
+      const escaped = slots.customerName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      workingText = workingText.replace(new RegExp(`\\b${escaped}\\b`, 'gi'), ' ');
+    }
+    if (slots.productName) {
+      const escaped = slots.productName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      workingText = workingText.replace(new RegExp(`\\b${escaped}\\b`, 'gi'), ' ');
+    }
+    if (slots.quantity !== undefined) {
+      workingText = workingText.replace(new RegExp(`(?:^|(?<=[\\s,.:;]))${slots.quantity}(?=[\\s,.:;]|$)`, 'g'), ' ');
+    }
+    if (slots.unitPrice !== undefined) {
+      workingText = workingText.replace(new RegExp(`(?:^|(?<=[\\s,.:;]))${slots.unitPrice}(?=[\\s,.:;]|$)`, 'g'), ' ');
+    }
+    if (slots.discountPercent !== undefined) {
+      workingText = workingText.replace(new RegExp(`(?:^|(?<=[\\s,.:;]))${slots.discountPercent}%?`, 'g'), ' ');
+    }
+
+    // Strip common filler and anchor keywords
+    workingText = workingText
+      .replace(/\b(for|to|at|with|and|ko|hai|he|ke|liye|chahiye|dalo|jodo|add|customer|client|name|naam|phone|mobile|number|qty|quantity|price|rate|discount)\b/gi, ' ')
+      .replace(/(?:के\s*लिए|को|है|चाहिए|डालो|जोड़ो|ग्राहक|नाम|फ़ोन|फोन|मोबाइल|नंबर|मात्रा|कीमत|दाम|छूट)/g, ' ');
+
+    // --- STEP 1: Phone (10-digit regex) ---
+    if (!slots.phone) {
+      const phoneRegex = /(?:^|(?<=[\s,.:;]))(?:\+?91[\s-]?)?(\d{10})(?=[\s,.:;]|$)/;
+      const phoneMatch = workingText.match(phoneRegex);
+      if (phoneMatch) {
+        slots.phone = phoneMatch[1];
+        workingText = workingText.replace(phoneMatch[0], ' ');
+      }
+    }
+
+    // --- STEP 2: Numbers (Magnitude Disambiguation: >= 100 -> price, < 100 -> quantity) ---
+    // Never infer discount without explicit anchor/%.
+    if (!slots.unitPrice || !slots.quantity) {
+      const numberMatches = Array.from(
+        workingText.matchAll(/(?:^|(?<=[\s,.:;]))(\d+(?:\.\d+)?)(?=[\s,.:;]|$)/g)
+      );
+
+      for (const m of numberMatches) {
+        const val = parseFloat(m[1]);
+        if (isNaN(val) || val <= 0) continue;
+
+        if (val >= 100 && !slots.unitPrice) {
+          slots.unitPrice = val;
+          slots.isPriceAssumed = true;
+          workingText = workingText.replace(m[0], ' ');
+        } else if (val < 100 && !slots.quantity) {
+          slots.quantity = Math.round(val);
+          slots.isQtyAssumed = true;
+          workingText = workingText.replace(m[0], ' ');
+        }
+      }
+    }
+
+    // --- STEP 3: Product Match (Catalog fuzzy matching) ---
+    if (!slots.productName) {
+      // 3a. Check Hindi transliterated keywords first
+      const hindiMap: Record<string, string> = {
+        'टीक डेस्क': 'Teak Desk',
+        'टीक': 'Teak Desk',
+        'डेस्क': 'Desk',
+        'ओक वुड तख्ता': 'Oak Wood Planks',
+        'ओक वुड': 'Oak Wood Planks',
+        'ओक': 'Oak Wood Planks',
+        'लकड़ी तख्ता': 'Oak Wood Planks',
+        'तख्ता': 'Planks',
+        'कुर्सी': 'Office Chair',
+        'टेबल': 'Dining Table',
+        'मेज़': 'Desk',
+        'सोफा': 'Sofa',
+        'अलमारी': 'Wooden Bookshelf',
+      };
+
+      const sortedHindiKeys = Object.keys(hindiMap).sort((a, b) => b.length - a.length);
+      for (const hk of sortedHindiKeys) {
+        if (workingText.includes(hk)) {
+          slots.productName = hindiMap[hk];
+          workingText = workingText.replace(hk, ' ');
+          break;
+        }
+      }
+
+      // 3b. If still not matched, check known catalog products
+      if (!slots.productName) {
+        const defaultCatalog = [
+          'Oak Wood Planks',
+          'Custom Executive Teak Desk',
+          'Teak Desk',
+          'Ergonomic Office Chair',
+          'Dining Table',
+          'Conference Table',
+          'Wooden Bookshelf',
+          'Office Chair',
+        ];
+        const catalog = Array.from(new Set([...(knownProductNames || []), ...defaultCatalog]));
+        const sortedCatalog = [...catalog].sort((a, b) => b.length - a.length);
+
+        // Substring / direct match (case-insensitive)
+        const lowerWorking = workingText.toLowerCase();
+        for (const prod of sortedCatalog) {
+          const lowerProd = prod.toLowerCase();
+          if (lowerWorking.includes(lowerProd)) {
+            slots.productName = prod;
+            workingText = workingText.replace(new RegExp(prod.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), ' ');
+            break;
+          }
+        }
+
+        // Trigram / multi-word candidate matching
+        if (!slots.productName) {
+          const cleanTokens = workingText.trim().split(/\s+/).filter(t => t.length > 0 && !/^\d+$/.test(t));
+          let bestScore = 0;
+          let bestProduct: string | null = null;
+          let bestCandidateWords: string[] = [];
+
+          // Try word n-grams of lengths 4, 3, 2, 1
+          for (let len = Math.min(4, cleanTokens.length); len >= 1; len--) {
+            for (let i = 0; i <= cleanTokens.length - len; i++) {
+              const candidate = cleanTokens.slice(i, i + len).join(' ');
+              for (const prod of sortedCatalog) {
+                const score = this.trigramSimilarity(candidate, prod);
+                const candWords = candidate.toLowerCase().split(/\s+/);
+                const prodWords = prod.toLowerCase().split(/\s+/);
+                const allWordsMatch =
+                  candWords.length >= 2 &&
+                  candWords.every(cw => prodWords.some(pw => pw.includes(cw) || cw.includes(pw)));
+
+                const effectiveScore = allWordsMatch ? Math.max(score, 0.8) : score;
+
+                if (effectiveScore > bestScore && effectiveScore >= 0.45) {
+                  bestScore = effectiveScore;
+                  bestProduct = prod;
+                  bestCandidateWords = cleanTokens.slice(i, i + len);
+                }
+              }
+            }
+          }
+
+          if (bestProduct && bestScore >= 0.45) {
+            slots.productName = bestProduct;
+            const candidateStr = bestCandidateWords.join(' ');
+            workingText = workingText.replace(new RegExp(candidateStr.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'), ' ');
+          }
+        }
+      }
+    }
+
+    // --- STEP 4: Customer Name (Match against bundled static Indian first names list) ---
+    if (!slots.customerName) {
+      const remainingTokens = workingText
+        .trim()
+        .split(/\s+/)
+        .filter(t => t.length > 0 && !/^\d+$/.test(t));
+
+      for (let i = 0; i < remainingTokens.length; i++) {
+        const token = remainingTokens[i];
+        if (isIndianName(token)) {
+          let nameToSet = this.capitalizeWords(token);
+          let consumedCount = 1;
+
+          // Check if next token is also a recognized Indian name/surname
+          if (i + 1 < remainingTokens.length && isIndianName(remainingTokens[i + 1])) {
+            nameToSet = `${this.capitalizeWords(token)} ${this.capitalizeWords(remainingTokens[i + 1])}`;
+            consumedCount = 2;
+          }
+
+          slots.customerName = nameToSet;
+          slots.isNameInferred = true;
+
+          // Remove consumed tokens from remainingTokens
+          remainingTokens.splice(i, consumedCount);
+          break;
+        }
+      }
+
+      // --- STEP 5: Leftovers (Remain unclassified) ---
+      if (remainingTokens.length > 0) {
+        slots.rawTokens = remainingTokens;
+      }
+    } else {
+      // Customer name was already present; check leftovers
+      const remainingTokens = workingText
+        .trim()
+        .split(/\s+/)
+        .filter(t => t.length > 0 && !/^\d+$/.test(t));
+      if (remainingTokens.length > 0) {
+        slots.rawTokens = remainingTokens;
+      }
+    }
+
+    // Populate confidenceNotes
+    const enNotes: string[] = [];
+    const hiNotes: string[] = [];
+
+    if (slots.isNameInferred && slots.customerName) {
+      enNotes.push(`Name "${slots.customerName}" (detected — tap to correct)`);
+      hiNotes.push(`नाम "${slots.customerName}" (पहचाना गया — सुधार के लिए टैप करें)`);
+    }
+    if (slots.isQtyAssumed && slots.quantity) {
+      enNotes.push(`Quantity ${slots.quantity} (assumed — please confirm)`);
+      hiNotes.push(`मात्रा ${slots.quantity} (मानी गई — कृपया पुष्टि करें)`);
+    }
+    if (slots.isPriceAssumed && slots.unitPrice) {
+      enNotes.push(`Price ₹${slots.unitPrice} (assumed — please confirm)`);
+      hiNotes.push(`कीमत ₹${slots.unitPrice} (मानी गई — कृपया पुष्टि करें)`);
+    }
+
+    if (enNotes.length > 0) {
+      slots.confidenceNotes = {
+        en: enNotes,
+        hi: hiNotes,
+      };
+    }
   }
 }
