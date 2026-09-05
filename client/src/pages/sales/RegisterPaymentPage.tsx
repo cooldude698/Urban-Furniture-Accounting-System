@@ -284,9 +284,25 @@ export const RegisterPaymentPage: React.FC = () => {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Payment Details Header Card */}
         <div className="bg-surface border border-brown-300 rounded-[10px] p-6 shadow-sm">
-          <h2 className="text-sm font-bold uppercase tracking-wider text-brown-500 mb-4 border-b border-brown-100 pb-2">
-            Payment Parameters
-          </h2>
+          {/* Wireframe 10: Payment Type Radio Switcher */}
+          <div className="mb-4 pb-3 border-b border-brown-200/60 flex items-center justify-between">
+            <div className="flex items-center gap-6">
+              <span className="text-xs font-bold uppercase tracking-wider text-brown-800">
+                Payment Type:
+              </span>
+              <label className="inline-flex items-center gap-2 text-sm text-brown-600 cursor-not-allowed opacity-60">
+                <input type="radio" name="pagePaymentType" disabled />
+                <span>Send (Pay Bill)</span>
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm font-semibold text-brown-900 cursor-pointer">
+                <input type="radio" name="pagePaymentType" checked readOnly className="text-brown-900 focus:ring-brown-600" />
+                <span>Receive (Customer Receipt)</span>
+              </label>
+            </div>
+            <span className="text-[11px] font-mono font-medium text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+              Inbound Receipt
+            </span>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             {/* Customer */}

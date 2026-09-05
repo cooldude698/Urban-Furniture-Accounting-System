@@ -415,6 +415,59 @@ export const CustomerInvoiceFormPage: React.FC<CustomerInvoiceFormPageProps> = (
           />
         </div>
 
+        {/* Payment & Settlement Summary Box matching Wireframe 10 */}
+        {isConfirmed && invoice && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 mb-6">
+            <div className="p-4 bg-brown-50/60 rounded-xl border border-brown-200 space-y-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-brown-700 mb-2">
+                Settlement & Payments (View Derived)
+              </h4>
+              <div className="flex justify-between text-sm py-1 border-b border-brown-200/50">
+                <span className="text-brown-600">Paid Via Cash:</span>
+                <span className="font-mono font-medium text-brown-900">
+                  ₹{Number(invoice.paidViaCash || '0.00').toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm py-1 border-b border-brown-200/50">
+                <span className="text-brown-600">Paid Via Bank:</span>
+                <span className="font-mono font-medium text-brown-900">
+                  ₹{Number(invoice.paidViaBank || '0.00').toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm font-bold text-amber-900 pt-1">
+                <span>Amount Due:</span>
+                <span className="font-mono text-base font-bold text-amber-900">
+                  ₹{Number(invoice.amountDue ?? (Number(invoice.total || '0') - Number(invoice.amountPaid || '0'))).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+
+            <div className="p-4 bg-brown-50/60 rounded-xl border border-brown-200 space-y-2">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-brown-700 mb-2">
+                Document Ledger Overview
+              </h4>
+              <div className="flex justify-between text-sm py-1 border-b border-brown-200/50">
+                <span className="text-brown-600">Invoice Total:</span>
+                <span className="font-mono font-medium text-brown-900">
+                  ₹{Number(invoice.total || invoice.totalAmount || '0.00').toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm py-1 border-b border-brown-200/50">
+                <span className="text-brown-600">Total Settled:</span>
+                <span className="font-mono font-medium text-emerald-700 font-bold">
+                  ₹{Number(invoice.amountPaid || '0.00').toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+              <div className="flex justify-between text-sm py-1 pt-1">
+                <span className="text-brown-600">Payment Status:</span>
+                <span className="font-semibold capitalize text-brown-800">
+                  {invoice.paymentStatus || (Number(invoice.amountDue) <= 0 ? 'Paid' : 'Not Paid')}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Payment History & Settlement Audit Panel */}
         {isConfirmed && invoice && (
           <PaymentHistoryPanel

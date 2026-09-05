@@ -312,13 +312,20 @@ export const VendorBillFormPage: React.FC<VendorBillFormPageProps> = ({
       error={error}
       extraButtons={
         <div className="flex items-center gap-2">
-          {/* Source PO Smart button */}
+          {/* Source PO Smart button — Only show if bill created from PO. Hide if fresh bill without PO */}
           <SmartButton
-            label="Source PO"
-            count={bill?.po_id ? `PO #${bill.po_id}` : undefined}
+            label={bill?.po_id ? `PO #${bill.po_id}` : 'PO'}
             icon={ShoppingCart}
             visible={Boolean(bill?.po_id)}
             onClick={() => bill?.po_id && onViewPO?.(bill.po_id)}
+          />
+
+          {/* Budget Smart button — On click open Budget Analytic Report used for the Bill */}
+          <SmartButton
+            label="Budget"
+            icon={PieChart}
+            visible={lines.some(l => Boolean(l.analytic_account_id)) || Boolean(bill?.lines?.some(l => Boolean(l.analytic_account_id)))}
+            onClick={() => window.open('/report/budget', '_self')}
           />
 
           {/* Journal Entry Smart button */}
@@ -329,7 +336,6 @@ export const VendorBillFormPage: React.FC<VendorBillFormPageProps> = ({
             visible={Boolean(bill?.journal_entry_id)}
             onClick={() => setIsJournalModalOpen(true)}
           />
-
 
           {/* Payments Smart button */}
           <SmartButton

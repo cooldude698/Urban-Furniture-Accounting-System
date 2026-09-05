@@ -4,7 +4,7 @@ import { VendorBillsApi } from '../../api/vendorBills.api';
 import { CustomerInvoicesApi } from '../../api/customerInvoices.api';
 import { VendorBill } from '@shared/schemas/vendorBill.schema';
 import { CustomerInvoiceDTO } from '@shared/schemas/invoice';
-import { X, CheckCircle2, AlertTriangle, DollarSign, CreditCard, Building2 } from 'lucide-react';
+import { X, CheckCircle2, AlertTriangle, DollarSign, CreditCard, Building2, Printer, Send } from 'lucide-react';
 
 export interface RegisterPaymentModalProps {
   bill?: VendorBill | null;
@@ -35,6 +35,9 @@ export const RegisterPaymentModal: React.FC<RegisterPaymentModalProps> = ({
     ? (invoice!.amountDue !== undefined && invoice!.amountDue !== null ? String(invoice!.amountDue) : String(totalAmount))
     : (bill?.amount_due ? String(bill.amount_due) : String(totalAmount));
 
+  const [paymentType, setPaymentType] = useState<'send' | 'receive'>(
+    isInvoice ? 'receive' : 'send'
+  );
   const [amount, setAmount] = useState<string>(maxDue);
   const [method, setMethod] = useState<'cash' | 'bank'>('bank');
   const [paymentDate, setPaymentDate] = useState<string>(
@@ -45,6 +48,11 @@ export const RegisterPaymentModal: React.FC<RegisterPaymentModalProps> = ({
   );
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Print voucher handler
+  const handlePrint = () => {
+    window.print();
+  };
 
   // Compute remaining balance if this payment is submitted
   let projectedRemaining = '0.00';
@@ -132,6 +140,50 @@ export const RegisterPaymentModal: React.FC<RegisterPaymentModalProps> = ({
               <span>{error}</span>
             </div>
           )}
+
+          {/* Wireframe 9 & 10: Payment Type & Partner Row */}
+          <div className="p-3.5 bg-brown-50/80 rounded-xl border border-brown-200 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <label className="block text-[11px] font-bold text-brown-800 uppercase tracking-wider mb-1.5">
+                  Payment Type *
+                </label>
+                <div className="flex items-center gap-5 text-sm font-medium text-brown-900">
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="paymentType"
+                      value="send"
+                      checked={paymentType === 'send'}
+                      onChange={() => setPaymentType('send')}
+                      className="text-brown-900 focus:ring-brown-600"
+                    />
+                    <span>Send (Outbound / Vendor)</span>
+                  </label>
+                  <label className="inline-flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="paymentType"
+                      value="receive"
+                      checked={paymentType === 'receive'}
+                      onChange={() => setPaymentType('receive')}
+                      className="text-brown-900 focus:ring-brown-600"
+                    />
+                    <span>Receive (Inbound / Customer)</span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
+                <span className="block text-[11px] font-bold text-brown-800 uppercase tracking-wider mb-1">
+                  Partner
+                </span>
+                <span className="text-sm font-semibold text-brown-900 bg-surface px-3 py-1 rounded-md border border-brown-200 inline-block">
+                  {partnerName}
+                </span>
+              </div>
+            </div>
+          </div>
 
           {/* Amount Overview Cards */}
           <div className="grid grid-cols-3 gap-3 p-3.5 bg-brown-50/60 rounded-xl border border-brown-100">
@@ -286,24 +338,36 @@ export const RegisterPaymentModal: React.FC<RegisterPaymentModalProps> = ({
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center justify-end gap-3 pt-2">
+          {/* Action Buttons — Matching Wireframes 9 & 10 (Provide option: 1. Print, 2. Send) */}
+          <div className="flex items-center justify-between gap-3 pt-2">
             <button
               type="button"
-              onClick={onClose}
-              disabled={loading}
-              className="px-4 py-2 text-sm font-medium text-brown-700 hover:bg-brown-100 rounded-xl transition-colors"
+              onClick={handlePrint}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-brown-800 bg-brown-100 hover:bg-brown-200 border border-brown-300 rounded-xl transition-colors shadow-sm"
+              title="Print Payment Voucher"
             >
-              Cancel
+              <Printer className="w-3.5 h-3.5" />
+              <span>Print Voucher</span>
             </button>
-            <button
-              type="submit"
-              disabled={loading || isOverpayment || isInvalidAmount}
-              className="inline-flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-cream px-5 py-2.5 rounded-xl font-semibold text-sm transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              {loading ? 'Posting Payment...' : 'Confirm Payment'}
-            </button>
+
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={loading}
+                className="px-4 py-2 text-sm font-medium text-brown-700 hover:bg-brown-100 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading || isOverpayment || isInvalidAmount}
+                className="inline-flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-cream px-5 py-2.5 rounded-xl font-semibold text-sm transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                {loading ? 'Posting Payment...' : 'Confirm & Post Payment'}
+              </button>
+            </div>
           </div>
         </form>
       </div>

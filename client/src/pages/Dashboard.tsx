@@ -843,7 +843,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Card 3: Budget */}
+        {/* Card 3: Budget Reports */}
         <div
           style={{
             background: 'var(--surface)',
@@ -867,14 +867,14 @@ export default function Dashboard() {
                   margin: 0,
                 }}
               >
-                Budget & Variance
+                Budget Reports
               </h2>
               <span style={{ fontSize: 12, color: 'var(--brown-700)', fontFamily: 'var(--font-body)' }}>
-                Q2 Showroom & fitout targets
+                Target tracking & commitments
               </span>
             </div>
             <Link
-              to="/report/budget"
+              to="/account/budgets/new"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -882,17 +882,16 @@ export default function Dashboard() {
                 fontSize: 12,
                 fontFamily: 'var(--font-body)',
                 fontWeight: 600,
-                color: 'var(--brown-900)',
-                background: 'var(--surface)',
-                border: '1px solid var(--brown-300)',
-                padding: '4px 12px',
+                color: 'var(--cream)',
+                background: 'var(--brown-900)',
+                padding: '5px 12px',
                 borderRadius: 8,
                 textDecoration: 'none',
-                transition: 'background 150ms ease-out',
+                transition: 'opacity 150ms ease-out',
               }}
             >
-              <FileBarChart size={13} />
-              <span>Report</span>
+              <Plus size={13} />
+              <span>New</span>
             </Link>
           </div>
 
@@ -905,7 +904,7 @@ export default function Dashboard() {
             }}
           >
             <Link
-              to="/account/budgets"
+              to="/account/budgets?status=confirmed"
               style={{
                 textDecoration: 'none',
                 background: 'rgba(237, 241, 232, 0.65)',
@@ -914,7 +913,7 @@ export default function Dashboard() {
                 display: 'block',
               }}
             >
-              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--posted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Achieved</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--posted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Approved</div>
               <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 18, color: 'var(--posted)', marginTop: 2 }}>
                 {isStatsLoading ? '...' : statsData?.budget ? statsData.budget.achieved : '2'}
               </div>
@@ -929,7 +928,7 @@ export default function Dashboard() {
                 display: 'block',
               }}
             >
-              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Budgets</div>
+              <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Budget</div>
               <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 18, color: 'var(--brown-900)', marginTop: 2 }}>
                 {isStatsLoading ? '...' : statsData?.budget ? statsData.budget.budget : '3'}
               </div>
@@ -946,7 +945,7 @@ export default function Dashboard() {
             >
               <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--warning)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Committed</div>
               <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 18, color: 'var(--warning)', marginTop: 2 }}>
-                {isStatsLoading ? '...' : statsData?.budget ? statsData.budget.committed : '2'}
+                {isStatsLoading ? '...' : statsData?.budget ? statsData.budget.committed : '4'}
               </div>
             </Link>
           </div>
@@ -956,13 +955,13 @@ export default function Dashboard() {
               to="/account/budgets"
               style={{ fontSize: 12, color: 'var(--brown-700)', fontFamily: 'var(--font-body)', fontWeight: 500, textDecoration: 'none' }}
             >
-              Budgets (3) →
+              Budgets ({isStatsLoading ? '...' : statsData?.budget ? statsData.budget.budget : '3'}) →
             </Link>
             <Link
-              to="/account/analytics"
+              to="/report/budget"
               style={{ fontSize: 12, color: 'var(--brown-900)', fontFamily: 'var(--font-body)', fontWeight: 600, textDecoration: 'none' }}
             >
-              Analytics →
+              Budget Report →
             </Link>
           </div>
         </div>
