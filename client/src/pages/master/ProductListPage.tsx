@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ProductsApi } from '../../api/products.api';
 import { Product } from '@shared/schemas/product.schema';
 import { Money } from '../../components/Money';
-import { Package, Wrench, Layers, List, LayoutGrid } from 'lucide-react';
+import { List, LayoutGrid, Image as ImageIcon } from 'lucide-react';
 
 interface ProductListPageProps {
   onSelectProduct: (id: number) => void;
@@ -46,7 +46,8 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
     return (
       p.name.toLowerCase().includes(q) ||
       (p.sku && p.sku.toLowerCase().includes(q)) ||
-      (p.category && p.category.toLowerCase().includes(q))
+      (p.category && p.category.toLowerCase().includes(q)) ||
+      (p.type && p.type.toLowerCase().includes(q))
     );
   });
 
@@ -68,23 +69,23 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
   const isAllSelected =
     filteredProducts.length > 0 && selectedIds.length === filteredProducts.length;
 
-  const renderProductIcon = (type: string, size = 18) => {
-    if (type === 'service') return <Wrench size={size} color="var(--brown-600, #8C6A58)" />;
-    if (type === 'combo') return <Layers size={size} color="var(--brown-600, #8C6A58)" />;
-    return <Package size={size} color="var(--brown-600, #8C6A58)" />;
+  const formatPrice = (val: string | number) => {
+    const num = typeof val === 'string' ? parseFloat(val) : val;
+    if (isNaN(num)) return '0';
+    return num.toLocaleString('en-IN');
   };
 
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        {/* Title matching wireframe: Product List View / Product Kanban View */}
+        {/* Title matching wireframe: Product Master List View / Product Master Kanban View */}
         <h1 style={styles.heading}>
-          {viewMode === 'list' ? 'Product List View' : 'Product Kanban View'}
+          {viewMode === 'list' ? 'Product Master List View' : 'Product Master Kanban View'}
         </h1>
 
         {/* Outer Wireframe Card */}
         <div style={styles.card}>
-          {/* Top Action Row */}
+          {/* Top Action Bar */}
           <div style={styles.topBar}>
             {/* Left: New Button */}
             <button
@@ -100,7 +101,7 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
               New
             </button>
 
-            {/* Center: Search Input Bar */}
+            {/* Center: Search Bar */}
             <div style={styles.searchWrapper}>
               <input
                 type="text"
@@ -126,12 +127,12 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
                 Back
               </button>
 
-              {/* View Switcher Icons */}
+              {/* View Switcher Icons matching wireframe */}
               <div style={styles.switcherContainer}>
                 <button
                   type="button"
                   onClick={() => setViewMode('list')}
-                  title="Allow user to shift to List View"
+                  title="Shift to List View"
                   style={{
                     ...styles.switchBtn,
                     ...(viewMode === 'list' ? styles.switchBtnActive : {}),
@@ -143,7 +144,7 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
                 <button
                   type="button"
                   onClick={() => setViewMode('kanban')}
-                  title="Allow user to shift to Kanban View"
+                  title="Shift to Kanban View"
                   style={{
                     ...styles.switchBtn,
                     ...(viewMode === 'kanban' ? styles.switchBtnActive : {}),
@@ -162,10 +163,10 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
             </div>
           ) : filteredProducts.length === 0 ? (
             <div style={styles.emptyContainer}>
-              <p style={styles.emptyText}>No products found.</p>
+              <p style={styles.emptyText}>No products found. Click "New" to create one.</p>
             </div>
           ) : viewMode === 'list' ? (
-            /* ═════════════ LIST VIEW TABLE ═════════════ */
+            /* ═════════════ EXACT WIREFRAME LIST VIEW TABLE ═════════════ */
             <div style={styles.tableWrapper}>
               <table style={styles.table}>
                 <thead>
@@ -177,13 +178,14 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
                         checked={isAllSelected}
                         onChange={toggleSelectAll}
                         style={styles.checkbox}
-                        aria-label="Select all products"
+                        aria-label="Select all"
                       />
                     </th>
-                    <th style={{ ...styles.th, width: 80, textAlign: 'center' }}>Image</th>
-                    <th style={{ ...styles.th, textAlign: 'left' }}>Name</th>
-                    <th style={{ ...styles.th, textAlign: 'left' }}>Sales Price</th>
-                    <th style={{ ...styles.th, textAlign: 'left' }}>Category / SKU</th>
+                    <th style={{ ...styles.th, textAlign: 'left' }}>Product</th>
+                    <th style={{ ...styles.th, textAlign: 'left' }}>Category</th>
+                    <th style={{ ...styles.th, textAlign: 'left' }}>Type</th>
+                    <th style={{ ...styles.th, textAlign: 'right' }}>Sales Price</th>
+                    <th style={{ ...styles.th, textAlign: 'right' }}>Cost</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -208,36 +210,29 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
                           />
                         </td>
 
-                        {/* Image / Icon Thumbnail */}
-                        <td style={{ ...styles.td, textAlign: 'center' }}>
-                          <div style={styles.avatarThumbnail}>
-                            {renderProductIcon(p.type)}
-                          </div>
-                        </td>
-
-                        {/* Name */}
-                        <td style={{ ...styles.td, fontWeight: 600, color: 'var(--brown-900, #4A3A34)' }}>
+                        {/* Product Name */}
+                        <td style={{ ...styles.td, fontWeight: 600, color: '#382A24' }}>
                           {p.name}
                         </td>
 
-                        {/* Sales Price */}
-                        <td style={{ ...styles.td, color: 'var(--brown-900, #4A3A34)', fontWeight: 600 }}>
-                          <Money amount={p.sales_price} />
-                          {p.mrp && p.mrp !== '0.00' && (
-                            <span style={{ fontSize: 11, color: 'var(--brown-500, #A8836C)', marginLeft: 6 }}>
-                              (MRP: ₹{p.mrp})
-                            </span>
-                          )}
+                        {/* Category */}
+                        <td style={{ ...styles.td, color: '#5C453A' }}>
+                          {p.category || 'General'}
                         </td>
 
-                        {/* Category / SKU */}
-                        <td style={{ ...styles.td, color: 'var(--brown-700, #77574A)' }}>
-                          <span>{p.category || 'General'}</span>
-                          {p.sku && (
-                            <span style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--brown-500)', marginLeft: 6 }}>
-                              [{p.sku}]
-                            </span>
-                          )}
+                        {/* Type: Capitalized (Goods, Service, Combo) */}
+                        <td style={{ ...styles.td, color: '#5C453A', textTransform: 'capitalize' }}>
+                          {p.type}
+                        </td>
+
+                        {/* Sales Price */}
+                        <td style={{ ...styles.td, textAlign: 'right', fontWeight: 600, color: '#382A24' }}>
+                          {formatPrice(p.sales_price)}
+                        </td>
+
+                        {/* Cost */}
+                        <td style={{ ...styles.td, textAlign: 'right', color: '#5C453A' }}>
+                          {formatPrice(p.cost_price)}
                         </td>
                       </tr>
                     );
@@ -246,7 +241,7 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
               </table>
             </div>
           ) : (
-            /* ═════════════ KANBAN CARDS VIEW ═════════════ */
+            /* ═════════════ EXACT WIREFRAME KANBAN VIEW ═════════════ */
             <div style={styles.kanbanGrid}>
               {filteredProducts.map(p => (
                 <div
@@ -254,21 +249,19 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
                   onClick={() => p.id && onSelectProduct(p.id)}
                   style={styles.kanbanCard}
                 >
-                  {/* Left: Square Icon/Image */}
+                  {/* Left: Wireframe Rounded Image box with "Image" */}
                   <div style={styles.kanbanImgBox}>
-                    {renderProductIcon(p.type, 28)}
+                    <span style={styles.kanbanImgText}>Image</span>
                   </div>
 
-                  {/* Right: Details */}
+                  {/* Right: Wireframe Details */}
                   <div style={styles.kanbanDetails}>
-                    <div style={styles.kanbanName}>{p.name}</div>
-                    <div style={styles.kanbanEmail}>
-                      Sales: ₹{p.sales_price}
-                      {p.mrp && p.mrp !== '0.00' ? ` | MRP: ₹${p.mrp}` : ''}
+                    <div style={styles.kanbanTitle}>{p.name}</div>
+                    <div style={styles.kanbanPriceLine}>
+                      <span>Sales Price {formatPrice(p.sales_price)}</span>
                     </div>
-                    <div style={styles.kanbanPhone}>
-                      {p.category || 'General'}
-                      {p.type !== 'service' && ` • Stock: ${p.stock_qty || 0} units`}
+                    <div style={styles.kanbanCostLine}>
+                      <span>Cost {formatPrice(p.cost_price)}</span>
                     </div>
                   </div>
                 </div>
@@ -291,7 +284,7 @@ const styles = {
     justifyContent: 'flex-start',
     background: 'var(--cream, #F9F2E4)',
     padding: '36px 20px 48px 20px',
-    fontFamily: 'var(--font-body, "DM Sans", sans-serif)',
+    fontFamily: '"DM Sans", var(--font-body), sans-serif',
   } as React.CSSProperties,
 
   container: {
@@ -300,20 +293,20 @@ const styles = {
   } as React.CSSProperties,
 
   heading: {
-    fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
+    fontFamily: '"Montserrat", var(--font-display), sans-serif',
     fontWeight: 700,
     fontSize: 22,
-    color: 'var(--brown-900, #4A3A34)',
+    color: '#382A24',
     textAlign: 'center' as const,
     marginBottom: 18,
     letterSpacing: '-0.01em',
   } as React.CSSProperties,
 
   card: {
-    background: 'var(--surface, #FFFFFF)',
+    background: '#FFFFFF',
     borderRadius: 24,
-    border: '1.5px solid var(--brown-400, #B8977E)',
-    boxShadow: '0 8px 30px rgba(74, 58, 52, 0.07)',
+    border: '1.5px solid #77574A',
+    boxShadow: '0 10px 32px rgba(74, 58, 52, 0.08)',
     padding: '28px 36px 36px 36px',
     width: '100%',
   } as React.CSSProperties,
@@ -328,12 +321,12 @@ const styles = {
 
   wireframeBtn: {
     padding: '7px 24px',
-    border: '1.5px solid var(--brown-900, #4A3A34)',
+    border: '1.5px solid #4A3A34',
     borderRadius: 12,
-    fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
+    fontFamily: '"Montserrat", var(--font-display), sans-serif',
     fontWeight: 700,
     fontSize: 13,
-    color: 'var(--brown-900, #4A3A34)',
+    color: '#4A3A34',
     background: 'transparent',
     cursor: 'pointer',
     transition: 'all 150ms ease',
@@ -342,8 +335,8 @@ const styles = {
   } as React.CSSProperties,
 
   wireframeBtnHover: {
-    background: 'var(--brown-900, #4A3A34)',
-    color: 'var(--cream, #F9F2E4)',
+    background: '#4A3A34',
+    color: '#FFFFFF',
   } as React.CSSProperties,
 
   searchWrapper: {
@@ -354,13 +347,13 @@ const styles = {
 
   searchInput: {
     width: '100%',
-    border: '1.5px solid var(--brown-700, #77574A)',
+    border: '1.5px solid #77574A',
     borderRadius: 12,
     background: 'transparent',
     padding: '6px 16px',
-    fontFamily: 'var(--font-body, "DM Sans", sans-serif)',
+    fontFamily: '"DM Sans", var(--font-body), sans-serif',
     fontSize: 13,
-    color: 'var(--brown-900, #4A3A34)',
+    color: '#4A3A34',
     outline: 'none',
   } as React.CSSProperties,
 
@@ -373,11 +366,11 @@ const styles = {
   switcherContainer: {
     display: 'flex',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
     padding: '3px',
     borderRadius: 10,
     background: 'rgba(235, 215, 190, 0.35)',
-    border: '1px solid var(--brown-300, #D2B79F)',
+    border: '1px solid #D2B79F',
   } as React.CSSProperties,
 
   switchBtn: {
@@ -385,7 +378,7 @@ const styles = {
     borderRadius: 7,
     border: 'none',
     background: 'transparent',
-    color: 'var(--brown-700, #77574A)',
+    color: '#77574A',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
@@ -394,14 +387,14 @@ const styles = {
   } as React.CSSProperties,
 
   switchBtnActive: {
-    background: 'var(--brown-900, #4A3A34)',
-    color: 'var(--cream, #F9F2E4)',
+    background: '#4A3A34',
+    color: '#FFFFFF',
   } as React.CSSProperties,
 
   loadingContainer: {
     padding: '48px 0',
     textAlign: 'center' as const,
-    color: 'var(--brown-600, #8C6A58)',
+    color: '#8C6A58',
     fontSize: 14,
   } as React.CSSProperties,
 
@@ -411,7 +404,7 @@ const styles = {
   } as React.CSSProperties,
 
   emptyText: {
-    color: 'var(--brown-500, #A8836C)',
+    color: '#A8836C',
     fontSize: 14,
   } as React.CSSProperties,
 
@@ -426,112 +419,99 @@ const styles = {
   } as React.CSSProperties,
 
   headerRow: {
-    borderBottom: '1.5px solid var(--brown-700, #77574A)',
+    borderBottom: '1.5px solid #77574A',
   } as React.CSSProperties,
 
   th: {
     padding: '12px 14px',
-    fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
+    fontFamily: '"Montserrat", var(--font-display), sans-serif',
     fontWeight: 700,
-    fontSize: 13,
-    color: 'var(--brown-900, #4A3A34)',
+    fontSize: 13.5,
+    color: '#382A24',
     whiteSpace: 'nowrap' as const,
   } as React.CSSProperties,
 
   bodyRow: {
-    borderBottom: '1px solid var(--brown-200, #E4D5C7)',
+    borderBottom: '1px solid #E4D5C7',
     cursor: 'pointer',
     transition: 'background 120ms ease',
   } as React.CSSProperties,
 
   td: {
     padding: '14px',
-    fontSize: 13,
+    fontSize: 13.5,
     verticalAlign: 'middle' as const,
   } as React.CSSProperties,
 
   checkbox: {
-    accentColor: 'var(--brown-900, #4A3A34)',
-    cursor: 'pointer',
     width: 16,
     height: 16,
-  } as React.CSSProperties,
-
-  avatarThumbnail: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    border: '1px solid var(--brown-300, #D2B79F)',
-    background: 'rgba(235, 215, 190, 0.4)',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
+    accentColor: '#4A3A34',
+    cursor: 'pointer',
+    borderRadius: 4,
   } as React.CSSProperties,
 
   kanbanGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-    gap: 20,
-    padding: '8px 0',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))',
+    gap: 24,
+    marginTop: 8,
   } as React.CSSProperties,
 
   kanbanCard: {
-    background: 'var(--surface, #FFFFFF)',
-    border: '1.5px solid var(--brown-700, #77574A)',
+    background: '#FFFFFF',
+    border: '1.5px solid #77574A',
     borderRadius: 18,
-    padding: '16px 18px',
+    padding: '20px 22px',
     display: 'flex',
     alignItems: 'center',
-    gap: 16,
+    gap: 20,
     cursor: 'pointer',
-    transition: 'transform 120ms ease, box-shadow 120ms ease',
+    transition: 'all 140ms ease',
+    boxShadow: '0 2px 8px rgba(74, 58, 52, 0.04)',
   } as React.CSSProperties,
 
   kanbanImgBox: {
-    width: 60,
-    height: 60,
-    borderRadius: 12,
-    border: '1px solid var(--brown-300, #D2B79F)',
-    background: 'rgba(235, 215, 190, 0.35)',
+    width: 76,
+    height: 76,
+    borderRadius: 14,
+    border: '1.5px solid #77574A',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
+    background: '#FAF7F4',
     flexShrink: 0,
+  } as React.CSSProperties,
+
+  kanbanImgText: {
+    fontFamily: '"DM Sans", sans-serif',
+    fontSize: 13,
+    color: '#77574A',
+    fontWeight: 500,
   } as React.CSSProperties,
 
   kanbanDetails: {
     display: 'flex',
     flexDirection: 'column' as const,
     gap: 4,
-    overflow: 'hidden',
   } as React.CSSProperties,
 
-  kanbanName: {
-    fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
+  kanbanTitle: {
+    fontFamily: '"Montserrat", var(--font-display), sans-serif',
+    fontSize: 17,
     fontWeight: 700,
-    fontSize: 14,
-    color: 'var(--brown-900, #4A3A34)',
-    whiteSpace: 'nowrap' as const,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
+    color: '#382A24',
+    marginBottom: 4,
   } as React.CSSProperties,
 
-  kanbanEmail: {
-    fontSize: 12,
-    color: 'var(--brown-700, #77574A)',
-    whiteSpace: 'nowrap' as const,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
+  kanbanPriceLine: {
+    fontSize: 13.5,
+    color: '#5C453A',
+    fontWeight: 600,
   } as React.CSSProperties,
 
-  kanbanPhone: {
-    fontSize: 12,
-    color: 'var(--brown-600, #8C6A58)',
-    whiteSpace: 'nowrap' as const,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
+  kanbanCostLine: {
+    fontSize: 13.5,
+    color: '#77574A',
   } as React.CSSProperties,
 };
-
