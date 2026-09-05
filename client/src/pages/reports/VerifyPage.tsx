@@ -261,7 +261,7 @@ export default function VerifyPage() {
           <span>{isRefetching ? 'Auditing Ledger…' : 'Re-verify Ledger Integrity'}</span>
         </button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--brown-500)', fontSize: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--brown-700)', fontSize: 12 }}>
           <Lock size={13} />
           <span>Backed by PostgreSQL DEFERRABLE transaction constraint triggers</span>
         </div>

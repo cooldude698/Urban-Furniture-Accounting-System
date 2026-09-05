@@ -24,23 +24,23 @@
   --brown-500: #A8836C;
   --brown-300: #D0AE92;
   --brown-100: #EBD7BE;
-  --cream:     #F9F2E4;
-  --surface:   #FFFFFF;
+  --cream: #F9F2E4;
+  --surface: #FFFFFF;
 
   /* Semantic */
-  --posted:    #5F7052;
+  --posted: #5F7052;
   --posted-bg: #EDF1E8;
-  --warning:   #C08A3E;
-  --warning-bg:#FBF1DF;
-  --danger:    #9E4A38;
+  --warning: #C08A3E;
+  --warning-bg: #FBF1DF;
+  --danger: #9E4A38;
   --danger-bg: #F8EAE6;
-  --info:      #77574A;
-  --draft:     #A8836C;
+  --info: #77574A;
+  --draft: #A8836C;
 
   /* Typography */
   --font-display: 'Montserrat', sans-serif;
-  --font-body:    'DM Sans', sans-serif;
-  --font-mono:    'IBM Plex Mono', monospace;
+  --font-body: 'DM Sans', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
 
   /* Radius */
   --radius-sm: 6px;
@@ -64,13 +64,17 @@
 }
 
 /* ── Global reset / base ───────────────────────────────────────── */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
 }
 
@@ -136,10 +140,51 @@ body {
   text-align: right;
 }
 
-/* ── Focus ring ────────────────────────────────────────────────── */
+/* ── Focus ring (WCAG AA accessible) ───────────────────────────── */
 :focus-visible {
   outline: 2px solid var(--brown-700);
   outline-offset: 2px;
+}
+
+/* ── Live Figure Flash (600ms --posted-bg highlight) ───────────── */
+@keyframes figure-flash {
+  0% {
+    background-color: var(--posted-bg);
+    color: var(--posted);
+    box-shadow: 0 0 0 4px var(--posted-bg);
+    border-radius: var(--radius-sm);
+  }
+  50% {
+    background-color: var(--posted-bg);
+    color: var(--posted);
+    box-shadow: 0 0 0 6px rgba(95, 112, 82, 0.25);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.animate-figure-flash {
+  animation: figure-flash 600ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  display: inline-block;
+  transition: background-color 600ms ease-out;
+}
+
+/* ── Toast Slide-In ────────────────────────────────────────────── */
+@keyframes toast-slide-in {
+  from {
+    transform: translateY(100%) scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-toast-in {
+  animation: toast-slide-in 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 /* ── Transitions ───────────────────────────────────────────────── */

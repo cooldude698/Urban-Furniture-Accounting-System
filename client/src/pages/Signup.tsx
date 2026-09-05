@@ -82,7 +82,7 @@ function Field({ label, id, ...props }: { label: string; id: string } & React.In
 const page: React.CSSProperties = { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--cream)', padding: 24 };
 const card: React.CSSProperties = { background: 'var(--surface)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-md)', padding: 40, width: '100%', maxWidth: 420 };
 const title: React.CSSProperties = { fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 24, color: 'var(--brown-900)', marginBottom: 4 };
-const subtitle: React.CSSProperties = { fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--brown-500)', marginBottom: 28 };
+const subtitle: React.CSSProperties = { fontFamily: 'var(--font-body)', fontSize: 14, color: 'var(--brown-700)', marginBottom: 28 };
 const form_: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 16 };
 const errorStyle: React.CSSProperties = { fontFamily: 'var(--font-body)', fontSize: 13, color: 'var(--danger)', background: 'var(--danger-bg)', padding: '8px 12px', borderRadius: 'var(--radius-sm)', margin: 0 };
 const btn: React.CSSProperties = { fontFamily: 'var(--font-body)', fontWeight: 600, fontSize: 14, padding: 10, background: 'var(--brown-900)', color: 'var(--cream)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', marginTop: 4 };

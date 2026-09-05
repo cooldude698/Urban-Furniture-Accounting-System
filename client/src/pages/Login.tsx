@@ -106,7 +106,7 @@ const styles = {
   subtitle: {
     fontFamily: 'var(--font-body)',
     fontSize: 14,
-    color: 'var(--brown-500)',
+    color: 'var(--brown-700)',
     marginBottom: 28,
   } as React.CSSProperties,
   form: {

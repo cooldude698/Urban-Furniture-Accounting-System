@@ -741,7 +741,7 @@ export default function BudgetFormPage() {
             {/* Modal Body */}
             <div style={{ padding: 20, maxHeight: 400, overflowY: 'auto' }}>
               {isDocsLoading ? (
-                <div style={{ textAlign: 'center', padding: 32, color: 'var(--brown-500)', fontSize: 13 }}>
+                <div style={{ textAlign: 'center', padding: 32, color: 'var(--brown-700)', fontSize: 13 }}>
                   Loading related documents...
                 </div>
               ) : docList.length > 0 ? (
@@ -790,7 +790,7 @@ export default function BudgetFormPage() {
                   </tbody>
                 </table>
               ) : (
-                <div style={{ textAlign: 'center', padding: 32, color: 'var(--brown-500)', fontSize: 13 }}>
+                <div style={{ textAlign: 'center', padding: 32, color: 'var(--brown-700)', fontSize: 13 }}>
                   No customer invoices or vendor bills recorded for this analytic account within the period.
                 </div>
               )}

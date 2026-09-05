@@ -101,7 +101,7 @@ export default function BudgetListPage() {
         emptyText="No analytical budgets found. Create one using the 'New Budget' button above."
         filterSlot={
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Filter size={14} style={{ color: 'var(--brown-500)' }} />
+            <Filter size={14} style={{ color: 'var(--brown-700)' }} />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}

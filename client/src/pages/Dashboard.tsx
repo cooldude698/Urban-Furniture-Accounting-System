@@ -169,17 +169,17 @@ export default function Dashboard() {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--brown-700)' }}>
             <span style={{ fontSize: 13, fontWeight: 500, fontFamily: 'var(--font-body)' }}>Cash in Hand</span>
-            <Wallet size={16} style={{ color: 'var(--brown-500)' }} />
+            <Wallet size={16} style={{ color: 'var(--brown-700)' }} />
           </div>
           <div style={{ marginTop: 2 }}>
             {isKpiLoading ? (
-              <span style={{ fontSize: 14, color: 'var(--brown-500)', fontStyle: 'italic' }}>Loading...</span>
+              <span style={{ fontSize: 14, color: 'var(--brown-700)', fontStyle: 'italic' }}>Loading...</span>
             ) : kpiData?.cash ? (
               <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 22, color: 'var(--brown-900)' }}>
                 <Money value={kpiData.cash} />
               </span>
             ) : (
-              <span style={{ fontSize: 13, color: 'var(--brown-500)' }}>Pending API</span>
+              <span style={{ fontSize: 13, color: 'var(--brown-700)' }}>Pending API</span>
             )}
           </div>
         </div>
@@ -199,17 +199,17 @@ export default function Dashboard() {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--brown-700)' }}>
             <span style={{ fontSize: 13, fontWeight: 500, fontFamily: 'var(--font-body)' }}>Bank Balance</span>
-            <Landmark size={16} style={{ color: 'var(--brown-500)' }} />
+            <Landmark size={16} style={{ color: 'var(--brown-700)' }} />
           </div>
           <div style={{ marginTop: 2 }}>
             {isKpiLoading ? (
-              <span style={{ fontSize: 14, color: 'var(--brown-500)', fontStyle: 'italic' }}>Loading...</span>
+              <span style={{ fontSize: 14, color: 'var(--brown-700)', fontStyle: 'italic' }}>Loading...</span>
             ) : kpiData?.bank ? (
               <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 22, color: 'var(--brown-900)' }}>
                 <Money value={kpiData.bank} />
               </span>
             ) : (
-              <span style={{ fontSize: 13, color: 'var(--brown-500)' }}>Pending API</span>
+              <span style={{ fontSize: 13, color: 'var(--brown-700)' }}>Pending API</span>
             )}
           </div>
         </div>
@@ -233,13 +233,13 @@ export default function Dashboard() {
           </div>
           <div style={{ marginTop: 2 }}>
             {isKpiLoading ? (
-              <span style={{ fontSize: 14, color: 'var(--brown-500)', fontStyle: 'italic' }}>Loading...</span>
+              <span style={{ fontSize: 14, color: 'var(--brown-700)', fontStyle: 'italic' }}>Loading...</span>
             ) : kpiData?.receivable ? (
               <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 22, color: 'var(--brown-900)' }}>
                 <Money value={kpiData.receivable} />
               </span>
             ) : (
-              <span style={{ fontSize: 13, color: 'var(--brown-500)' }}>Pending API</span>
+              <span style={{ fontSize: 13, color: 'var(--brown-700)' }}>Pending API</span>
             )}
           </div>
         </div>
@@ -263,13 +263,13 @@ export default function Dashboard() {
           </div>
           <div style={{ marginTop: 2 }}>
             {isKpiLoading ? (
-              <span style={{ fontSize: 14, color: 'var(--brown-500)', fontStyle: 'italic' }}>Loading...</span>
+              <span style={{ fontSize: 14, color: 'var(--brown-700)', fontStyle: 'italic' }}>Loading...</span>
             ) : kpiData?.payable ? (
               <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 22, color: 'var(--brown-900)' }}>
                 <Money value={kpiData.payable} />
               </span>
             ) : (
-              <span style={{ fontSize: 13, color: 'var(--brown-500)' }}>Pending API</span>
+              <span style={{ fontSize: 13, color: 'var(--brown-700)' }}>Pending API</span>
             )}
           </div>
         </div>
@@ -293,13 +293,13 @@ export default function Dashboard() {
           </div>
           <div style={{ marginTop: 2 }}>
             {isKpiLoading ? (
-              <span style={{ fontSize: 14, color: 'var(--brown-500)', fontStyle: 'italic' }}>Loading...</span>
+              <span style={{ fontSize: 14, color: 'var(--brown-700)', fontStyle: 'italic' }}>Loading...</span>
             ) : kpiData?.netIncomeThisMonth ? (
               <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 22, color: 'var(--brown-900)' }}>
                 <Money value={kpiData.netIncomeThisMonth} />
               </span>
             ) : (
-              <span style={{ fontSize: 13, color: 'var(--brown-500)' }}>Pending API</span>
+              <span style={{ fontSize: 13, color: 'var(--brown-700)' }}>Pending API</span>
             )}
           </div>
         </div>
@@ -579,13 +579,13 @@ export default function Dashboard() {
               Recent Activity
             </h3>
           </div>
-          <span style={{ fontSize: 12, color: 'var(--brown-500)', fontFamily: 'var(--font-body)' }}>
+          <span style={{ fontSize: 12, color: 'var(--brown-700)', fontFamily: 'var(--font-body)' }}>
             Latest financial and transactional documents
           </span>
         </div>
 
         {isActivityLoading ? (
-          <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--brown-500)', fontSize: 14 }}>
+          <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--brown-700)', fontSize: 14 }}>
             Loading recent transactions...
           </div>
         ) : activityData && activityData.length > 0 ? (
@@ -642,7 +642,7 @@ export default function Dashboard() {
             </table>
           </div>
         ) : (
-          <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--brown-500)', fontSize: 14 }}>
+          <div style={{ padding: 'var(--space-8)', textAlign: 'center', color: 'var(--brown-700)', fontSize: 14 }}>
             No recent activity recorded yet. Entries will appear automatically as orders, bills, and journals post.
           </div>
         )}

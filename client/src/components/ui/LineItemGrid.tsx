@@ -90,25 +90,70 @@ export default function LineItemGrid({
   const addRow = () => onChange([...rows, computeRowTotal(newEmptyRow(columns))]);
   const removeRow = (idx: number) => onChange(rows.filter((_, i) => i !== idx));
 
-  /* ── Keyboard: Tab → next cell, Enter → new row ── */
+  /* ── Keyboard navigation: Tally speed (Arrows between cells, Enter for new row) ── */
+  const focusCell = (rIdx: number, cIdx: number) => {
+    const el = gridRef.current?.querySelector<HTMLInputElement | HTMLSelectElement>(
+      `[data-row="${rIdx}"][data-col="${cIdx}"]`,
+    );
+    if (el) {
+      el.focus();
+      if ('select' in el && typeof el.select === 'function') {
+        el.select();
+      }
+    }
+  };
+
   const handleKeyDown = (
     e: KeyboardEvent<HTMLInputElement | HTMLSelectElement>,
     rowIdx: number,
     colIdx: number,
   ) => {
+    const input = e.currentTarget;
+    const isInput = input instanceof HTMLInputElement;
+
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (rowIdx === rows.length - 1) addRow();
-      // Focus first cell of next row
-      setTimeout(() => {
-        const inputs = gridRef.current?.querySelectorAll<HTMLElement>(
-          `[data-row="${rowIdx + 1}"][data-col="0"]`,
-        );
-        inputs?.[0]?.focus();
-      }, 50);
+      if (rowIdx === rows.length - 1) {
+        addRow();
+        setTimeout(() => focusCell(rowIdx + 1, 0), 50);
+      } else {
+        focusCell(rowIdx + 1, colIdx);
+      }
+      return;
     }
-    if (e.key === 'Tab' && !e.shiftKey) {
-      // Natural tab handled by browser; let it flow
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (rowIdx < rows.length - 1) {
+        focusCell(rowIdx + 1, colIdx);
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (rowIdx > 0) {
+        focusCell(rowIdx - 1, colIdx);
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowRight') {
+      const atEnd = !isInput || (input.selectionStart === input.value.length && input.selectionEnd === input.value.length);
+      if (atEnd && colIdx < columns.length - 1) {
+        e.preventDefault();
+        focusCell(rowIdx, colIdx + 1);
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowLeft') {
+      const atStart = !isInput || (input.selectionStart === 0 && input.selectionEnd === 0);
+      if (atStart && colIdx > 0) {
+        e.preventDefault();
+        focusCell(rowIdx, colIdx - 1);
+      }
+      return;
     }
   };
 
@@ -238,14 +283,14 @@ export default function LineItemGrid({
                         background: 'none',
                         border: 'none',
                         cursor: 'pointer',
-                        color: 'var(--brown-500)',
+                        color: 'var(--brown-700)',
                         fontSize: 16,
                         padding: '4px',
                         lineHeight: 1,
                         borderRadius: 4,
                       }}
                       onMouseEnter={e => ((e.target as HTMLElement).style.color = 'var(--danger)')}
-                      onMouseLeave={e => ((e.target as HTMLElement).style.color = 'var(--brown-500)')}
+                      onMouseLeave={e => ((e.target as HTMLElement).style.color = 'var(--brown-700)')}
                     >
                       ×
                     </button>

@@ -152,7 +152,7 @@ export default function ListView<T extends Record<string, unknown>>({
                   style={{
                     height: 44,
                     textAlign: 'center',
-                    color: 'var(--brown-500)',
+                    color: 'var(--brown-700)',
                     fontFamily: 'var(--font-body)',
                     fontSize: 13,
                     padding: '0 16px',
@@ -168,7 +168,7 @@ export default function ListView<T extends Record<string, unknown>>({
                   style={{
                     height: 44,
                     textAlign: 'center',
-                    color: 'var(--brown-500)',
+                    color: 'var(--brown-700)',
                     fontFamily: 'var(--font-body)',
                     fontSize: 13,
                     padding: '0 16px',

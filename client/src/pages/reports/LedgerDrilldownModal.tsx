@@ -94,7 +94,7 @@ export default function LedgerDrilldownModal({
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {/* Breadcrumb indicator */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontFamily: 'var(--font-body)' }}>
-              <span style={{ color: 'var(--brown-500)' }}>Level 1: Financial Report</span>
+              <span style={{ color: 'var(--brown-700)' }}>Level 1: Financial Report</span>
               <ChevronRight size={12} style={{ color: 'var(--brown-300)' }} />
               <button
                 type="button"
@@ -215,7 +215,7 @@ export default function LedgerDrilldownModal({
               </div>
 
               {isLoading ? (
-                <div style={{ textAlign: 'center', padding: 32, color: 'var(--brown-500)', fontSize: 14 }}>
+                <div style={{ textAlign: 'center', padding: 32, color: 'var(--brown-700)', fontSize: 14 }}>
                   Loading ledger transactions...
                 </div>
               ) : ledger?.entries && ledger.entries.length > 0 ? (
@@ -306,7 +306,7 @@ export default function LedgerDrilldownModal({
                   </table>
                 </div>
               ) : (
-                <div style={{ textAlign: 'center', padding: 32, color: 'var(--brown-500)', fontSize: 14 }}>
+                <div style={{ textAlign: 'center', padding: 32, color: 'var(--brown-700)', fontSize: 14 }}>
                   No journal entry lines posted for this account in the requested period.
                 </div>
               )}
@@ -467,7 +467,7 @@ export default function LedgerDrilldownModal({
                 {/* Source Doc Top */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(208, 174, 146, 0.4)', paddingBottom: 16 }}>
                   <div>
-                    <span style={{ fontSize: 12, textTransform: 'uppercase', fontWeight: 600, color: 'var(--brown-500)', letterSpacing: '0.05em' }}>
+                    <span style={{ fontSize: 12, textTransform: 'uppercase', fontWeight: 600, color: 'var(--brown-700)', letterSpacing: '0.05em' }}>
                       {selectedEntry.sourceType === 'bill' ? 'Vendor Bill Record' : 'Customer Invoice Record'}
                     </span>
                     <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 22, color: 'var(--brown-900)', margin: '4px 0 0 0' }}>

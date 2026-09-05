@@ -23,7 +23,7 @@ const STATUS_MAP: Record<
   paid:       { label: 'Paid',      color: 'var(--posted)',     bg: 'var(--posted-bg)' },
   partial:    { label: 'Partial',   color: 'var(--warning)',    bg: 'var(--warning-bg)' },
   cancelled:  { label: 'Cancelled', color: 'var(--danger)',     bg: 'var(--danger-bg)' },
-  revised:    { label: 'Revised',   color: 'var(--brown-500)',  bg: 'var(--surface)', border: '1px solid var(--brown-300)' },
+  revised:    { label: 'Revised',   color: 'var(--brown-700)',  bg: 'var(--surface)', border: '1px solid var(--brown-300)' },
 };
 
 /**

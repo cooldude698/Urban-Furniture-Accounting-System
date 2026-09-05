@@ -23,5 +23,12 @@ export { btnPrimary, btnSecondary, btnGhost, btnDestructive } from './ui/FormVie
 export { default as LineItemGrid } from './ui/LineItemGrid';
 export type { GridColumn, GridRow } from './ui/LineItemGrid';
 
+// Feedback & Phase 6 Polish
+export { ToastProvider, useToast } from './ui/Toast';
+export type { ToastType, ToastItem } from './ui/Toast';
+export { default as FlashNumber } from './ui/FlashNumber';
+export { default as EmptyState } from './ui/EmptyState';
+export { default as LoadingState } from './ui/LoadingState';
+
 // Layout
 export { default as AppShell } from './layout/AppShell';

@@ -366,7 +366,7 @@ export default function BudgetReportPage() {
               ))
             ) : (
               <tr>
-                <td colSpan={6} style={{ padding: 24, textAlign: 'center', color: 'var(--brown-500)', fontSize: 13 }}>
+                <td colSpan={6} style={{ padding: 24, textAlign: 'center', color: 'var(--brown-700)', fontSize: 13 }}>
                   No budget line progress records found.
                 </td>
               </tr>

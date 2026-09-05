@@ -323,14 +323,14 @@ export default function ProfitLossPage() {
                         }}
                       >
                         <Money value={item.total} />
-                        <ExternalLink size={11} style={{ color: 'var(--brown-500)' }} />
+                        <ExternalLink size={11} style={{ color: 'var(--brown-700)' }} />
                       </button>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={2} style={{ padding: 20, textAlign: 'center', color: 'var(--brown-500)', fontSize: 13 }}>
+                  <td colSpan={2} style={{ padding: 20, textAlign: 'center', color: 'var(--brown-700)', fontSize: 13 }}>
                     No operating income recorded in this period.
                   </td>
                 </tr>
@@ -426,14 +426,14 @@ export default function ProfitLossPage() {
                         }}
                       >
                         <Money value={item.total} />
-                        <ExternalLink size={11} style={{ color: 'var(--brown-500)' }} />
+                        <ExternalLink size={11} style={{ color: 'var(--brown-700)' }} />
                       </button>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={2} style={{ padding: 20, textAlign: 'center', color: 'var(--brown-500)', fontSize: 13 }}>
+                  <td colSpan={2} style={{ padding: 20, textAlign: 'center', color: 'var(--brown-700)', fontSize: 13 }}>
                     No operating expenses recorded in this period.
                   </td>
                 </tr>

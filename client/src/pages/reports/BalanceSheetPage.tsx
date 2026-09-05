@@ -296,14 +296,14 @@ export default function BalanceSheetPage() {
                         }}
                       >
                         <Money value={item.balance} />
-                        <ExternalLink size={11} style={{ color: 'var(--brown-500)' }} />
+                        <ExternalLink size={11} style={{ color: 'var(--brown-700)' }} />
                       </button>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={2} style={{ padding: 24, textAlign: 'center', color: 'var(--brown-500)', fontSize: 13 }}>
+                  <td colSpan={2} style={{ padding: 24, textAlign: 'center', color: 'var(--brown-700)', fontSize: 13 }}>
                     No asset balances recorded.
                   </td>
                 </tr>
@@ -413,7 +413,7 @@ export default function BalanceSheetPage() {
                         }}
                       >
                         <Money value={item.balance} />
-                        <ExternalLink size={11} style={{ color: 'var(--brown-500)' }} />
+                        <ExternalLink size={11} style={{ color: 'var(--brown-700)' }} />
                       </button>
                     </td>
                   </tr>
@@ -464,7 +464,7 @@ export default function BalanceSheetPage() {
                           }}
                         >
                           <Money value={item.balance} />
-                          <ExternalLink size={11} style={{ color: 'var(--brown-500)' }} />
+                          <ExternalLink size={11} style={{ color: 'var(--brown-700)' }} />
                         </button>
                       </td>
                     </tr>

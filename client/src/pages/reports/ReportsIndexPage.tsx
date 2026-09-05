@@ -48,7 +48,7 @@ export default function ReportsIndexPage() {
                 whiteSpace: 'nowrap',
               }}
             >
-              <Icon size={16} style={{ color: isActive ? 'var(--brown-900)' : 'var(--brown-500)' }} />
+              <Icon size={16} style={{ color: isActive ? 'var(--brown-900)' : 'var(--brown-700)' }} />
               <span>{label}</span>
             </NavLink>
           );

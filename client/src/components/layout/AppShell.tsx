@@ -58,7 +58,7 @@ export default function AppShell() {
                 fontFamily: 'var(--font-body)',
                 fontWeight: 500,
                 fontSize: 15,
-                color: isActive ? 'var(--brown-700)' : 'var(--brown-500)',
+                color: isActive ? 'var(--brown-900)' : 'var(--brown-700)',
                 textDecoration: 'none',
                 padding: '0 var(--space-4)',
                 height: '100%',
