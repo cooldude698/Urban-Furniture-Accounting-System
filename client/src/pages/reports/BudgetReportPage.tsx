@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   PieChart,
@@ -13,16 +13,21 @@ import {
   YAxis,
   CartesianGrid,
 } from 'recharts';
-import Decimal from 'decimal.js';
 import { ReportsApi, BudgetReportData } from '../../api/reports.api';
+import { BudgetApi, Budget } from '../../api/budget.api';
 import Money from '../../components/ui/Money';
 import {
   Printer,
   FileBarChart,
-  ExternalLink,
   PieChart as PieIcon,
   BarChart3,
-  CheckCircle2,
+  X,
+  FileText,
+  Building2,
+  Calendar,
+  Layers,
+  ArrowUpRight,
+  TrendingUp,
 } from 'lucide-react';
 
 const PALETTE = {
@@ -35,14 +40,45 @@ const PALETTE = {
 export default function BudgetReportPage() {
   const [selectedBudgetId, setSelectedBudgetId] = useState<number>(1);
   const [chartType, setChartType] = useState<'pie' | 'bar'>('pie');
+  const [drillDownLineId, setDrillDownLineId] = useState<number | null>(null);
+  const [drillDownData, setDrillDownData] = useState<{ line: any; documents: any[] } | null>(null);
+  const [isDrillDownLoading, setIsDrillDownLoading] = useState<boolean>(false);
 
+  // Load all available budgets
+  const { data: budgets = [] } = useQuery<Budget[]>({
+    queryKey: ['budgets-list'],
+    queryFn: () => BudgetApi.getAll(),
+  });
+
+  // Default to first budget if none or missing
+  useEffect(() => {
+    if (budgets.length > 0 && !budgets.some((b) => b.id === selectedBudgetId)) {
+      setSelectedBudgetId(budgets[0].id);
+    }
+  }, [budgets, selectedBudgetId]);
+
+  // Load report data for selected budget
   const { data: report, isLoading } = useQuery<BudgetReportData>({
     queryKey: ['budget-report', selectedBudgetId],
     queryFn: () => ReportsApi.getBudgetReport(selectedBudgetId),
+    enabled: !!selectedBudgetId,
   });
 
   const handlePrint = () => {
     ReportsApi.downloadPdf('budget', { budgetId: String(selectedBudgetId) });
+  };
+
+  const handleDrillDown = async (lineId: number) => {
+    setDrillDownLineId(lineId);
+    setIsDrillDownLoading(true);
+    try {
+      const data = await ReportsApi.getBudgetLineDocuments(lineId);
+      setDrillDownData(data);
+    } catch {
+      setDrillDownData(null);
+    } finally {
+      setIsDrillDownLoading(false);
+    }
   };
 
   // Recharts data for pie chart: Overall Achieved vs Amount to Achieve
@@ -50,27 +86,28 @@ export default function BudgetReportPage() {
     ? [
         {
           name: 'Achieved',
-          value: parseFloat(report.totals.achieved || '0'),
+          value: Math.max(0, parseFloat(report.totals?.achieved || '0')),
           color: PALETTE.achieved,
         },
         {
           name: 'Amount to Achieve',
-          value: Math.max(0, parseFloat(report.totals.toAchieve || '0')),
+          value: Math.max(0, parseFloat(report.totals?.toAchieve || '0')),
           color: PALETTE.remaining,
         },
       ]
     : [];
 
   // Recharts data for bar chart: per analytic account
-  const barData = report?.lines.map((l) => ({
-    name: l.analyticAccountName,
-    Committed: parseFloat(l.committedAmount),
-    Achieved: parseFloat(l.achievedAmount),
-    ToAchieve: parseFloat(l.amountToAchieve),
-  })) || [];
+  const barData =
+    report?.lines?.map((l) => ({
+      name: l.analyticAccountName,
+      Committed: parseFloat(l.committedAmount || '0'),
+      Achieved: parseFloat(l.achievedAmount || '0'),
+      ToAchieve: Math.max(0, parseFloat(l.amountToAchieve || '0')),
+    })) || [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', maxWidth: 1200, margin: '0 auto' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)', maxWidth: 1200, margin: '0 auto', width: '100%' }}>
       {/* ── Page Header ── */}
       <div
         style={{
@@ -105,7 +142,7 @@ export default function BudgetReportPage() {
               margin: 0,
             }}
           >
-            Detailed analytical commitments vs achieved milestones with Recharts visualization
+            Analytical budget commitments vs achieved milestones with live drill-down tracking
           </p>
         </div>
 
@@ -166,10 +203,18 @@ export default function BudgetReportPage() {
                 background: 'var(--surface)',
                 color: 'var(--brown-900)',
                 cursor: 'pointer',
+                fontWeight: 600,
               }}
             >
-              <option value={1}>FY2026 Showroom & Operations Budget</option>
-              <option value={2}>Q1 Marketing Campaign Budget</option>
+              {budgets.length > 0 ? (
+                budgets.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} ({b.status.toUpperCase()})
+                  </option>
+                ))
+              ) : (
+                <option value={1}>FY2026 Operations Budget</option>
+              )}
             </select>
           </div>
         </div>
@@ -227,25 +272,25 @@ export default function BudgetReportPage() {
           <div style={{ background: 'var(--surface)', border: '1px solid rgba(208, 174, 146, 0.4)', borderRadius: 'var(--radius-md)', padding: 16, boxShadow: 'var(--shadow-sm)' }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase' }}>Committed Budget</span>
             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 22, color: 'var(--brown-900)', marginTop: 4 }}>
-              <Money value={report.totals.committed} />
+              <Money value={report.totals?.committed || '0.00'} />
             </div>
           </div>
           <div style={{ background: 'var(--surface)', border: '1px solid rgba(208, 174, 146, 0.4)', borderRadius: 'var(--radius-md)', padding: 16, boxShadow: 'var(--shadow-sm)' }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--posted)', textTransform: 'uppercase' }}>Achieved to Date</span>
             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 22, color: 'var(--posted)', marginTop: 4 }}>
-              <Money value={report.totals.achieved} />
+              <Money value={report.totals?.achieved || '0.00'} />
             </div>
           </div>
           <div style={{ background: 'var(--surface)', border: '1px solid rgba(208, 174, 146, 0.4)', borderRadius: 'var(--radius-md)', padding: 16, boxShadow: 'var(--shadow-sm)' }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--warning)', textTransform: 'uppercase' }}>Amount to Achieve</span>
             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 22, color: 'var(--warning)', marginTop: 4 }}>
-              <Money value={report.totals.toAchieve} />
+              <Money value={report.totals?.toAchieve || '0.00'} />
             </div>
           </div>
           <div style={{ background: 'var(--surface)', border: '1px solid rgba(208, 174, 146, 0.4)', borderRadius: 'var(--radius-md)', padding: 16, boxShadow: 'var(--shadow-sm)' }}>
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase' }}>Achieved Progress</span>
             <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 22, color: 'var(--brown-900)', marginTop: 4 }}>
-              {report.totals.achievedPct.toFixed(2)}%
+              {(report.totals?.achievedPct || 0).toFixed(2)}%
             </div>
           </div>
         </div>
@@ -323,10 +368,13 @@ export default function BudgetReportPage() {
           overflow: 'hidden',
         }}
       >
-        <div style={{ padding: '14px 20px', background: 'var(--brown-100)', borderBottom: '1px solid var(--brown-300)' }}>
-          <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: 'var(--brown-900)', margin: 0 }}>
-            Analytic Budget Breakdown Table
-          </h3>
+        <div style={{ padding: '14px 20px', background: 'var(--brown-100)', borderBottom: '1px solid var(--brown-300)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: 'var(--brown-900)', margin: 0 }}>
+              Analytic Budget Breakdown Table
+            </h3>
+            <span style={{ fontSize: 11, color: 'var(--brown-700)' }}>Click on any achieved figure to inspect source posted documents</span>
+          </div>
         </div>
 
         <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
@@ -335,7 +383,7 @@ export default function BudgetReportPage() {
               <th style={{ padding: '0 16px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase' }}>Analytic Account</th>
               <th style={{ padding: '0 16px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase', width: 90 }}>Type</th>
               <th style={{ padding: '0 16px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>Committed</th>
-              <th style={{ padding: '0 16px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>Achieved</th>
+              <th style={{ padding: '0 16px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>Achieved (Click to Drill)</th>
               <th style={{ padding: '0 16px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>Achieved %</th>
               <th style={{ padding: '0 16px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>Amount to Achieve</th>
             </tr>
@@ -353,11 +401,33 @@ export default function BudgetReportPage() {
                   <td style={{ padding: '0 16px', textAlign: 'right' }}>
                     <Money value={line.committedAmount} />
                   </td>
-                  <td style={{ padding: '0 16px', textAlign: 'right', color: 'var(--posted)', fontWeight: 600 }}>
-                    <Money value={line.achievedAmount} />
+                  <td style={{ padding: '0 16px', textAlign: 'right' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleDrillDown(line.budgetLineId)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: 'var(--posted)',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        padding: '4px 6px',
+                        borderRadius: 4,
+                        transition: 'background 120ms ease',
+                      }}
+                      title="Drill down to view source documents"
+                      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(95, 112, 82, 0.12)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <Money value={line.achievedAmount} />
+                      <ArrowUpRight size={13} />
+                    </button>
                   </td>
                   <td style={{ padding: '0 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
-                    {line.achievedPct.toFixed(2)}%
+                    {(line.achievedPct || 0).toFixed(2)}%
                   </td>
                   <td style={{ padding: '0 16px', textAlign: 'right' }}>
                     <Money value={line.amountToAchieve} />
@@ -367,7 +437,7 @@ export default function BudgetReportPage() {
             ) : (
               <tr>
                 <td colSpan={6} style={{ padding: 24, textAlign: 'center', color: 'var(--brown-700)', fontSize: 13 }}>
-                  No budget line progress records found.
+                  {isLoading ? 'Loading budget progress...' : 'No budget line progress records found.'}
                 </td>
               </tr>
             )}
@@ -378,21 +448,130 @@ export default function BudgetReportPage() {
                 Total Summary
               </td>
               <td style={{ padding: '0 16px', textAlign: 'right' }}>
-                <Money value={report?.totals.committed || '0.00'} />
+                <Money value={report?.totals?.committed || '0.00'} />
               </td>
               <td style={{ padding: '0 16px', textAlign: 'right', color: 'var(--posted)' }}>
-                <Money value={report?.totals.achieved || '0.00'} />
+                <Money value={report?.totals?.achieved || '0.00'} />
               </td>
               <td style={{ padding: '0 16px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
-                {report?.totals.achievedPct.toFixed(2)}%
+                {(report?.totals?.achievedPct || 0).toFixed(2)}%
               </td>
               <td style={{ padding: '0 16px', textAlign: 'right' }}>
-                <Money value={report?.totals.toAchieve || '0.00'} />
+                <Money value={report?.totals?.toAchieve || '0.00'} />
               </td>
             </tr>
           </tfoot>
         </table>
       </div>
+
+      {/* ── Drill-Down Document Inspection Modal ── */}
+      {drillDownLineId !== null && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(74, 58, 52, 0.45)',
+            backdropFilter: 'blur(2px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: 24,
+          }}
+          onClick={() => {
+            setDrillDownLineId(null);
+            setDrillDownData(null);
+          }}
+        >
+          <div
+            style={{
+              background: 'var(--surface)',
+              borderRadius: 'var(--radius-lg)',
+              maxWidth: 800,
+              width: '100%',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+              boxShadow: 'var(--shadow-lg)',
+              border: '1px solid var(--brown-300)',
+              padding: 24,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(208, 174, 146, 0.4)', paddingBottom: 14, marginBottom: 16 }}>
+              <div>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--brown-900)', margin: 0 }}>
+                  Source Documents for {drillDownData?.line?.analytic_account_name || 'Budget Line'}
+                </h3>
+                <span style={{ fontSize: 12, color: 'var(--brown-700)' }}>
+                  {drillDownData?.line?.budget_name} ({drillDownData?.line?.analytic_type?.toUpperCase()})
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setDrillDownLineId(null);
+                  setDrillDownData(null);
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: 'var(--brown-700)',
+                  padding: 4,
+                  borderRadius: 4,
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            {isDrillDownLoading ? (
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--brown-700)', fontSize: 13 }}>
+                Loading source documents...
+              </div>
+            ) : drillDownData?.documents && drillDownData.documents.length > 0 ? (
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: 'rgba(249, 242, 228, 0.6)', height: 36, borderBottom: '1px solid var(--brown-300)' }}>
+                    <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase' }}>Document</th>
+                    <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase' }}>Date</th>
+                    <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase' }}>Partner</th>
+                    <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>Doc Total</th>
+                    <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>Line Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {drillDownData.documents.map((doc: any, i: number) => (
+                    <tr key={i} style={{ height: 40, borderBottom: '1px solid rgba(208, 174, 146, 0.2)' }}>
+                      <td style={{ padding: '0 12px', fontWeight: 600, color: 'var(--brown-900)' }}>
+                        {doc.number}
+                      </td>
+                      <td style={{ padding: '0 12px', color: 'var(--brown-700)' }}>
+                        {doc.date ? String(doc.date).split('T')[0] : '—'}
+                      </td>
+                      <td style={{ padding: '0 12px', color: 'var(--brown-900)' }}>
+                        {doc.partner_name || '—'}
+                      </td>
+                      <td style={{ padding: '0 12px', textAlign: 'right' }}>
+                        <Money value={doc.document_total || '0.00'} />
+                      </td>
+                      <td style={{ padding: '0 12px', textAlign: 'right', fontWeight: 700, color: 'var(--posted)' }}>
+                        <Money value={doc.line_amount || '0.00'} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div style={{ padding: 32, textAlign: 'center', color: 'var(--brown-700)', fontSize: 13 }}>
+                No posted documents found contributing to this budget line yet.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

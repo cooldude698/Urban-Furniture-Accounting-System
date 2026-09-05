@@ -1,3 +1,4 @@
+import Decimal from 'decimal.js';
 import api from '../lib/axios';
 
 export interface ProfitLossReport {
@@ -218,12 +219,72 @@ export const ReportsApi = {
     try {
       const params = new URLSearchParams();
       if (budgetId) params.set('budgetId', String(budgetId));
-      const res = await api.get<{ data: BudgetReportData; error: any }>(`/api/reports/budget?${params.toString()}`);
-      if (res.data?.data) return res.data.data;
-    } catch {
-      // offline fallback
+      const res = await api.get<{ data: any; error: any }>(`/api/reports/budget?${params.toString()}`);
+      if (res.data?.data) {
+        const raw = res.data.data;
+        if (Array.isArray(raw)) {
+          let totalCommitted = new Decimal(0);
+          let totalAchieved = new Decimal(0);
+          let totalToAchieve = new Decimal(0);
+
+          const lines: BudgetReportLine[] = raw.map((r: any) => {
+            const committed = new Decimal(r.committed_amount || r.committedAmount || '0');
+            const achieved = new Decimal(r.achieved_amount || r.achievedAmount || '0');
+            const toAchieve = new Decimal(r.amount_to_achieve || r.amountToAchieve || '0');
+            const pct = parseFloat(String(r.achieved_pct ?? r.achievedPct ?? '0'));
+
+            totalCommitted = totalCommitted.plus(committed);
+            totalAchieved = totalAchieved.plus(achieved);
+            totalToAchieve = totalToAchieve.plus(toAchieve);
+
+            return {
+              budgetLineId: r.budget_line_id || r.id,
+              analyticAccountId: r.analytic_account_id || r.analyticAccountId,
+              analyticAccountName: r.analytic_account_name || r.analyticAccountName || 'Analytic Account',
+              analyticType: r.analytic_type || r.analyticType || 'expense',
+              committedAmount: committed.toFixed(2),
+              achievedAmount: achieved.toFixed(2),
+              achievedPct: isNaN(pct) ? 0 : pct,
+              amountToAchieve: toAchieve.toFixed(2),
+            };
+          });
+
+          const totalAchievedPct = totalCommitted.gt(0)
+            ? totalAchieved.div(totalCommitted).times(100).toNumber()
+            : 0;
+
+          const first = raw[0];
+          return {
+            budgetId: first?.budget_id || budgetId,
+            budgetName: first?.budget_name || 'Analytical Budget',
+            periodStart: first?.period_start,
+            periodEnd: first?.period_end,
+            lines,
+            totals: {
+              committed: totalCommitted.toFixed(2),
+              achieved: totalAchieved.toFixed(2),
+              toAchieve: totalToAchieve.toFixed(2),
+              achievedPct: isNaN(totalAchievedPct) ? 0 : totalAchievedPct,
+            },
+          };
+        } else if (raw.lines && raw.totals) {
+          return raw;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch budget report:', e);
     }
     return SAMPLE_BUDGET_REPORT;
+  },
+
+  getBudgetLineDocuments: async (lineId: number) => {
+    try {
+      const res = await api.get<{ data: any; error: any }>(`/api/reports/budget/${lineId}/documents`);
+      if (res.data?.data) return res.data.data;
+    } catch {
+      // ignore
+    }
+    return null;
   },
 
   getLedgerDetail: async (accountId: number, from?: string, to?: string): Promise<LedgerDetail> => {
