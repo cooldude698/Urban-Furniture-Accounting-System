@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ListView, Column } from '../../components/ListView';
+import { ListView, Column } from '../../components/ui/ListView';
 import { AccountsApi } from '../../api/accounts.api';
 import { Account, AccountGroupMap } from '@shared/schemas/account.schema';
 import { StatusBadge } from '../../components/StatusBadge';

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ListView, Column } from '../../components/ListView';
+import { ListView, Column } from '../../components/ui/ListView';
 import { VendorBillsApi } from '../../api/vendorBills.api';
 import { VendorBill } from '@shared/schemas/vendorBill.schema';
 import { StatusBadge } from '../../components/StatusBadge';

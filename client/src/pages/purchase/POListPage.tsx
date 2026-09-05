@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ListView, Column } from '../../components/ListView';
+import { ListView, Column } from '../../components/ui/ListView';
 import { PurchaseOrdersApi } from '../../api/purchaseOrders.api';
 import { PurchaseOrder } from '@shared/schemas/purchaseOrder.schema';
 import { StatusBadge } from '../../components/StatusBadge';

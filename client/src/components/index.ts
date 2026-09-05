@@ -15,7 +15,7 @@ export { default as NonBlockingWarning } from './ui/NonBlockingWarning';
 
 // Data display
 export { default as ListView } from './ui/ListView';
-export type { ListColumn } from './ui/ListView';
+export type { ListColumn, Column, ListViewProps } from './ui/ListView';
 
 // Form primitives
 export { default as FormView } from './ui/FormView';
