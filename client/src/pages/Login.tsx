@@ -1,6 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Eye, EyeOff, Building2, UserCheck, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Eye, EyeOff, Building2, UserCheck } from 'lucide-react';
 import api from '../lib/axios';
 
 export default function Login() {
@@ -8,10 +8,9 @@ export default function Login() {
   const [searchParams, setSearchParams] = useSearchParams();
   const portalParam = searchParams.get('portal');
 
-  const [activePortal, setActivePortal] = useState<'chooser' | 'admin' | 'customer'>(() => {
-    if (portalParam === 'admin') return 'admin';
+  const [activePortal, setActivePortal] = useState<'admin' | 'customer'>(() => {
     if (portalParam === 'customer') return 'customer';
-    return 'chooser';
+    return 'admin';
   });
 
   // Admin Form State
@@ -31,16 +30,16 @@ export default function Login() {
   const [customerBtnHover, setCustomerBtnHover] = useState(false);
 
   useEffect(() => {
-    if (portalParam === 'admin') {
-      setActivePortal('admin');
-    } else if (portalParam === 'customer') {
+    if (portalParam === 'customer') {
       setActivePortal('customer');
+    } else {
+      setActivePortal('admin');
     }
   }, [portalParam]);
 
-  const selectPortal = (portal: 'admin' | 'customer' | 'chooser') => {
+  const selectPortal = (portal: 'admin' | 'customer') => {
     setActivePortal(portal);
-    if (portal === 'chooser') {
+    if (portal === 'admin') {
       setSearchParams({});
     } else {
       setSearchParams({ portal });
@@ -92,175 +91,35 @@ export default function Login() {
 
   return (
     <div style={styles.page}>
-      {/* ── 1. PORTAL CHOOSER (2 DISTINCT BOXES) ── */}
-      {activePortal === 'chooser' && (
-        <div style={styles.chooserContainer}>
-          {/* Main Logo & Headline */}
-          <div style={styles.chooserHeader}>
-            <div style={styles.appLogoBox}>
-              <div style={styles.logoBadge}>UF</div>
-              <div style={styles.logoTextCol}>
-                <span style={styles.appLogoText}>App LoGo</span>
-                <span style={styles.appLogoSub}>Urban Furniture</span>
-              </div>
-            </div>
-            <h1 style={styles.chooserTitle}>Select Your Portal</h1>
-            <p style={styles.chooserSubtitle}>
-              Please choose the dedicated portal matching your account access
-            </p>
-          </div>
-
-          {/* Two Boxes Grid */}
-          <div style={styles.boxesGrid}>
-            {/* Box 1: Admin & Staff Portal */}
-            <div
-              style={styles.portalCard}
-              onClick={() => selectPortal('admin')}
-              onMouseEnter={e => {
-                e.currentTarget.style.borderColor = 'var(--brown-900, #4A3A34)';
-                e.currentTarget.style.transform = 'translateY(-3px)';
-                e.currentTarget.style.boxShadow = '0 12px 32px rgba(74, 58, 52, 0.12)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'var(--brown-300, #D0AE92)';
-                e.currentTarget.style.transform = 'none';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(74, 58, 52, 0.06)';
-              }}
-            >
-              <div style={styles.cardTopBadgeRow}>
-                <div style={styles.cardIconBox}>
-                  <Building2 size={24} color="var(--cream, #F9F2E4)" />
-                </div>
-                <span style={styles.roleTag}>Internal System</span>
-              </div>
-
-              <h2 style={styles.cardTitle}>Admin & Staff Portal</h2>
-              <p style={styles.cardDesc}>
-                For company accountants, sales managers, purchasing officers, and administrators.
-              </p>
-
-              <div style={styles.cardFeatureList}>
-                <div style={styles.featureItem}>
-                  <span style={styles.featureBullet}>✓</span>
-                  <span>General Ledger & Chart of Accounts</span>
-                </div>
-                <div style={styles.featureItem}>
-                  <span style={styles.featureBullet}>✓</span>
-                  <span>Sales Orders, Vendor Bills & Invoices</span>
-                </div>
-                <div style={styles.featureItem}>
-                  <span style={styles.featureBullet}>✓</span>
-                  <span>Balance Sheet, P&L & Audit Engine</span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                style={styles.cardEnterBtn}
-                onClick={e => {
-                  e.stopPropagation();
-                  selectPortal('admin');
-                }}
-              >
-                <span>ENTER ADMIN PORTAL</span>
-                <ArrowRight size={16} />
-              </button>
-            </div>
-
-            {/* Box 2: Customer & Client Portal */}
-            <div
-              style={styles.portalCard}
-              onClick={() => selectPortal('customer')}
-              onMouseEnter={e => {
-                e.currentTarget.style.borderColor = 'var(--brown-900, #4A3A34)';
-                e.currentTarget.style.transform = 'translateY(-3px)';
-                e.currentTarget.style.boxShadow = '0 12px 32px rgba(74, 58, 52, 0.12)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.borderColor = 'var(--brown-300, #D0AE92)';
-                e.currentTarget.style.transform = 'none';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(74, 58, 52, 0.06)';
-              }}
-            >
-              <div style={styles.cardTopBadgeRow}>
-                <div style={styles.cardIconBox}>
-                  <UserCheck size={24} color="var(--cream, #F9F2E4)" />
-                </div>
-                <span style={styles.roleTag}>Client Surface</span>
-              </div>
-
-              <h2 style={styles.cardTitle}>Customer & Client Portal</h2>
-              <p style={styles.cardDesc}>
-                For external customers, client representatives, buyers, and authorized contacts.
-              </p>
-
-              <div style={styles.cardFeatureList}>
-                <div style={styles.featureItem}>
-                  <span style={styles.featureBullet}>✓</span>
-                  <span>Inspect Official Billed Tax Invoices</span>
-                </div>
-                <div style={styles.featureItem}>
-                  <span style={styles.featureBullet}>✓</span>
-                  <span>Track Live Payment Receipts & Ledger</span>
-                </div>
-                <div style={styles.featureItem}>
-                  <span style={styles.featureBullet}>✓</span>
-                  <span>Direct Invoice Payment & Settlement</span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                style={styles.cardEnterBtn}
-                onClick={e => {
-                  e.stopPropagation();
-                  selectPortal('customer');
-                }}
-              >
-                <span>ENTER CUSTOMER PORTAL</span>
-                <ArrowRight size={16} />
-              </button>
-            </div>
-          </div>
+      <div style={{ width: '100%', maxWidth: 490 }}>
+        {/* Top 2-Portal Switcher Tabs */}
+        <div style={styles.topPortalSwitcher}>
+          <button
+            type="button"
+            onClick={() => selectPortal('admin')}
+            style={{
+              ...styles.portalSwitchBtn,
+              ...(activePortal === 'admin' ? styles.portalSwitchBtnActive : {}),
+            }}
+          >
+            <Building2 size={15} />
+            <span>Admin & Staff</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => selectPortal('customer')}
+            style={{
+              ...styles.portalSwitchBtn,
+              ...(activePortal === 'customer' ? styles.portalSwitchBtnActive : {}),
+            }}
+          >
+            <UserCheck size={15} />
+            <span>Customer Portal</span>
+          </button>
         </div>
-      )}
 
-      {/* ── 2. ADMIN PORTAL LOGIN FORM ── */}
-      {activePortal === 'admin' && (
-        <div style={{ width: '100%', maxWidth: 490 }}>
-          {/* Top 2-Portal Switcher Tabs */}
-          <div style={styles.topPortalSwitcher}>
-            <button
-              type="button"
-              onClick={() => selectPortal('admin')}
-              style={{ ...styles.portalSwitchBtn, ...styles.portalSwitchBtnActive }}
-            >
-              <Building2 size={15} />
-              <span>Admin Portal</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => selectPortal('customer')}
-              style={styles.portalSwitchBtn}
-            >
-              <UserCheck size={15} />
-              <span>Customer Portal</span>
-            </button>
-          </div>
-
-          <div style={styles.backRow}>
-            <button
-              type="button"
-              onClick={() => selectPortal('chooser')}
-              style={styles.backLinkBtn}
-            >
-              <ArrowLeft size={14} />
-              <span>← All Portals</span>
-            </button>
-          </div>
-
-          <h2 style={styles.pageTitle}>Admin & Staff Login</h2>
-
+        {/* ── ADMIN LOGIN FORM ── */}
+        {activePortal === 'admin' ? (
           <div style={styles.card}>
             {/* App LoGo container */}
             <div style={styles.appLogoBox}>
@@ -274,7 +133,9 @@ export default function Login() {
             {/* Navigation Tabs: Sign In / Create Account */}
             <div style={styles.tabHeader}>
               <span style={styles.activeTab}>Sign In</span>
-              <Link to="/create-user" style={styles.inactiveTab}>Create Account</Link>
+              <Link to="/create-user" style={styles.inactiveTab}>
+                Create Account
+              </Link>
             </div>
 
             <form onSubmit={handleAdminSubmit} style={styles.form} noValidate>
@@ -289,7 +150,7 @@ export default function Login() {
                     type="text"
                     autoComplete="username"
                     value={loginId}
-                    onChange={e => setLoginId(e.target.value)}
+                    onChange={(e) => setLoginId(e.target.value)}
                     required
                     minLength={6}
                     maxLength={12}
@@ -309,7 +170,7 @@ export default function Login() {
                     type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
                     value={password}
-                    onChange={e => setPassword(e.target.value)}
+                    onChange={(e) => setPassword(e.target.value)}
                     required
                     style={styles.lineInput}
                   />
@@ -352,53 +213,22 @@ export default function Login() {
 
               {/* Links footer */}
               <div style={styles.linksRow}>
-                <Link to="/forgot-password" style={styles.link}>Forgot Password</Link>
+                <Link to="/forgot-password" style={styles.link}>
+                  Forgot Password
+                </Link>
                 <span style={styles.linkDivider}>|</span>
-                <Link to="/signup" style={styles.link}>Sign Up</Link>
+                <Link to="/signup" style={styles.link}>
+                  Sign Up
+                </Link>
                 <span style={styles.linkDivider}>|</span>
-                <Link to="/create-user" style={styles.link}>Create Account</Link>
+                <Link to="/create-user" style={styles.link}>
+                  Create Account
+                </Link>
               </div>
             </form>
           </div>
-        </div>
-      )}
-
-      {/* ── 3. CUSTOMER PORTAL LOGIN FORM ── */}
-      {activePortal === 'customer' && (
-        <div style={{ width: '100%', maxWidth: 490 }}>
-          {/* Top 2-Portal Switcher Tabs */}
-          <div style={styles.topPortalSwitcher}>
-            <button
-              type="button"
-              onClick={() => selectPortal('admin')}
-              style={styles.portalSwitchBtn}
-            >
-              <Building2 size={15} />
-              <span>Admin Portal</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => selectPortal('customer')}
-              style={{ ...styles.portalSwitchBtn, ...styles.portalSwitchBtnActive }}
-            >
-              <UserCheck size={15} />
-              <span>Customer Portal</span>
-            </button>
-          </div>
-
-          <div style={styles.backRow}>
-            <button
-              type="button"
-              onClick={() => selectPortal('chooser')}
-              style={styles.backLinkBtn}
-            >
-              <ArrowLeft size={14} />
-              <span>← All Portals</span>
-            </button>
-          </div>
-
-          <h2 style={styles.pageTitle}>Customer & Client Login</h2>
-
+        ) : (
+          /* ── CUSTOMER LOGIN FORM ── */
           <div style={styles.card}>
             {/* App LoGo container */}
             <div style={styles.appLogoBox}>
@@ -425,7 +255,7 @@ export default function Login() {
                     type="text"
                     autoComplete="username"
                     value={customerLoginId}
-                    onChange={e => setCustomerLoginId(e.target.value)}
+                    onChange={(e) => setCustomerLoginId(e.target.value)}
                     placeholder="e.g. rohit or client@email.com"
                     required
                     style={styles.lineInput}
@@ -444,7 +274,7 @@ export default function Login() {
                     type={showCustomerPassword ? 'text' : 'password'}
                     autoComplete="current-password"
                     value={customerPassword}
-                    onChange={e => setCustomerPassword(e.target.value)}
+                    onChange={(e) => setCustomerPassword(e.target.value)}
                     required
                     style={styles.lineInput}
                   />
@@ -494,8 +324,8 @@ export default function Login() {
               </div>
             </form>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -511,142 +341,6 @@ const styles = {
     fontFamily: 'var(--font-body, "DM Sans", sans-serif)',
   } as React.CSSProperties,
 
-  // ── Chooser View Styles ──
-  chooserContainer: {
-    width: '100%',
-    maxWidth: 960,
-    display: 'flex',
-    flexDirection: 'column' as const,
-    alignItems: 'center',
-  },
-  chooserHeader: {
-    textAlign: 'center' as const,
-    marginBottom: 36,
-  },
-  chooserTitle: {
-    fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
-    fontWeight: 700,
-    fontSize: 28,
-    color: 'var(--brown-900, #4A3A34)',
-    marginTop: 12,
-    marginBottom: 8,
-  } as React.CSSProperties,
-  chooserSubtitle: {
-    fontSize: 14,
-    color: 'var(--brown-600, #8C6A58)',
-    maxWidth: 500,
-    margin: '0 auto',
-  } as React.CSSProperties,
-
-  boxesGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-    gap: 28,
-    width: '100%',
-  } as React.CSSProperties,
-
-  portalCard: {
-    background: 'var(--surface, #FFFFFF)',
-    borderRadius: 20,
-    border: '1.5px solid var(--brown-300, #D0AE92)',
-    boxShadow: '0 6px 20px rgba(74, 58, 52, 0.06)',
-    padding: '36px 32px',
-    cursor: 'pointer',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    justifyContent: 'space-between',
-    transition: 'all 200ms ease-out',
-  } as React.CSSProperties,
-
-  cardTopBadgeRow: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  } as React.CSSProperties,
-
-  cardIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    background: 'var(--brown-900, #4A3A34)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0 2px 8px rgba(74, 58, 52, 0.15)',
-  } as React.CSSProperties,
-
-  roleTag: {
-    fontSize: 11,
-    fontWeight: 700,
-    fontFamily: 'var(--font-mono, "IBM Plex Mono", monospace)',
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase' as const,
-    color: 'var(--brown-700, #77574A)',
-    background: 'var(--brown-100, #EBD7BE)',
-    padding: '4px 10px',
-    borderRadius: 6,
-  } as React.CSSProperties,
-
-  cardTitle: {
-    fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
-    fontWeight: 700,
-    fontSize: 20,
-    color: 'var(--brown-900, #4A3A34)',
-    marginBottom: 8,
-  } as React.CSSProperties,
-
-  cardDesc: {
-    fontSize: 13,
-    color: 'var(--brown-600, #8C6A58)',
-    lineHeight: 1.5,
-    marginBottom: 24,
-  } as React.CSSProperties,
-
-  cardFeatureList: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 10,
-    marginBottom: 32,
-    borderTop: '1px solid rgba(208, 174, 146, 0.35)',
-    paddingTop: 16,
-  } as React.CSSProperties,
-
-  featureItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-    fontSize: 13,
-    color: 'var(--brown-800, #5E453A)',
-    fontWeight: 500,
-  } as React.CSSProperties,
-
-  featureBullet: {
-    color: 'var(--posted, #5F7052)',
-    fontWeight: 700,
-    fontSize: 13,
-  } as React.CSSProperties,
-
-  cardEnterBtn: {
-    width: '100%',
-    padding: '12px 20px',
-    background: 'var(--brown-900, #4A3A34)',
-    color: 'var(--cream, #F9F2E4)',
-    border: 'none',
-    borderRadius: 12,
-    fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
-    fontWeight: 700,
-    fontSize: 12,
-    letterSpacing: '0.08em',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    cursor: 'pointer',
-    transition: 'all 150ms ease',
-  } as React.CSSProperties,
-
-  // ── Top Switcher When in Form View ──
   topPortalSwitcher: {
     display: 'flex',
     gap: 8,
@@ -680,35 +374,6 @@ const styles = {
     color: 'var(--cream, #F9F2E4)',
     fontWeight: 700,
     boxShadow: '0 2px 6px rgba(74, 58, 52, 0.15)',
-  } as React.CSSProperties,
-
-  backRow: {
-    display: 'flex',
-    justifyContent: 'flex-start',
-    marginBottom: 10,
-  } as React.CSSProperties,
-
-  backLinkBtn: {
-    background: 'none',
-    border: 'none',
-    color: 'var(--brown-600, #8C6A58)',
-    fontSize: 12,
-    fontWeight: 600,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 5,
-    padding: '2px 0',
-  } as React.CSSProperties,
-
-  // ── Card & Form Styles ──
-  pageTitle: {
-    fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
-    fontWeight: 700,
-    fontSize: 22,
-    color: 'var(--brown-900, #4A3A34)',
-    textAlign: 'center' as const,
-    marginBottom: 16,
   } as React.CSSProperties,
 
   card: {
