@@ -1,4 +1,4 @@
-# Urban Furniture — Accounting System
+# Urban Furniture — Accounting System .
 
 Double-entry accounting and light ERP for a furniture business.
 Built at the **Odoo India Hackathon 2026 Finale** (Gandhinagar, 24 hours, offline).
