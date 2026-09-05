@@ -19,13 +19,18 @@
 /* ── Design tokens ─────────────────────────────────────────────── */
 :root {
   /* Neutrals — walnut scale */
-  --brown-900: #4A3A34;
-  --brown-700: #77574A;
-  --brown-500: #A8836C;
-  --brown-300: #D0AE92;
+  --brown-50:  #F8F3ED;
   --brown-100: #EBD7BE;
-  --cream: #F9F2E4;
-  --surface: #FFFFFF;
+  --brown-200: #DFBF9F;
+  --brown-300: #D0AE92;
+  --brown-400: #BC987E;
+  --brown-500: #A8836C;
+  --brown-600: #8F6C57;
+  --brown-700: #77574A;
+  --brown-800: #5E453A;
+  --brown-900: #4A3A34;
+  --cream:     #F9F2E4;
+  --surface:   #FFFFFF;
 
   /* Semantic */
   --posted: #5F7052;
