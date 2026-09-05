@@ -185,31 +185,31 @@ export const TemplateLibraryPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto pb-16 space-y-6">
-      {/* Hero Header matching Urban Furniture visual tokens */}
-      <div className="bg-surface border border-brown-300 rounded-[12px] p-6 sm:p-8 shadow-xs">
+      {/* Hero Header - Clean Black and White */}
+      <div className="bg-white border border-gray-300 rounded-[12px] p-6 sm:p-8 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1.5 max-w-3xl">
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-brown-100 border border-brown-200 text-[11px] font-bold uppercase tracking-wider text-brown-800">
-              <Sparkles className="w-3.5 h-3.5 text-brown-700" />
+            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-gray-100 border border-gray-300 text-[11px] font-bold uppercase tracking-wider text-black">
+              <Sparkles className="w-3.5 h-3.5 text-black" />
               <span>Business Tools • Local-First Library</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold font-display text-brown-900 tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-extrabold font-display text-black tracking-tight">
               Ready-to-Use Business Templates
             </h1>
-            <p className="text-sm text-brown-700 leading-relaxed">
+            <p className="text-sm text-gray-600 leading-relaxed">
               Stop building business sheets from scratch. Choose a template, customize it, and start using it.
             </p>
           </div>
 
           {/* View Mode Tabs Switcher */}
-          <div className="flex items-center gap-1 bg-brown-100/70 p-1 rounded-[8px] border border-brown-200 self-start md:self-auto shrink-0">
+          <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-[8px] border border-gray-300 self-start md:self-auto shrink-0">
             <button
               type="button"
               onClick={() => handleTabChange('library')}
               className={`px-3.5 py-1.5 text-xs font-bold rounded-[6px] transition-all flex items-center gap-1.5 ${
                 activeTab === 'library'
-                  ? 'bg-brown-900 text-cream shadow-xs'
-                  : 'text-brown-700 hover:text-brown-900'
+                  ? 'bg-black text-white shadow-xs'
+                  : 'text-gray-700 hover:text-black'
               }`}
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
@@ -220,8 +220,8 @@ export const TemplateLibraryPage: React.FC = () => {
               onClick={() => handleTabChange('saved')}
               className={`px-3.5 py-1.5 text-xs font-bold rounded-[6px] transition-all flex items-center gap-1.5 ${
                 activeTab === 'saved'
-                  ? 'bg-brown-900 text-cream shadow-xs'
-                  : 'text-brown-700 hover:text-brown-900'
+                  ? 'bg-black text-white shadow-xs'
+                  : 'text-gray-700 hover:text-black'
               }`}
             >
               <FolderCheck className="w-3.5 h-3.5" />
@@ -232,22 +232,22 @@ export const TemplateLibraryPage: React.FC = () => {
 
         {/* Search & Profession Bar (When in Library tab) */}
         {activeTab === 'library' && (
-          <div className="mt-6 pt-6 border-t border-brown-200/80 flex flex-col md:flex-row items-center gap-3">
+          <div className="mt-6 pt-6 border-t border-gray-200 flex flex-col md:flex-row items-center gap-3">
             {/* Search Input */}
             <div className="relative flex-1 w-full">
-              <Search className="w-4 h-4 text-brown-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search templates by keyword, profession (e.g. Contractor, Freelancer, Cash, Stock)..."
-                className="w-full pl-10 pr-4 py-2 bg-cream/40 border border-brown-300 rounded-[8px] text-sm text-brown-900 placeholder:text-brown-500 focus:outline-none focus:ring-2 focus:ring-brown-700 shadow-2xs font-medium"
+                className="w-full pl-10 pr-4 py-2 bg-white border border-gray-300 rounded-[8px] text-sm text-black placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-black focus:border-black shadow-2xs font-medium"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-brown-400 hover:text-brown-700"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-black"
                 >
                   Clear
                 </button>
@@ -259,7 +259,7 @@ export const TemplateLibraryPage: React.FC = () => {
               <select
                 value={selectedProfession}
                 onChange={e => setSelectedProfession(e.target.value)}
-                className="w-full px-3 py-2 bg-cream/40 border border-brown-300 rounded-[8px] text-xs font-semibold text-brown-900 focus:outline-none focus:ring-2 focus:ring-brown-700 shadow-2xs"
+                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-[8px] text-xs font-semibold text-black focus:outline-none focus:ring-1 focus:ring-black focus:border-black shadow-2xs"
               >
                 <option value="all">All Professions & Trades</option>
                 {distinctProfessions.map(prof => (
@@ -281,8 +281,8 @@ export const TemplateLibraryPage: React.FC = () => {
             onClick={() => handleCategoryChange('all')}
             className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all whitespace-nowrap border ${
               categoryParam === 'all'
-                ? 'bg-brown-900 text-cream border-brown-900 shadow-xs'
-                : 'bg-surface text-brown-700 border-brown-300 hover:bg-brown-100/70'
+                ? 'bg-black text-white border-black shadow-xs'
+                : 'bg-white text-gray-800 border-gray-300 hover:bg-gray-100'
             }`}
           >
             All Templates
@@ -294,8 +294,8 @@ export const TemplateLibraryPage: React.FC = () => {
               onClick={() => handleCategoryChange(cat.slug)}
               className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap border ${
                 categoryParam === cat.slug
-                  ? 'bg-brown-900 text-cream border-brown-900 shadow-xs'
-                  : 'bg-surface text-brown-700 border-brown-300 hover:bg-brown-100/70'
+                  ? 'bg-black text-white border-black shadow-xs'
+                  : 'bg-white text-gray-800 border-gray-300 hover:bg-gray-100'
               }`}
             >
               {cat.name}
@@ -306,14 +306,14 @@ export const TemplateLibraryPage: React.FC = () => {
 
       {/* Loading & Error States */}
       {loading && (
-        <div className="py-16 text-center text-brown-500 text-sm">
+        <div className="py-16 text-center text-gray-500 text-sm">
           Loading business templates...
         </div>
       )}
 
       {error && (
-        <div className="p-4 bg-red-50 border border-red-200 text-red-900 rounded-[8px] text-xs font-medium flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-red-700 shrink-0" />
+        <div className="p-4 bg-gray-100 border border-black text-black rounded-[8px] text-xs font-medium flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 text-black shrink-0" />
           <span>{error}</span>
         </div>
       )}
@@ -324,10 +324,10 @@ export const TemplateLibraryPage: React.FC = () => {
       {!loading && activeTab === 'library' && (
         <div>
           {filteredTemplates.length === 0 ? (
-            <div className="p-12 text-center bg-surface border border-brown-300 rounded-[12px] space-y-3">
-              <FileSpreadsheet className="w-10 h-10 text-brown-400 mx-auto" />
-              <h3 className="text-base font-bold text-brown-900">No templates found</h3>
-              <p className="text-xs text-brown-600 max-w-sm mx-auto">
+            <div className="p-12 text-center bg-white border border-gray-300 rounded-[12px] space-y-3">
+              <FileSpreadsheet className="w-10 h-10 text-gray-400 mx-auto" />
+              <h3 className="text-base font-bold text-black">No templates found</h3>
+              <p className="text-xs text-gray-500 max-w-sm mx-auto">
                 Try another search term, select "All Templates", or choose a different profession filter.
               </p>
               <button
@@ -337,7 +337,7 @@ export const TemplateLibraryPage: React.FC = () => {
                   setSelectedProfession('all');
                   handleCategoryChange('all');
                 }}
-                className="px-4 py-2 text-xs font-semibold rounded-[6px] bg-brown-100 hover:bg-brown-200 text-brown-900 border border-brown-300 transition-colors"
+                className="px-4 py-2 text-xs font-semibold rounded-[6px] bg-white hover:bg-gray-100 text-black border border-black transition-colors"
               >
                 Reset All Filters
               </button>
@@ -347,59 +347,59 @@ export const TemplateLibraryPage: React.FC = () => {
               {filteredTemplates.map(tmpl => (
                 <div
                   key={tmpl.id}
-                  className="bg-surface border border-brown-300 rounded-[10px] p-5 shadow-2xs hover:shadow-md hover:border-brown-400 transition-all flex flex-col justify-between group"
+                  className="bg-white border border-gray-300 rounded-[10px] p-5 shadow-2xs hover:shadow-md hover:border-black transition-all flex flex-col justify-between group"
                 >
                   <div className="space-y-2.5">
                     {/* Top Row: Category Pill & Compatibility */}
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-brown-100 text-brown-800 border border-brown-200">
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-gray-100 text-black border border-gray-300">
                         {tmpl.categoryName}
                       </span>
-                      <span className="text-[10px] font-mono text-brown-500 font-medium">
+                      <span className="text-[10px] font-mono text-gray-500 font-medium">
                         {tmpl.fileType}
                       </span>
                     </div>
 
                     {/* Template Title */}
-                    <h3 className="text-base font-bold font-display text-brown-900 group-hover:text-brown-700 transition-colors leading-snug">
+                    <h3 className="text-base font-bold font-display text-black group-hover:text-gray-700 transition-colors leading-snug">
                       {tmpl.name}
                     </h3>
 
                     {/* Profession Tag */}
-                    <div className="text-[11px] text-brown-600 font-medium flex items-center gap-1.5">
-                      <Building className="w-3.5 h-3.5 text-brown-500 shrink-0" />
+                    <div className="text-[11px] text-gray-700 font-medium flex items-center gap-1.5">
+                      <Building className="w-3.5 h-3.5 text-gray-500 shrink-0" />
                       <span className="truncate">{tmpl.profession}</span>
                     </div>
 
                     {/* Short Description */}
-                    <p className="text-xs text-brown-700 line-clamp-2 leading-relaxed">
+                    <p className="text-xs text-gray-600 line-clamp-2 leading-relaxed">
                       {tmpl.description}
                     </p>
 
                     {/* Source Note */}
-                    <div className="text-[10px] text-brown-500 italic truncate pt-1 border-t border-brown-100">
+                    <div className="text-[10px] text-gray-400 italic truncate pt-1 border-t border-gray-200">
                       {tmpl.sourceType}
                     </div>
                   </div>
 
                   {/* Actions */}
-                  <div className="pt-4 mt-4 border-t border-brown-200/80 flex items-center justify-between gap-2">
+                  <div className="pt-4 mt-4 border-t border-gray-200 flex items-center justify-between gap-2">
                     <button
                       type="button"
                       onClick={() => handleOpenPreview(tmpl.id)}
-                      className="px-3 py-1.5 text-xs font-semibold text-brown-700 hover:text-brown-900 bg-brown-50 hover:bg-brown-100 rounded-[6px] border border-brown-200 transition-colors flex items-center gap-1.5"
+                      className="px-3 py-1.5 text-xs font-semibold text-black hover:bg-gray-100 bg-white rounded-[6px] border border-gray-300 transition-colors flex items-center gap-1.5"
                     >
-                      <Eye className="w-3.5 h-3.5" />
+                      <Eye className="w-3.5 h-3.5 text-black" />
                       <span>Preview</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => handleOpenCustomize(tmpl.id)}
-                      className="px-3.5 py-1.5 text-xs font-bold rounded-[6px] bg-brown-900 text-cream hover:bg-brown-800 transition-all flex items-center gap-1.5 shadow-2xs active:scale-[0.99]"
+                      className="px-3.5 py-1.5 text-xs font-bold rounded-[6px] bg-black text-white hover:bg-gray-800 transition-all flex items-center gap-1.5 shadow-2xs active:scale-[0.99] border border-black"
                     >
                       <span>Use Template</span>
-                      <ArrowRight className="w-3.5 h-3.5" />
+                      <ArrowRight className="w-3.5 h-3.5 text-white" />
                     </button>
                   </div>
                 </div>
@@ -415,18 +415,18 @@ export const TemplateLibraryPage: React.FC = () => {
       {!loading && activeTab === 'saved' && (
         <div>
           {savedTemplates.length === 0 ? (
-            <div className="p-12 text-center bg-surface border border-brown-300 rounded-[12px] space-y-3">
-              <FolderCheck className="w-10 h-10 text-brown-400 mx-auto" />
-              <h3 className="text-base font-bold text-brown-900">
+            <div className="p-12 text-center bg-white border border-gray-300 rounded-[12px] space-y-3">
+              <FolderCheck className="w-10 h-10 text-gray-400 mx-auto" />
+              <h3 className="text-base font-bold text-black">
                 You haven't saved any templates yet.
               </h3>
-              <p className="text-xs text-brown-600 max-w-sm mx-auto">
+              <p className="text-xs text-gray-500 max-w-sm mx-auto">
                 Customize any business template and click "Save to My Templates" to store your configurations for fast reuse.
               </p>
               <button
                 type="button"
                 onClick={() => handleTabChange('library')}
-                className="px-4 py-2 text-xs font-bold rounded-[6px] bg-brown-900 text-cream hover:bg-brown-800 transition-colors shadow-2xs"
+                className="px-4 py-2 text-xs font-bold rounded-[6px] bg-black text-white hover:bg-gray-800 transition-colors shadow-2xs border border-black"
               >
                 Browse Template Library
               </button>
@@ -436,40 +436,40 @@ export const TemplateLibraryPage: React.FC = () => {
               {savedTemplates.map(saved => (
                 <div
                   key={saved.id}
-                  className="bg-surface border border-brown-300 rounded-[10px] p-5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between"
+                  className="bg-white border border-gray-300 rounded-[10px] p-5 shadow-2xs hover:shadow-md hover:border-black transition-all flex flex-col justify-between"
                 >
                   <div className="space-y-2">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-gray-100 text-black border border-gray-300">
                         {saved.categoryName}
                       </span>
-                      <span className="text-[10px] text-brown-500 font-mono flex items-center gap-1">
+                      <span className="text-[10px] text-gray-500 font-mono flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {new Date(saved.updatedAt).toLocaleDateString('en-IN')}
                       </span>
                     </div>
 
-                    <h3 className="text-base font-bold font-display text-brown-900 leading-snug">
+                    <h3 className="text-base font-bold font-display text-black leading-snug">
                       {saved.name}
                     </h3>
 
-                    <div className="text-xs text-brown-700">
+                    <div className="text-xs text-gray-700">
                       Based on: <strong>{saved.templateName}</strong>
                     </div>
 
-                    <div className="p-2.5 bg-brown-50/60 rounded-[6px] border border-brown-100 text-[11px] text-brown-600 space-y-1">
+                    <div className="p-2.5 bg-gray-50 rounded-[6px] border border-gray-200 text-[11px] text-gray-700 space-y-1">
                       <div>Company: <strong>{saved.configuration?.businessName || 'Default'}</strong></div>
                       <div>FY: <strong>{saved.configuration?.financialYear || '2026-2027'}</strong></div>
                       <div>Custom Rows: <strong>{saved.customData?.rows?.length || 0}</strong></div>
                     </div>
                   </div>
 
-                  <div className="pt-4 mt-4 border-t border-brown-200 flex items-center justify-between gap-2">
+                  <div className="pt-4 mt-4 border-t border-gray-200 flex items-center justify-between gap-2">
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
                         onClick={() => handleDuplicateSaved(saved.id)}
-                        className="p-1.5 text-brown-600 hover:text-brown-900 hover:bg-brown-100 rounded"
+                        className="p-1.5 text-gray-600 hover:text-black hover:bg-gray-100 rounded"
                         title="Duplicate Template"
                       >
                         <Copy className="w-3.5 h-3.5" />
@@ -477,7 +477,7 @@ export const TemplateLibraryPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleDeleteSaved(saved.id)}
-                        className="p-1.5 text-brown-400 hover:text-red-600 hover:bg-red-50 rounded"
+                        className="p-1.5 text-gray-400 hover:text-black hover:bg-gray-100 rounded"
                         title="Delete Template"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -487,7 +487,7 @@ export const TemplateLibraryPage: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleOpenCustomize(saved.templateId, saved)}
-                      className="px-3.5 py-1.5 text-xs font-bold rounded-[6px] bg-brown-900 text-cream hover:bg-brown-800 transition-all flex items-center gap-1.5 shadow-2xs"
+                      className="px-3.5 py-1.5 text-xs font-bold rounded-[6px] bg-black text-white hover:bg-gray-800 transition-all flex items-center gap-1.5 shadow-2xs border border-black"
                     >
                       <span>Open & Export</span>
                       <ArrowRight className="w-3.5 h-3.5" />

@@ -334,23 +334,23 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-surface border border-brown-300 rounded-[12px] shadow-2xl w-full max-w-6xl max-h-[94vh] flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="px-6 py-3.5 border-b border-brown-200 bg-brown-50 flex items-center justify-between">
+      <div className="bg-white border border-black rounded-[12px] shadow-2xl w-full max-w-6xl max-h-[94vh] flex flex-col overflow-hidden">
+        {/* Header - Crisp Black and White */}
+        <div className="px-6 py-4 border-b border-gray-200 bg-white flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-[8px] bg-brown-900 text-cream flex items-center justify-center shadow-xs">
+            <div className="w-9 h-9 rounded-[8px] bg-black text-white flex items-center justify-center shadow-xs">
               <FileSpreadsheet className="w-4 h-4" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base font-bold font-display text-brown-900">
+                <h2 className="text-base font-bold font-display text-black">
                   Customize Template: {template.name}
                 </h2>
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-brown-200 text-brown-800">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-gray-100 text-black border border-gray-300">
                   {template.profession}
                 </span>
               </div>
-              <p className="text-xs text-brown-600">
+              <p className="text-xs text-gray-500">
                 Tailor business details, link ERP transactions, and export as spreadsheet or PDF
               </p>
             </div>
@@ -359,64 +359,64 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-[6px] text-brown-500 hover:text-brown-900 hover:bg-brown-200/60 transition-colors"
+            className="p-1.5 rounded-[6px] text-gray-500 hover:text-black hover:bg-gray-100 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Scrollable Form & Table */}
-        <div className="p-6 overflow-y-auto space-y-6">
+        <div className="p-6 overflow-y-auto space-y-6 bg-white">
           {/* Status Message */}
           {statusMsg && (
             <div
               className={`p-3 rounded-[8px] border text-xs font-medium flex items-center gap-2.5 ${
                 statusMsg.type === 'success'
-                  ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
-                  : 'bg-red-50 text-red-900 border-red-200'
+                  ? 'bg-gray-50 text-black border-black'
+                  : 'bg-gray-50 text-black border-black'
               }`}
             >
               {statusMsg.type === 'success' ? (
-                <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                <CheckCircle2 className="w-4 h-4 text-black shrink-0" />
               ) : (
-                <AlertCircle className="w-4 h-4 text-red-700 shrink-0" />
+                <AlertCircle className="w-4 h-4 text-black shrink-0" />
               )}
               <span>{statusMsg.text}</span>
             </div>
           )}
 
-          {/* Business Configuration Grid */}
-          <div className="p-4 bg-brown-50/60 rounded-[10px] border border-brown-200">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-brown-800 mb-3">
+          {/* Business Configuration Grid - Black and White */}
+          <div className="p-4 bg-gray-50/70 rounded-[10px] border border-gray-300">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-black mb-3">
               1. Business Header & Formatting Setup
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
               <div>
-                <label className="block text-brown-700 font-semibold mb-1">
+                <label className="block text-black font-semibold mb-1">
                   Template Title *
                 </label>
                 <input
                   type="text"
                   value={templateName}
                   onChange={e => setTemplateName(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-surface border border-brown-300 rounded-[6px] text-brown-900 font-medium focus:outline-none focus:ring-1 focus:ring-brown-700"
+                  className="w-full px-2.5 py-1.5 bg-white border border-gray-300 rounded-[6px] text-black font-medium focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                 />
               </div>
 
               <div>
-                <label className="block text-brown-700 font-semibold mb-1">
+                <label className="block text-black font-semibold mb-1">
                   Business / Company Name *
                 </label>
                 <input
                   type="text"
                   value={businessName}
                   onChange={e => setBusinessName(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-surface border border-brown-300 rounded-[6px] text-brown-900 font-medium focus:outline-none focus:ring-1 focus:ring-brown-700"
+                  className="w-full px-2.5 py-1.5 bg-white border border-gray-300 rounded-[6px] text-black font-medium focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                 />
               </div>
 
               <div>
-                <label className="block text-brown-700 font-semibold mb-1">
+                <label className="block text-black font-semibold mb-1">
                   Financial Year
                 </label>
                 <input
@@ -424,18 +424,18 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
                   value={financialYear}
                   onChange={e => setFinancialYear(e.target.value)}
                   placeholder="2026-2027"
-                  className="w-full px-2.5 py-1.5 bg-surface border border-brown-300 rounded-[6px] text-brown-900 font-mono focus:outline-none focus:ring-1 focus:ring-brown-700"
+                  className="w-full px-2.5 py-1.5 bg-white border border-gray-300 rounded-[6px] text-black font-mono focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                 />
               </div>
 
               <div>
-                <label className="block text-brown-700 font-semibold mb-1">
+                <label className="block text-black font-semibold mb-1">
                   Currency Symbol
                 </label>
                 <select
                   value={currency}
                   onChange={e => setCurrency(e.target.value)}
-                  className="w-full px-2.5 py-1.5 bg-surface border border-brown-300 rounded-[6px] text-brown-900 font-semibold focus:outline-none focus:ring-1 focus:ring-brown-700"
+                  className="w-full px-2.5 py-1.5 bg-white border border-gray-300 rounded-[6px] text-black font-semibold focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                 >
                   <option value="₹">₹ (INR)</option>
                   <option value="$">$ (USD)</option>
@@ -447,33 +447,33 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
             </div>
 
             {/* Optional opening balance & ERP live data toggle */}
-            <div className="mt-3.5 pt-3.5 border-t border-brown-200/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="mt-3.5 pt-3.5 border-t border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
               <div className="flex items-center gap-4">
                 <div>
-                  <label className="text-brown-700 font-medium inline-block mr-2">
+                  <label className="text-black font-semibold inline-block mr-2">
                     Opening / Initial Balance:
                   </label>
                   <input
                     type="text"
                     value={openingBalance}
                     onChange={e => setOpeningBalance(e.target.value)}
-                    className="w-32 px-2 py-1 bg-surface border border-brown-300 rounded text-brown-900 font-mono font-bold"
+                    className="w-32 px-2 py-1 bg-white border border-gray-300 rounded text-black font-mono font-bold focus:outline-none focus:border-black focus:ring-1 focus:ring-black"
                   />
                 </div>
               </div>
 
               {template.erpDataSource && (
                 <div className="flex items-center gap-2">
-                  <label className="inline-flex items-center gap-2 cursor-pointer bg-brown-200/60 px-3 py-1.5 rounded-[6px] hover:bg-brown-200 transition-colors">
+                  <label className="inline-flex items-center gap-2 cursor-pointer bg-white px-3 py-1.5 rounded-[6px] border border-gray-300 hover:bg-gray-100 transition-colors">
                     <input
                       type="checkbox"
                       checked={useLiveErpData}
                       disabled={loadingErp}
                       onChange={e => handleToggleLiveErp(e.target.checked)}
-                      className="rounded text-brown-900 focus:ring-brown-600"
+                      className="rounded text-black focus:ring-black accent-black"
                     />
-                    <Database className="w-3.5 h-3.5 text-brown-800" />
-                    <span className="font-semibold text-brown-900">
+                    <Database className="w-3.5 h-3.5 text-black" />
+                    <span className="font-semibold text-black">
                       {loadingErp ? 'Loading live ERP records...' : 'Auto-Sync Live ERP Transactions'}
                     </span>
                   </label>
@@ -486,10 +486,10 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
           <div>
             <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
               <div>
-                <h3 className="text-xs font-bold uppercase tracking-wider text-brown-800">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-black">
                   2. Spreadsheet Rows & Customization
                 </h3>
-                <p className="text-[11px] text-brown-500">
+                <p className="text-[11px] text-gray-500">
                   Edit cell values directly, add custom sections, or update totals.
                 </p>
               </div>
@@ -498,61 +498,57 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
                 <button
                   type="button"
                   onClick={() => handleAddRow('item')}
-                  className="px-2.5 py-1 text-xs font-semibold rounded-[6px] bg-white hover:bg-gray-100 text-black border border-gray-300 transition-colors flex items-center gap-1 shadow-2xs"
+                  className="px-2.5 py-1 text-xs font-semibold rounded-[6px] bg-white hover:bg-gray-100 text-black border border-black transition-colors flex items-center gap-1 shadow-2xs"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>+ Item</span>
+                  <Plus className="w-3.5 h-3.5 text-black" />
+                  <span>Item</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleAddRow('header')}
-                  className="px-2.5 py-1 text-xs font-semibold rounded-[6px] bg-white hover:bg-gray-100 text-black border border-gray-300 transition-colors flex items-center gap-1 shadow-2xs"
+                  className="px-2.5 py-1 text-xs font-semibold rounded-[6px] bg-white hover:bg-gray-100 text-black border border-black transition-colors flex items-center gap-1 shadow-2xs"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>+ Section Header</span>
+                  <Plus className="w-3.5 h-3.5 text-black" />
+                  <span>Section Header</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleAddRow('total')}
-                  className="px-2.5 py-1 text-xs font-semibold rounded-[6px] bg-white hover:bg-gray-100 text-black border border-gray-300 transition-colors flex items-center gap-1 shadow-2xs"
+                  className="px-2.5 py-1 text-xs font-semibold rounded-[6px] bg-white hover:bg-gray-100 text-black border border-black transition-colors flex items-center gap-1 shadow-2xs"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>+ Total Row</span>
+                  <Plus className="w-3.5 h-3.5 text-black" />
+                  <span>Total Row</span>
                 </button>
                 {isBalanceSheet && balanceStats && (
                   <button
                     type="button"
                     onClick={handleAutoCheckBalance}
-                    className={`px-3 py-1 text-xs font-bold rounded-[6px] border transition-colors flex items-center gap-1.5 shadow-2xs ${
-                      balanceStats.isBalanced
-                        ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
-                        : 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'
-                    }`}
+                    className="px-3 py-1 text-xs font-bold rounded-[6px] bg-black text-white hover:bg-gray-800 border border-black transition-colors flex items-center gap-1.5 shadow-2xs"
                   >
-                    <Scale className="w-3.5 h-3.5" />
+                    <Scale className="w-3.5 h-3.5 text-white" />
                     <span>Check Balance</span>
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Balance Sheet Equation Bar */}
+            {/* Balance Sheet Equation Bar - Black and White */}
             {isBalanceSheet && balanceStats && (
-              <div className="mb-3 p-2.5 bg-white border border-gray-300 rounded-[8px] flex flex-wrap items-center justify-between gap-2 text-xs shadow-2xs">
+              <div className="mb-3 p-2.5 bg-white border border-black rounded-[8px] flex flex-wrap items-center justify-between gap-2 text-xs shadow-2xs">
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-black uppercase tracking-wider text-[11px]">
                     Accounting Equation:
                   </span>
-                  <span className="font-mono text-gray-700 font-medium">
+                  <span className="font-mono text-black font-medium">
                     Assets ({currency}{balanceStats.totalAssets.toLocaleString('en-IN', { minimumFractionDigits: 2 })}) = Liabilities & Equity ({currency}{balanceStats.totalLiabilitiesAndEquity.toLocaleString('en-IN', { minimumFractionDigits: 2 })})
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`px-2 py-0.5 rounded text-[11px] font-bold ${
+                    className={`px-2.5 py-0.5 rounded text-[11px] font-bold ${
                       balanceStats.isBalanced
-                        ? 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                        : 'bg-amber-100 text-amber-900 border border-amber-300'
+                        ? 'bg-black text-white border border-black'
+                        : 'bg-gray-100 text-black border border-black'
                     }`}
                   >
                     {balanceStats.isBalanced ? '✓ Equation Balanced (Diff: ₹0.00)' : `Check Diff: ${currency}${balanceStats.diff.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
@@ -561,8 +557,8 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
               </div>
             )}
 
-            {/* Interactive Table Container - White background, black font */}
-            <div className="border border-gray-300 rounded-[8px] overflow-hidden bg-white shadow-xs">
+            {/* Interactive Table Container - Pure White background, Black font & borders */}
+            <div className="border border-black rounded-[8px] overflow-hidden bg-white shadow-xs">
               <div className="overflow-x-auto max-h-80">
                 <table className="w-full text-left border-collapse text-xs bg-white">
                   <thead>
@@ -583,7 +579,7 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
                       <th className="p-2 w-8 text-center"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-gray-200">
                     {rows.map((row, rIdx) => {
                       const firstVal = String(row[cols[0]?.key] || row.item || row.component || '');
                       const isHeader = row.classification === 'Header' || /^[A-Z\s&’',()-]{3,}:?$/.test(firstVal.trim()) || firstVal.trim().endsWith(':');
@@ -599,12 +595,12 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
                           : 'border-b border-gray-100';
 
                       const rowBgClass = isHeader 
-                        ? 'bg-gray-50/80' 
-                        : 'bg-white hover:bg-gray-50/60';
+                        ? 'bg-gray-100' 
+                        : 'bg-white hover:bg-gray-50';
 
                       return (
                         <tr key={rIdx} className={`${rowBgClass} ${borderTopClass} ${borderBottomClass}`}>
-                          <td className="p-2 text-center text-gray-400 font-mono text-[10px]">
+                          <td className="p-2 text-center text-gray-500 font-mono text-[10px]">
                             {rIdx + 1}
                           </td>
                           {cols.map((col, cIdx) => {
@@ -618,7 +614,7 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
                                 : isSubtotal
                                   ? 'font-semibold text-black'
                                   : isCheck
-                                    ? 'italic text-gray-700'
+                                    ? 'italic text-black font-medium'
                                     : 'font-normal text-black';
 
                             return (
@@ -639,7 +635,7 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
                             <button
                               type="button"
                               onClick={() => handleDeleteRow(rIdx)}
-                              className="p-1 text-gray-400 hover:text-red-600 rounded transition-colors"
+                              className="p-1 text-gray-400 hover:text-black rounded transition-colors"
                               title="Remove Row"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -653,9 +649,9 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
               </div>
             </div>
 
-            {/* Formula Hint */}
+            {/* Formula Hint - Clean Black and White */}
             {template.formulaNotes && (
-              <div className="mt-2 text-[11px] text-gray-800 bg-white p-2.5 rounded border border-gray-300 flex items-center gap-2 shadow-2xs">
+              <div className="mt-2 text-[11px] text-black bg-white p-2.5 rounded-[6px] border border-gray-300 flex items-center gap-2 shadow-2xs">
                 <Calculator className="w-3.5 h-3.5 text-black shrink-0" />
                 <span><strong>Accounting Logic:</strong> {template.formulaNotes}</span>
               </div>
@@ -663,23 +659,23 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
           </div>
         </div>
 
-        {/* Action Footer */}
-        <div className="px-6 py-3.5 border-t border-brown-200 bg-brown-50/80 flex flex-wrap items-center justify-between gap-3">
+        {/* Action Footer - Crisp Black and White */}
+        <div className="px-6 py-3.5 border-t border-gray-200 bg-gray-50 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={handleSaveToMyTemplates}
               disabled={saving}
-              className="px-4 py-2 text-xs font-bold rounded-[6px] bg-brown-100 hover:bg-brown-200 text-brown-900 border border-brown-300 transition-all flex items-center gap-1.5 shadow-2xs active:scale-[0.99]"
+              className="px-4 py-2 text-xs font-bold rounded-[6px] bg-black text-white hover:bg-gray-800 border border-black transition-all flex items-center gap-1.5 shadow-2xs active:scale-[0.99]"
             >
-              <Save className="w-3.5 h-3.5 text-brown-700" />
+              <Save className="w-3.5 h-3.5 text-white" />
               <span>{saving ? 'Saving...' : 'Save to My Templates'}</span>
             </button>
           </div>
 
-          {/* Export Options */}
+          {/* Export Options - All Clean Black and White */}
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-semibold text-brown-600 mr-1">
+            <span className="text-[11px] font-semibold text-gray-700 mr-1">
               Download Format:
             </span>
 
@@ -687,10 +683,10 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
               type="button"
               onClick={() => handleDownload('xlsx')}
               disabled={!!downloadingFormat}
-              className="px-3 py-1.5 text-xs font-bold rounded-[6px] bg-emerald-800 hover:bg-emerald-700 text-white transition-all flex items-center gap-1.5 shadow-2xs"
+              className="px-3 py-1.5 text-xs font-bold rounded-[6px] bg-white hover:bg-gray-100 text-black border border-black transition-all flex items-center gap-1.5 shadow-2xs"
               title="Download Microsoft Excel Spreadsheet (.xlsx)"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <FileSpreadsheet className="w-3.5 h-3.5 text-black" />
               <span>{downloadingFormat === 'xlsx' ? 'Exporting...' : 'Excel (.xlsx)'}</span>
             </button>
 
@@ -698,10 +694,10 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
               type="button"
               onClick={() => handleDownload('csv')}
               disabled={!!downloadingFormat}
-              className="px-3 py-1.5 text-xs font-bold rounded-[6px] bg-stone-700 hover:bg-stone-600 text-white transition-all flex items-center gap-1.5 shadow-2xs"
+              className="px-3 py-1.5 text-xs font-bold rounded-[6px] bg-white hover:bg-gray-100 text-black border border-gray-300 transition-all flex items-center gap-1.5 shadow-2xs"
               title="Download Comma Separated Values (.csv)"
             >
-              <FileCode className="w-3.5 h-3.5" />
+              <FileCode className="w-3.5 h-3.5 text-black" />
               <span>{downloadingFormat === 'csv' ? 'Exporting...' : 'CSV (.csv)'}</span>
             </button>
 
@@ -709,10 +705,10 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
               type="button"
               onClick={() => handleDownload('pdf')}
               disabled={!!downloadingFormat}
-              className="px-3 py-1.5 text-xs font-bold rounded-[6px] bg-brown-900 hover:bg-brown-800 text-cream transition-all flex items-center gap-1.5 shadow-2xs"
+              className="px-3 py-1.5 text-xs font-bold rounded-[6px] bg-black hover:bg-gray-800 text-white border border-black transition-all flex items-center gap-1.5 shadow-2xs"
               title="Download Printable Document (.pdf)"
             >
-              <FileText className="w-3.5 h-3.5" />
+              <FileText className="w-3.5 h-3.5 text-white" />
               <span>{downloadingFormat === 'pdf' ? 'Generating...' : 'PDF Document'}</span>
             </button>
           </div>
