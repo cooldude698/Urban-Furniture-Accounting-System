@@ -1,5 +1,5 @@
 import { pool } from '../db/pool';
-import { VoiceBillParser, ParsedSlots, SupportedLanguage } from './voiceBillParser';
+import { VoiceBillParser, ParsedSlots, SupportedLanguage, CONVERSATIONAL_STOP_WORDS } from './voiceBillParser';
 import { InvoiceService } from './invoiceService';
 import Decimal from 'decimal.js';
 
@@ -213,8 +213,8 @@ export class VoiceBillService {
         `SELECT id, name, sales_price::TEXT as sales_price, tax_rate::TEXT as tax_rate,
           GREATEST(
             similarity(name, $1),
-            CASE WHEN name ILIKE '%' || $1 || '%' THEN 0.85 ELSE 0 END,
-            CASE WHEN $1 ILIKE '%' || name || '%' THEN 0.85 ELSE 0 END
+            CASE WHEN LENGTH($1) >= 4 AND name ILIKE '%' || $1 || '%' THEN 0.85 ELSE 0 END,
+            CASE WHEN LENGTH($1) >= 4 AND $1 ILIKE '%' || name || '%' THEN 0.85 ELSE 0 END
           ) as score
          FROM products
          WHERE is_archived = false
@@ -230,14 +230,16 @@ export class VoiceBillService {
 
       const top = rows[0];
       const topScore = parseFloat(top.score || '0');
-      const candidates = rows.map(r => ({
-        id: r.id,
-        name: r.name,
-        salesPrice: r.sales_price,
-      }));
+      const validCandidates = rows
+        .filter(r => parseFloat(r.score || '0') >= 0.35)
+        .map(r => ({
+          id: r.id,
+          name: r.name,
+          salesPrice: r.sales_price,
+        }));
 
-      // If top score > 0.4, auto-select
-      if (topScore >= 0.4) {
+      // If top score > 0.45, auto-select
+      if (topScore >= 0.45) {
         return {
           matchedProduct: {
             id: top.id,
@@ -246,38 +248,27 @@ export class VoiceBillService {
             taxRate: top.tax_rate,
           },
           score: topScore,
-          candidates,
+          candidates: validCandidates,
         };
       }
 
+      // If top score is between 0.35 and 0.45, provide as candidates
+      if (validCandidates.length > 0) {
+        return {
+          matchedProduct: null,
+          score: topScore,
+          candidates: validCandidates,
+        };
+      }
+
+      // Score below 0.35: not a valid product match
       return {
         matchedProduct: null,
         score: topScore,
-        candidates,
+        candidates: [],
       };
     } catch (err) {
       console.error('Error in matchProduct query:', err);
-      // Fallback simple ILIKE query
-      const fallback = await pool.query(
-        `SELECT id, name, sales_price::TEXT as sales_price, tax_rate::TEXT as tax_rate
-         FROM products
-         WHERE is_archived = false AND name ILIKE $1
-         LIMIT 1;`,
-        [`%${searchPhrase}%`]
-      );
-      if (fallback.rows.length > 0) {
-        const top = fallback.rows[0];
-        return {
-          matchedProduct: {
-            id: top.id,
-            name: top.name,
-            salesPrice: top.sales_price,
-            taxRate: top.tax_rate,
-          },
-          score: 0.85,
-          candidates: [{ id: top.id, name: top.name, salesPrice: top.sales_price }],
-        };
-      }
       return { matchedProduct: null, score: 0, candidates: [] };
     }
   }
@@ -368,6 +359,12 @@ Output: {"customer_name": "rahul", "phone": "9876543210"}
 Input: naam suresh, phone number 9123456780, do table chahiye, price 8000
 Output: {"customer_name": "suresh", "phone": "9123456780"}
 
+Input: hello there how are you doing
+Output: {"customer_name": null, "phone": null}
+
+Input: what products do you sell
+Output: {"customer_name": null, "phone": null}
+
 Now extract from this input, following the exact same JSON shape, using null for anything not mentioned — do not guess:
 Input: {user_input}
 Output:`;
@@ -383,12 +380,18 @@ Output: {"line_items": [{"product": "oak wood planks", "qty": null, "price": nul
 Input: naam suresh, phone number 9123456780, do table chahiye, price 8000
 Output: {"line_items": [{"product": "table", "qty": 2, "price": 8000, "discount_percent": null}]}
 
+Input: hello there how are you
+Output: {"line_items": []}
+
+Input: what products do you sell
+Output: {"line_items": []}
+
 Rules:
 1. Return ONLY valid JSON in shape: {"line_items": [{"product": string or null, "qty": number or null, "price": number or null, "discount_percent": number or null}]}.
 2. If a field is not mentioned or unclear, use null — do not guess or invent values.
 3. Units of count (e.g. piece, pieces, pcs, pc, units, items, पीस, नग) are NOT product names. If a message contains only a quantity and a unit (e.g. "two pieces", "2 pcs", "दो पीस"), extract the qty and set product to null.
 4. If the user does NOT mention any furniture or product in the input (e.g. they only provide customer name, phone number, a number like "0", or conversational replies), return {"line_items": []}. NEVER invent, assume, or hallucinate products.
-5. Greetings, conversational pleasantries, questions, and polite phrases (e.g. "hello", "hi", "how are you", "namaste", "नमस्ते", "thanks", "help") are NOT products. Return {"line_items": []}.
+5. Greetings, conversational pleasantries, questions, catalog inquiries, and polite phrases (e.g. "hello", "hi", "how are you", "namaste", "नमस्ते", "what do you sell", "show products", "thanks", "help") are NOT products to bill. Return {"line_items": []}.
 {catalog_grounding}
 Now extract from this input, following the exact same JSON shape, using null for anything not mentioned — do not guess:
 Input: {user_input}
@@ -592,6 +595,20 @@ Output:`;
     isRetry = false,
     catalogProducts: string[] = []
   ): Promise<OllamaExtractionResult | null> {
+    // Fast path: Don't invoke Ollama on greetings, inquiries, help, or thanks
+    if (
+      VoiceBillParser.isGreeting(text) ||
+      VoiceBillParser.isCatalogInquiry(text) ||
+      VoiceBillParser.isHelp(text) ||
+      VoiceBillParser.isThanks(text)
+    ) {
+      return {
+        customer_name: null,
+        phone: null,
+        line_items: [],
+      };
+    }
+
     const startTime = Date.now();
     const isDebug = process.env.DEBUG_OLLAMA === 'true' || Boolean(process.env.DEBUG);
 
@@ -651,6 +668,43 @@ Output:`;
         session,
         readyForConfirm: session.status === 'ready_for_confirm',
         isConfirmed: session.status === 'confirmed',
+      };
+    }
+
+    // 0b. Check for Catalog Inquiry (e.g. "what do you sell", "what products do you have", "show products")
+    if (VoiceBillParser.isCatalogInquiry(text)) {
+      let catalogItems: string[] = [];
+      try {
+        const prodRes = await pool.query(`
+          SELECT name, sales_price::TEXT as "salesPrice"
+          FROM products
+          WHERE is_archived = false
+          ORDER BY id ASC
+          LIMIT 5;
+        `);
+        catalogItems = prodRes.rows.map((r: any) => `${r.name} (₹${r.salesPrice})`);
+      } catch (err) {
+        catalogItems = [
+          'Custom Executive Teak Desk (₹32,000)',
+          'Ergonomic Office Chair (₹14,500)',
+          'Oak Wood Planks (₹4,200)',
+          'Modern Dining Table (₹24,000)',
+          'Wooden Bookshelf (₹18,500)',
+        ];
+      }
+
+      const reply =
+        lang === 'hi'
+          ? `अर्बन फ़र्निचर में हम प्रीमियम होम और ऑफिस फ़र्निचर बेचते हैं!\n\nहमारे कुछ लोकप्रिय उत्पाद:\n${catalogItems.map(i => `• ${i}`).join('\n')}\n\nबिल बनाने के लिए आप उत्पाद, ग्राहक का नाम या फ़ोन नंबर बता सकते हैं (जैसे: "राहुल के लिए 2 टीक डेस्क कीमत 5000, फ़ोन 9876543210")।`
+          : `We offer premium urban home and office furniture!\n\nPopular items in our catalog:\n${catalogItems.map(i => `• ${i}`).join('\n')}\n\nTo generate an e-bill, simply specify what you need (e.g.: "2 Teak Desks at 5000 for Rahul, phone 9876543210").`;
+
+      return {
+        reply,
+        language: lang,
+        session,
+        readyForConfirm: session.status === 'ready_for_confirm',
+        isConfirmed: session.status === 'confirmed',
+        options: ['Teak Desk', 'Ergonomic Office Chair', 'Oak Wood Planks', 'Dining Table'],
       };
     }
 
@@ -770,10 +824,11 @@ Output:`;
         const prodTokens = parsed.productName
           .toLowerCase()
           .split(/[\s,.-]+/)
-          .filter(t => t.length >= 3);
+          .filter(t => t.length >= 3 && !CONVERSATIONAL_STOP_WORDS.has(t));
         const hasTokenInInput =
-          prodTokens.some(t => rawLower.includes(t)) ||
-          Object.keys(HINDI_PRODUCT_KEYWORD_MAP).some(k => rawLower.includes(k.toLowerCase()));
+          prodTokens.length > 0 &&
+          (prodTokens.some(t => rawLower.includes(t)) ||
+            Object.keys(HINDI_PRODUCT_KEYWORD_MAP).some(k => rawLower.includes(k.toLowerCase())));
 
         if (!hasTokenInInput) {
           delete parsed.productName;

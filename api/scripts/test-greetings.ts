@@ -92,23 +92,58 @@ async function main() {
     console.log(`Assistant Reply: "${data4.data.reply}"`);
     console.log('✅ PASS: "thank you" handled politely!\n');
 
-    // Test 5: Real billing message still works seamlessly
-    console.log('--- Test 5: User says "2 teak desk price 5000" ---');
+    // Test 5: Saying "hello or something" (composite conversational phrase)
+    console.log('--- Test 5: User says "hello or something" ---');
     const res5 = await fetch(`${baseUrl}/api/voice-bill/message`, {
       method: 'POST',
       headers: authHeaders,
-      body: JSON.stringify({ text: '2 teak desk price 5000', sessionId }),
+      body: JSON.stringify({ text: 'hello or something', sessionId: `session_${Date.now()}_hello_or_something` }),
     });
     const data5 = (await res5.json()) as any;
     console.log(`Assistant Reply: "${data5.data.reply}"`);
     console.log(`Line items count: ${data5.data.session.lineItems.length}`);
-    console.log(`Item 1: ${data5.data.session.lineItems[0].matchedName}`);
-    if (data5.data.session.lineItems.length !== 1) {
+    if (data5.data.options && data5.data.options.length > 0) {
+      throw new Error(`FAIL: Product options suggested on "hello or something": ${JSON.stringify(data5.data.options)}`);
+    }
+    if (data5.data.session.lineItems.length > 0) {
+      throw new Error('FAIL: Line item added on "hello or something"');
+    }
+    console.log('✅ PASS: "hello or something" answered as greeting without spurious product suggestions!\n');
+
+    // Test 6: Asking "what products do you sell"
+    console.log('--- Test 6: User says "what products do you sell" ---');
+    const res6 = await fetch(`${baseUrl}/api/voice-bill/message`, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({ text: 'what products do you sell', sessionId: `session_${Date.now()}_catalog` }),
+    });
+    const data6 = (await res6.json()) as any;
+    console.log(`Assistant Reply:\n${data6.data.reply}`);
+    if (!data6.data.reply.toLowerCase().includes('catalog') && !data6.data.reply.toLowerCase().includes('furniture')) {
+      throw new Error('FAIL: Catalog response did not mention catalog or furniture');
+    }
+    if (data6.data.session.lineItems.length > 0) {
+      throw new Error('FAIL: Line item was mistakenly added on catalog inquiry');
+    }
+    console.log('✅ PASS: Catalog inquiry handled with store presentation!\n');
+
+    // Test 7: Real billing message still works seamlessly
+    console.log('--- Test 7: User says "2 teak desk price 5000" ---');
+    const res7 = await fetch(`${baseUrl}/api/voice-bill/message`, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({ text: '2 teak desk price 5000', sessionId }),
+    });
+    const data7 = (await res7.json()) as any;
+    console.log(`Assistant Reply: "${data7.data.reply}"`);
+    console.log(`Line items count: ${data7.data.session.lineItems.length}`);
+    console.log(`Item 1: ${data7.data.session.lineItems[0].matchedName}`);
+    if (data7.data.session.lineItems.length !== 1) {
       throw new Error('FAIL: Product was not added on real billing command');
     }
     console.log('✅ PASS: Real product billing command works seamlessly!\n');
 
-    console.log('🎉 ALL GREETING & CHITCHAT TESTS PASSED! 🎉');
+    console.log('🎉 ALL GREETING, INQUIRY & CHITCHAT TESTS PASSED! 🎉');
   } finally {
     server.close();
     process.exit(0);

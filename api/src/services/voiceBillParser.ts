@@ -142,6 +142,30 @@ const ENGLISH_NUMBER_WORDS: Record<string, number> = {
   'lakh': 100000,
 };
 
+export const CONVERSATIONAL_STOP_WORDS = new Set<string>([
+  'hello', 'hi', 'hey', 'namaste', 'namaskar', 'pranam', 'kem', 'cho', 'halo',
+  'good', 'morning', 'afternoon', 'evening', 'day', 'greetings', 'howdy',
+  'how', 'are', 'you', 'doing', 'whats', 'up', 'sup', 'wassup',
+  'sir', 'ji', 'bro', 'brother', 'dear', 'buddy', 'friend', 'there', 'assistant', 'bot', 'bhai', 'bhaiya', 'saheb', 'sahab',
+  'something', 'anything', 'nothing', 'someone', 'anyone', 'everything',
+  'what', 'which', 'who', 'whom', 'where', 'when', 'why',
+  'can', 'could', 'would', 'should', 'will', 'shall', 'may', 'might',
+  'do', 'does', 'did', 'done', 'doing',
+  'sell', 'selling', 'sells', 'buy', 'buying', 'buys', 'order', 'orders',
+  'product', 'products', 'item', 'items', 'furniture', 'goods', 'stock', 'inventory', 'catalog', 'catalogue',
+  'show', 'tell', 'suggest', 'give', 'list', 'display', 'view',
+  'please', 'plz', 'help', 'assist', 'support', 'thanks', 'thank', 'thx', 'welcome',
+  'yes', 'no', 'ok', 'okay', 'fine', 'sure', 'alright',
+  'have', 'has', 'had', 'available', 'avail',
+  // Hindi / Hinglish
+  'नमस्ते', 'नमस्कार', 'प्रणाम', 'हेलो', 'हाय', 'सुप्रभात', 'शुभ', 'संध्या', 'केम', 'छो',
+  'क्या', 'कैसे', 'कहाँ', 'कब', 'कौन', 'बताओ', 'दिखाओ', 'सामान', 'चीज़', 'चीज', 'चीजें',
+  'बेचते', 'बेचना', 'मिलता', 'मिलते', 'खरीदना', 'चाहिए', 'उपलब्ध', 'लिस्ट',
+  'धन्यवाद', 'शुक्रिया', 'मदद', 'सहायता', 'जी', 'भाई', 'साहब', 'दोस्त',
+  'haan', 'nahi', 'kya', 'kaise', 'kaha', 'kab', 'batao', 'dikhao', 'saman', 'cheez',
+  'bechte', 'milta', 'kharidna', 'shukriya', 'dhanyawad', 'madad'
+]);
+
 export class VoiceBillParser {
   /**
    * Detect language based on presence of Devanagari Unicode block (U+0900 to U+097F)
@@ -152,17 +176,65 @@ export class VoiceBillParser {
   }
 
   /**
-   * Identifies polite greetings without product billing intent
+   * Identifies polite greetings and pleasantries without product billing intent
    */
   static isGreeting(text: string): boolean {
     const clean = text.trim().toLowerCase();
-    // Common furniture words to ensure "hi 2 chairs" is not treated as a pure greeting
-    const furnitureWords = /(?:desk|chair|table|sofa|planks|plank|wood|bed|cabinet|shelf|price|qty|quantity|phone|mobile|डेस्क|कुर्सी|टेबल|सोफा|तख्ता|खाट|अलमारी|कीमत|मात्रा|फ़ोन)/i;
-    if (furnitureWords.test(clean) || /\d+/.test(clean)) {
+    // Common furniture purchase keywords to ensure "hi 2 chairs" is not treated as a pure greeting
+    const purchaseWords = /(?:desk|chair|table|sofa|planks|plank|wood|bed|cabinet|shelf|price|qty|quantity|phone|mobile|order|buy|bill|invoice|डेस्क|कुर्सी|टेबल|सोफा|तख्ता|खाट|अलमारी|कीमत|मात्रा|फ़ोन|बिल|खरीदना)/i;
+    if (purchaseWords.test(clean) || /\d+/.test(clean)) {
       return false;
     }
-    const greetingPattern = /^(?:hello|hi|hey|hey there|hi there|namaste|namaskar|pranam|good morning|good afternoon|good evening|how are you|howdy|greetings|नमस्ते|नमस्कार|प्रणाम|हेलो|हाय|सुप्रभात|शुभ संध्या|केम छो|kem cho)[\s!,.]*$/i;
-    return greetingPattern.test(clean);
+
+    // Direct exact or common composite greeting regex
+    const greetingPattern = /^(?:hello|hi|hey|hey there|hi there|namaste|namaskar|pranam|good morning|good afternoon|good evening|good day|how are you|how are you doing|howdy|greetings|what's up|sup|wassup|नमस्ते|नमस्कार|प्रणाम|हेलो|हाय|सुप्रभात|शुभ संध्या|केम छो|kem cho)(?:\s+(?:sir|ji|bro|brother|there|assistant|bot|friend|buddy|bhai|bhaiya|saheb|sahab|team|everyone|how are you|how are you doing|doing well))?[\s!,.]*$/i;
+    if (greetingPattern.test(clean)) {
+      return true;
+    }
+
+    // Token check: If every word is a greeting or honorific/pleasantry
+    const greetingTokens = new Set([
+      'hello', 'hi', 'hey', 'namaste', 'namaskar', 'pranam', 'kem', 'cho', 'halo',
+      'good', 'morning', 'afternoon', 'evening', 'day', 'greetings',
+      'how', 'are', 'you', 'doing', 'whats', 'up', 'sup', 'wassup',
+      'sir', 'ji', 'bro', 'brother', 'dear', 'buddy', 'friend', 'there', 'assistant', 'bot', 'bhai', 'bhaiya', 'saheb', 'sahab',
+      'or', 'something', 'anyone', 'someone', 'here',
+      'नमस्ते', 'नमस्कार', 'प्रणाम', 'हेलो', 'हाय', 'सुप्रभात', 'शुभ', 'संध्या', 'केम', 'छो', 'जी', 'भाई', 'साहब'
+    ]);
+
+    const words = clean.replace(/[^a-z\u0900-\u097F\s]/gi, ' ').trim().split(/\s+/).filter(w => w.length > 0);
+    if (words.length > 0 && words.length <= 5) {
+      const hasGreetingWord = words.some(w => ['hello', 'hi', 'hey', 'namaste', 'namaskar', 'pranam', 'halo', 'नमस्ते', 'नमस्कार', 'प्रणाम', 'हेलो', 'हाय'].includes(w));
+      if (hasGreetingWord && words.every(w => greetingTokens.has(w))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Identifies questions or requests to see the product catalog / what the store sells
+   */
+  static isCatalogInquiry(text: string): boolean {
+    const clean = text.trim().toLowerCase();
+    const inquiryPatterns = [
+      /what\s+(?:products|items|furniture|goods)\s+(?:do\s+you\s+sell|do\s+you\s+have|are\s+available)/i,
+      /what\s+(?:do\s+you\s+sell|do\s+you\s+have)/i,
+      /what\s+can\s+i\s+(?:buy|order)/i,
+      /show\s+(?:me\s+)?(?:all\s+)?(?:the\s+)?(?:products|items|catalog|furniture|inventory|list)/i,
+      /tell\s+me\s+(?:what\s+you\s+sell|the\s+products|the\s+items|about\s+your\s+products)/i,
+      /list\s+(?:of\s+)?(?:all\s+)?(?:products|items|furniture)/i,
+      /suggest\s+(?:me\s+)?(?:some\s+)?(?:products|furniture|items)/i,
+      /available\s+(?:products|items|furniture)/i,
+      /(?:kya\s+kya|kya)\s+(?:bechte\s+ho|milta\s+hai|products\s+hai|items\s+hai|saman\s+hai)/i,
+      /(?:products|items|saman|furniture)\s+(?:dikhao|batao|list)/i,
+      /kya\s+saman\s+hai/i,
+      /(?:क्या\s*क्या|क्या|कौंस-सा|कौन\s*से|क्या-क्या)\s*(?:सामान|उत्पाद|आइटम|फ़र्निचर)?\s*(?:है|हैं|बेचते\s*हो|मिलता\s*है|उपलब्ध\s*है)/i,
+      /(?:सामान|उत्पाद|आइटम|फ़र्निचर|कैटलॉग)\s*(?:दिखाओ|बताओ|लिस्ट)/i,
+      /क्या\s*बेचते\s*हो/i,
+    ];
+    return inquiryPatterns.some(p => p.test(clean));
   }
 
   /**
@@ -255,6 +327,16 @@ export class VoiceBillParser {
   static parse(inputText: string, knownProductNames?: string[]): ParsedSlots {
     const slots: ParsedSlots = {};
     if (!inputText || !inputText.trim()) {
+      return slots;
+    }
+
+    // If pure greeting, catalog inquiry, help, or thanks, never extract invoice slots
+    if (
+      this.isGreeting(inputText) ||
+      this.isCatalogInquiry(inputText) ||
+      this.isHelp(inputText) ||
+      this.isThanks(inputText)
+    ) {
       return slots;
     }
 
@@ -482,15 +564,9 @@ export class VoiceBillParser {
       trimmedInput.split(/\s+/).length <= 4 &&
       !/^\d+$/.test(trimmedInput)
     ) {
-      // Check if it's not a conversational filler, greeting, or quantity/price token
-      const filler = [
-        'yes', 'no', 'ok', 'okay', 'confirm', 'cancel', 'haan', 'ha', 'theek hai', 'done',
-        'pieces', 'pcs', 'piece', 'पीस', 'नग', 'मात्रा', 'qty', 'रुपये', 'rupees', 'rs',
-        'hello', 'hi', 'hey', 'namaste', 'namaskar', 'pranam', 'help', 'thanks', 'thank you',
-        'shukriya', 'dhanyawad', 'good morning', 'good evening', 'how are you',
-        'नमस्ते', 'नमस्कार', 'प्रणाम', 'हेलो', 'हाय', 'धन्यवाद', 'शुक्रिया', 'मदद', 'सहायता'
-      ];
-      if (!filler.some(f => trimmedInput.toLowerCase().includes(f))) {
+      const inputWords = trimmedInput.toLowerCase().split(/[\s,.:;!?]+/).filter(w => w.length > 0);
+      const isConversational = inputWords.some(w => CONVERSATIONAL_STOP_WORDS.has(w));
+      if (!isConversational) {
         slots.productName = trimmedInput;
       }
     }
@@ -578,10 +654,10 @@ export class VoiceBillParser {
       workingText = workingText.replace(new RegExp(`(?:^|(?<=[\\s,.:;]))${slots.discountPercent}%?`, 'g'), ' ');
     }
 
-    // Strip common filler, greetings, and anchor keywords
+    // Strip common filler, greetings, inquiry and anchor keywords
     workingText = workingText
-      .replace(/\b(for|to|at|with|and|ko|hai|he|ke|liye|chahiye|dalo|jodo|add|customer|client|name|naam|phone|mobile|number|qty|quantity|price|rate|discount|hello|hi|hey|namaste|namaskar|help|thanks|thank|you|shukriya|dhanyawad)\b/gi, ' ')
-      .replace(/(?:के\s*लिए|को|है|चाहिए|डालो|जोड़ो|ग्राहक|नाम|फ़ोन|फोन|मोबाइल|नंबर|मात्रा|कीमत|दाम|छूट|नमस्ते|नमस्कार|हेलो|हाय|धन्यवाद|शुक्रिया|मदद|सहायता)/g, ' ');
+      .replace(/\b(for|to|at|with|and|ko|hai|he|ke|liye|chahiye|dalo|jodo|add|customer|client|name|naam|phone|mobile|number|qty|quantity|price|rate|discount|hello|hi|hey|namaste|namaskar|help|thanks|thank|you|shukriya|dhanyawad|what|which|sell|buy|product|products|item|items|furniture|sir|bro|there|something|anything)\b/gi, ' ')
+      .replace(/(?:के\s*लिए|को|है|चाहिए|डालो|जोड़ो|ग्राहक|नाम|फ़ोन|फोन|मोबाइल|नंबर|मात्रा|कीमत|दाम|छूट|नमस्ते|नमस्कार|हेलो|हाय|धन्यवाद|शुक्रिया|मदद|सहायता|सामान|चीज़|बेचते|बताओ|दिखाओ)/g, ' ');
 
     // --- STEP 1: Phone (10-digit regex) ---
     if (!slots.phone) {
@@ -672,7 +748,10 @@ export class VoiceBillParser {
 
         // Trigram / multi-word candidate matching
         if (!slots.productName) {
-          const cleanTokens = workingText.trim().split(/\s+/).filter(t => t.length > 0 && !/^\d+$/.test(t));
+          const cleanTokens = workingText
+            .trim()
+            .split(/\s+/)
+            .filter(t => t.length > 0 && !/^\d+$/.test(t) && !CONVERSATIONAL_STOP_WORDS.has(t.toLowerCase()));
           let bestScore = 0;
           let bestProduct: string | null = null;
           let bestCandidateWords: string[] = [];
@@ -681,6 +760,8 @@ export class VoiceBillParser {
           for (let len = Math.min(4, cleanTokens.length); len >= 1; len--) {
             for (let i = 0; i <= cleanTokens.length - len; i++) {
               const candidate = cleanTokens.slice(i, i + len).join(' ');
+              if (candidate.length < 3) continue;
+
               for (const prod of sortedCatalog) {
                 const score = this.trigramSimilarity(candidate, prod);
                 const candWords = candidate.toLowerCase().split(/\s+/);
