@@ -406,7 +406,7 @@ export class VoiceBillParser {
   /**
    * Main deterministic parsing method
    */
-  static parse(inputText: string, knownProductNames?: string[]): ParsedSlots {
+  static parse(inputText: string, knownProductNames?: string[], pendingSlot?: string): ParsedSlots {
     const slots: ParsedSlots = {};
     if (!inputText || !inputText.trim()) {
       return slots;
@@ -582,15 +582,50 @@ export class VoiceBillParser {
     }
 
     // 7. Extract Product
-    // Anchors: add, जोड़ो, डालो, chahiye, खरीदना, product, item, उत्पाद
-    const productAnchorMatch = normalizedText.match(
-      /(?:add|jo(?:d|r)o|dalo|खरीदना|चाहिए|जोड़ो|डालो|product|item|उत्पाद)[\s:=]+([A-Za-z\u0900-\u097F\s]{2,40}?)(?=(?:,|\.|\bprice|\brate|\bqty|\bquantity|\bpieces|\bdiscount|\bphone|\bfor|कीमत|दाम|मात्रा|छूट|फ़ोन|के\s*लिए|$))/i
-    );
+    // 7a. First, check if input directly matches or contains a known catalog product!
+    if (!slots.productName && knownProductNames && knownProductNames.length > 0) {
+      const cleanInput = normalizedText.toLowerCase().replace(/[—–-]/g, ' ').replace(/[,.:;!?]/g, ' ').replace(/\s+/g, ' ').trim();
+      const sortedCatalog = [...knownProductNames].sort((a, b) => b.length - a.length);
 
-    if (productAnchorMatch) {
-      const pName = productAnchorMatch[1].trim();
-      if (pName.length >= 2 && !/^\d+$/.test(pName)) {
-        slots.productName = pName;
+      for (const p of sortedCatalog) {
+        const cleanP = p.toLowerCase().replace(/[—–-]/g, ' ').replace(/[,.:;!?]/g, ' ').replace(/\s+/g, ' ').trim();
+        if (cleanP.length < 2) continue;
+
+        // Exact match
+        if (cleanInput === cleanP) {
+          slots.productName = p;
+          break;
+        }
+
+        // Word boundary / phrase match within input
+        const escaped = cleanP.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(^|\\s)${escaped}($|\\s)`, 'i');
+        if (regex.test(cleanInput)) {
+          slots.productName = p;
+          // If we don't have quantity, see if there is a number outside the product name
+          if (slots.quantity === undefined) {
+            const beforeMatch = cleanInput.split(cleanP)[0].trim();
+            const qtyLeadMatch = beforeMatch.match(/\b(\d{1,4})\b$/);
+            if (qtyLeadMatch) {
+              slots.quantity = parseInt(qtyLeadMatch[1], 10);
+            }
+          }
+          break;
+        }
+      }
+    }
+
+    // Anchors: add, जोड़ो, डालो, chahiye, खरीदना, product, item, उत्पाद
+    if (!slots.productName) {
+      const productAnchorMatch = normalizedText.match(
+        /(?:add|jo(?:d|r)o|dalo|खरीदना|चाहिए|जोड़ो|डालो|product|item|उत्पाद)[\s:=]+([A-Za-z\u0900-\u097F\s]{2,40}?)(?=(?:,|\.|\bprice|\brate|\bqty|\bquantity|\bpieces|\bdiscount|\bphone|\bfor|कीमत|दाम|मात्रा|छूट|फ़ोन|के\s*लिए|$))/i
+      );
+
+      if (productAnchorMatch) {
+        const pName = productAnchorMatch[1].trim();
+        if (pName.length >= 2 && !/^\d+$/.test(pName)) {
+          slots.productName = pName;
+        }
       }
     }
 
@@ -632,7 +667,7 @@ export class VoiceBillParser {
         const stopWords = ['customer', 'phone', 'name', 'ग्राहक', 'फ़ोन', 'नाम', 'mobile', 'discount', 'छूट', 'qty', 'quantity', 'मात्रा'];
         if (
           !stopWords.includes(potentialProd.toLowerCase()) &&
-          potentialProd.length >= 3 &&
+          potentialProd.length >= 2 &&
           !/^\d+$/.test(potentialProd)
         ) {
           slots.productName = potentialProd;
@@ -640,8 +675,8 @@ export class VoiceBillParser {
       }
     }
 
-    // If still no product, check if the whole input is just a short product name answering a follow up
-    // (e.g. user answered "Teak Desk" or "Oak Wood Planks")
+    // If still no product, check if the whole input is answering a product prompt or is a standalone product
+    // (e.g. user answered "Teak Desk" or "Alder TV Unit — Matte White, 2 Door" or "AC")
     const trimmedInput = inputText.trim();
     if (
       !slots.productName &&
@@ -649,8 +684,7 @@ export class VoiceBillParser {
       !slots.unitPrice &&
       !slots.customerName &&
       !slots.quantity &&
-      trimmedInput.length >= 3 &&
-      trimmedInput.split(/\s+/).length <= 4 &&
+      trimmedInput.length >= 2 &&
       !/^\d+$/.test(trimmedInput)
     ) {
       const inputWords = trimmedInput.toLowerCase().split(/[\s,.:;!?]+/).filter(w => w.length > 0);
@@ -660,7 +694,10 @@ export class VoiceBillParser {
         /\d{4,}/.test(trimmedInput);
       const hasIndianName = inputWords.some(w => isIndianName(w));
 
-      if (hasIndianName && !slots.customerName) {
+      if (pendingSlot === 'product' && !isConversational && !hasPhoneKeyword) {
+        // If we are explicitly waiting for a product, treat the response as the product
+        slots.productName = trimmedInput;
+      } else if (hasIndianName && !slots.customerName) {
         slots.customerName = this.capitalizeWords(trimmedInput);
         slots.isNameInferred = true;
       } else if (hasPhoneKeyword) {
