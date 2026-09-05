@@ -8,6 +8,9 @@ import { salesOrderRouter } from './routes/salesOrderRoutes';
 import { invoiceRouter } from './routes/invoiceRoutes';
 import { paymentRouter } from './routes/paymentRoutes';
 import { receivablesRouter } from './routes/receivablesRoutes';
+import { portalRouter } from './routes/portalRoutes';
+import { contactRouter } from './routes/contactRoutes';
+import { reportRouter } from './routes/reportRoutes';
 import { sendError } from './utils/response';
 
 dotenv.config();
@@ -28,11 +31,14 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRouter);
+app.use('/api/portal', portalRouter);
 app.use('/api/journal-entries', journalEntryRouter);
 app.use('/api/sales-orders', salesOrderRouter);
 app.use('/api/invoices', invoiceRouter);
 app.use('/api/payments', paymentRouter);
 app.use('/api/receivables', receivablesRouter);
+app.use('/api/contacts', contactRouter);
+app.use('/api/reports', reportRouter);
 
 
 // Health check

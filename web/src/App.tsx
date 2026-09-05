@@ -5,11 +5,15 @@ import { CustomerInvoiceList } from './pages/CustomerInvoiceList';
 import { CustomerInvoiceForm } from './pages/CustomerInvoiceForm';
 import { RegisterPaymentForm } from './pages/RegisterPaymentForm';
 import { ReceivablesView } from './pages/ReceivablesView';
+import { PortalApp } from './portal/PortalApp';
 
 type SalesSubMenu = 'orders' | 'invoices' | 'receivables' | 'payments';
 type NavTab = 'Sales' | 'Purchase' | 'Account' | 'Report';
 
 export const App: React.FC = () => {
+  const [surfaceMode, setSurfaceMode] = useState<'erp' | 'portal'>(
+    typeof window !== 'undefined' && window.location.pathname.startsWith('/portal') ? 'portal' : 'erp'
+  );
   const [activeTab, setActiveTab] = useState<NavTab>('Sales');
   const [salesSubMenu, setSalesSubMenu] = useState<SalesSubMenu>('orders');
 
@@ -23,6 +27,10 @@ export const App: React.FC = () => {
 
   // Payment register view state
   const [selectedPaymentInvoiceId, setSelectedPaymentInvoiceId] = useState<number | null>(null);
+
+  if (surfaceMode === 'portal') {
+    return <PortalApp onBackToMainApp={() => setSurfaceMode('erp')} />;
+  }
 
   const navItems: NavTab[] = ['Sales', 'Purchase', 'Account', 'Report'];
 
@@ -62,6 +70,12 @@ export const App: React.FC = () => {
         </div>
 
         <div className="flex items-center space-x-4 text-xs font-medium text-brown-700">
+          <button
+            onClick={() => setSurfaceMode('portal')}
+            className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-[6px] shadow-sm transition-colors"
+          >
+            Launch Customer Portal (/portal) ↗
+          </button>
           <span className="bg-brown-100 px-2.5 py-1 rounded-full text-brown-900 font-semibold">
             Aryan (Sales & Portal)
           </span>
