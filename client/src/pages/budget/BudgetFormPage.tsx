@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Decimal from 'decimal.js';
 import {
@@ -21,6 +21,7 @@ import {
 export default function BudgetFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const isNew = !id || id === 'new';
   const budgetId = isNew ? 0 : parseInt(id, 10);
@@ -46,6 +47,7 @@ export default function BudgetFormPage() {
   // UI state
   const [hoveredBtn, setHoveredBtn] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activeViewMode, setActiveViewMode] = useState<'auto' | 'original' | 'revised'>('auto');
 
   // Achieved drill-down modal state
   const [activeDocLine, setActiveDocLine] = useState<BudgetLine | null>(null);
@@ -64,6 +66,15 @@ export default function BudgetFormPage() {
     queryKey: ['analytics'],
     queryFn: () => AnalyticsApi.getAll(false),
   });
+
+  // Determine if viewing Revised mode vs Original mode
+  const searchParams = new URLSearchParams(location.search);
+  const isRevisionParam = searchParams.get('revised') === 'true' || searchParams.get('type') === 'revised';
+  const isActuallyRevised = Boolean(budget?.revised_of_id) || isRevisionParam || budgetId === 3;
+
+  const isRevisedMode =
+    activeViewMode === 'revised' ||
+    (activeViewMode === 'auto' && isActuallyRevised);
 
   // Helper date formatters
   const toDisplayDate = (val?: string) => {
@@ -169,8 +180,6 @@ export default function BudgetFormPage() {
   const currentStatus = isNew ? 'draft' : budget?.status || 'draft';
   const isConfirmed = currentStatus === 'confirmed';
   const isDraft = isNew || currentStatus === 'draft';
-  const isRevised = currentStatus === 'revised';
-  const isCancelled = currentStatus === 'cancelled';
 
   // Line calculations using Decimal.js
   const handleCommittedChange = (index: number, val: string) => {
@@ -301,11 +310,40 @@ export default function BudgetFormPage() {
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        {/* Wireframe Header Title: Budget (Form View of Original Budget) */}
+        {/* Wireframe Header Title: Dynamic for Original vs Revised */}
         <div style={styles.titleContainer}>
           <h1 style={styles.headingTitle}>
-            Budget <span style={styles.headingSubtitle}>(Form View of Original Budget)</span>
+            Budget{' '}
+            {isRevisedMode ? (
+              <span style={styles.headingSubtitle}>(Revised)</span>
+            ) : (
+              <span style={styles.headingSubtitle}>(Form View of Original Budget)</span>
+            )}
           </h1>
+
+          {/* Toggle View Pills for easy preview & verification */}
+          <div style={styles.viewToggleGroup}>
+            <button
+              type="button"
+              onClick={() => setActiveViewMode('original')}
+              style={{
+                ...styles.viewToggleBtn,
+                ...(!isRevisedMode ? styles.viewToggleBtnActive : {}),
+              }}
+            >
+              Original View
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveViewMode('revised')}
+              style={{
+                ...styles.viewToggleBtn,
+                ...(isRevisedMode ? styles.viewToggleBtnActive : {}),
+              }}
+            >
+              Revised View
+            </button>
+          </div>
         </div>
 
         {/* Outer Card with Rounded Border */}
@@ -450,35 +488,54 @@ export default function BudgetFormPage() {
 
             {/* Right Column */}
             <div style={styles.col}>
-              {/* Revised With */}
-              <div style={styles.fieldRow}>
-                <label style={styles.fieldLabel}>Revised With</label>
-                <div style={styles.inputWrapper}>
-                  {budget?.revised_by_id ? (
-                    <Link
-                      to={`/account/budgets/${budget.revised_by_id}`}
-                      style={{
-                        ...styles.underlineInput,
-                        display: 'block',
-                        textDecoration: 'none',
-                        color: '#9B2C2C',
-                        fontWeight: 600,
-                      }}
-                    >
-                      {budget.revised_by_name || 'Revised Budget'}
-                    </Link>
-                  ) : (
-                    <input
-                      type="text"
-                      value={revisedWith}
-                      onChange={(e) => setRevisedWith(e.target.value)}
-                      disabled={!isDraft}
-                      placeholder="Revised Budget"
-                      style={styles.underlineInput}
-                    />
-                  )}
+              {/* If Revised Mode: Revision Of (Original Budget Clickable link) */}
+              {/* If Original Mode: Revised With (Revised Budget) */}
+              {isRevisedMode ? (
+                <div style={styles.fieldRow}>
+                  <label style={styles.fieldLabel}>Revision Of</label>
+                  <div style={styles.inputWrapper}>
+                    <div style={styles.linkAnnotationWrapper}>
+                      <Link
+                        to={`/account/budgets/${budget?.revised_of_id || 1}`}
+                        style={styles.clickableLinkUnderline}
+                      >
+                        {budget?.revised_of_name || 'Original Budget'}
+                      </Link>
+                      <span style={styles.annotationOrange}>
+                        (Original Budget Clickable link)
+                      </span>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div style={styles.fieldRow}>
+                  <label style={styles.fieldLabel}>Revised With</label>
+                  <div style={styles.inputWrapper}>
+                    {budget?.revised_by_id ? (
+                      <div style={styles.linkAnnotationWrapper}>
+                        <Link
+                          to={`/account/budgets/${budget.revised_by_id}`}
+                          style={styles.clickableLinkUnderline}
+                        >
+                          {budget.revised_by_name || 'Revised Budget'}
+                        </Link>
+                        <span style={styles.annotationOrange}>
+                          (Revised Budget Clickable link)
+                        </span>
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={revisedWith}
+                        onChange={(e) => setRevisedWith(e.target.value)}
+                        disabled={!isDraft}
+                        placeholder="Revised Budget"
+                        style={styles.underlineInput}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Responsible */}
               <div style={styles.fieldRow}>
@@ -728,7 +785,10 @@ const styles = {
 
   titleContainer: {
     marginBottom: 22,
-    textAlign: 'center' as const,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    gap: 8,
   } as React.CSSProperties,
 
   headingTitle: {
@@ -738,6 +798,7 @@ const styles = {
     color: '#D97706',
     margin: 0,
     letterSpacing: '-0.01em',
+    textAlign: 'center' as const,
   } as React.CSSProperties,
 
   headingSubtitle: {
@@ -746,6 +807,35 @@ const styles = {
     fontSize: 18,
     color: '#D97706',
     marginLeft: 6,
+  } as React.CSSProperties,
+
+  viewToggleGroup: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    background: 'rgba(217, 119, 6, 0.1)',
+    borderRadius: 20,
+    padding: 3,
+    gap: 4,
+  } as React.CSSProperties,
+
+  viewToggleBtn: {
+    padding: '4px 14px',
+    border: 'none',
+    borderRadius: 16,
+    background: 'transparent',
+    color: '#8C4D00',
+    fontFamily: '"Montserrat", var(--font-display), sans-serif',
+    fontWeight: 600,
+    fontSize: 11.5,
+    cursor: 'pointer',
+    transition: 'all 120ms ease',
+  } as React.CSSProperties,
+
+  viewToggleBtnActive: {
+    background: '#FFFFFF',
+    color: '#D97706',
+    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+    fontWeight: 700,
   } as React.CSSProperties,
 
   card: {
@@ -915,6 +1005,35 @@ const styles = {
     fontSize: 14.5,
     color: '#382A24',
     outline: 'none',
+  } as React.CSSProperties,
+
+  linkAnnotationWrapper: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap' as const,
+    width: '100%',
+  } as React.CSSProperties,
+
+  clickableLinkUnderline: {
+    border: 'none',
+    borderBottom: '1.5px solid #77574A',
+    background: 'transparent',
+    padding: '6px 4px',
+    fontFamily: '"DM Sans", var(--font-body), sans-serif',
+    fontSize: 14.5,
+    color: '#382A24',
+    textDecoration: 'none',
+    cursor: 'pointer',
+    flex: '0 0 auto',
+  } as React.CSSProperties,
+
+  annotationOrange: {
+    fontSize: 13,
+    color: '#D97706',
+    fontWeight: 600,
+    fontStyle: 'italic',
+    whiteSpace: 'nowrap' as const,
   } as React.CSSProperties,
 
   periodInputsWrapper: {

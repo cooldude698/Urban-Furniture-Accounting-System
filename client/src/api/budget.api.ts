@@ -65,7 +65,8 @@ const INITIAL_BUDGETS: Budget[] = [
     responsible_name: 'Administrator',
     status: 'confirmed',
     revised_of_id: null,
-    revised_by_id: null,
+    revised_by_id: 3,
+    revised_by_name: 'Revised Budget',
     created_at: '2026-01-01T09:00:00Z',
     lines: [
       {
@@ -128,6 +129,32 @@ const INITIAL_BUDGETS: Budget[] = [
       },
     ],
   },
+  {
+    id: 3,
+    name: 'January 2026',
+    period_start: '2026-01-01',
+    period_end: '2026-01-31',
+    responsible_user_id: 1,
+    responsible_name: 'Administrator',
+    status: 'draft',
+    revised_of_id: 1,
+    revised_of_name: 'Original Budget',
+    revised_by_id: null,
+    created_at: '2026-01-20T10:00:00Z',
+    lines: [
+      {
+        id: 301,
+        budget_id: 3,
+        analytic_account_id: 1,
+        analytic_account_name: 'Furniture',
+        analytic_type: 'expense',
+        committed_amount: '200000',
+        achieved_amount: '10000',
+        achieved_pct: 5.0,
+        amount_to_achieve: '190000',
+      },
+    ],
+  },
 ];
 
 const INITIAL_DOCS: BudgetDocumentItem[] = [
@@ -173,7 +200,7 @@ const INITIAL_DOCS: BudgetDocumentItem[] = [
   },
 ];
 
-const STORAGE_KEY = 'uf_budgets_store';
+const STORAGE_KEY = 'uf_budgets_store_v2';
 
 function loadLocalBudgets(): Budget[] {
   try {
