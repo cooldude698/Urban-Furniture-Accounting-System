@@ -24,6 +24,13 @@ export interface DashboardKPI {
   receivable: string;
   payable: string;
   netIncomeThisMonth: string;
+  isRedacted?: boolean;
+  role?: string;
+  operational?: {
+    stockUnits: number;
+    activeProducts: number;
+    pendingOrders: number;
+  };
 }
 
 export interface RecentActivityItem {

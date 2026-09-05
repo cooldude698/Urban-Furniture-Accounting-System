@@ -1,4 +1,5 @@
 import { pool } from '../db/pool';
+import { scopeFor, UserPayload } from './scope';
 
 export interface DashboardStats {
   sales: {
@@ -24,6 +25,13 @@ export interface DashboardKPI {
   receivable: string;
   payable: string;
   netIncomeThisMonth: string;
+  isRedacted?: boolean;
+  role?: string;
+  operational?: {
+    stockUnits: number;
+    activeProducts: number;
+    pendingOrders: number;
+  };
 }
 
 export interface RecentActivityItem {
@@ -105,9 +113,12 @@ export class DashboardService {
   }
 
   /**
-   * Aggregates primary financial balances from ledger views
+   * Aggregates primary financial balances from ledger views with role-based data scoping
    */
-  static async getKPI(): Promise<DashboardKPI> {
+  static async getKPI(user?: UserPayload): Promise<DashboardKPI> {
+    const scope = user ? scopeFor(user, 'financial_kpi') : {};
+    const isRedacted = Boolean(scope.redacted);
+
     const query = `
       SELECT
         (SELECT COALESCE(SUM(balance), 0)::TEXT FROM v_trial_balance WHERE account_type = 'cash') AS cash,
@@ -163,12 +174,40 @@ export class DashboardService {
       ? currMonthNet
       : (row.net_income_active_month || '8404422.06');
 
+    if (isRedacted) {
+      const opRes = await pool.query(`
+        SELECT
+          (SELECT COALESCE(SUM(stock_qty), 0)::INT FROM products WHERE is_archived = false) AS stock_units,
+          (SELECT COUNT(*)::INT FROM products WHERE is_archived = false) AS active_products,
+          (SELECT COUNT(*)::INT FROM sales_orders WHERE status = 'draft') +
+          (SELECT COUNT(*)::INT FROM purchase_orders WHERE status = 'draft') AS pending_orders
+      `);
+      const opRow = opRes.rows[0];
+
+      return {
+        cash: 'REDACTED',
+        bank: 'REDACTED',
+        receivable: row.receivable || '0.00',
+        payable: row.payable || '0.00',
+        netIncomeThisMonth: 'REDACTED',
+        isRedacted: true,
+        role: user?.role,
+        operational: {
+          stockUnits: Number(opRow.stock_units || 0),
+          activeProducts: Number(opRow.active_products || 0),
+          pendingOrders: Number(opRow.pending_orders || 0),
+        },
+      };
+    }
+
     return {
       cash: row.cash || '0.00',
       bank: row.bank || '0.00',
       receivable: row.receivable || '0.00',
       payable: row.payable || '0.00',
       netIncomeThisMonth: netIncome,
+      isRedacted: false,
+      role: user?.role,
     };
   }
 

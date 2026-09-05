@@ -98,7 +98,10 @@ export default function AppShell() {
     // Ignore JSON error
   }
 
-  const navModules = ['Sales', 'Purchase', 'Account', 'Report'];
+  const isManager = currentUser?.role === 'manager';
+  const navModules = isManager
+    ? ['Sales', 'Purchase', 'Report']
+    : ['Sales', 'Purchase', 'Account', 'Report'];
 
   // Determine active module and whether sub-nav should be displayed
   const activeModule = ['sales', 'purchase', 'account', 'report'].find((m) =>
@@ -256,6 +259,27 @@ export default function AppShell() {
               >
                 <User size={13} color="var(--brown-700)" />
                 <span>{currentUser.login_id || currentUser.full_name}</span>
+                {currentUser.role && (
+                  <span
+                    style={{
+                      fontSize: 10,
+                      textTransform: 'uppercase',
+                      padding: '1px 6px',
+                      borderRadius: 999,
+                      backgroundColor:
+                        currentUser.role === 'admin'
+                          ? 'var(--brown-900)'
+                          : currentUser.role === 'manager'
+                          ? '#b45309'
+                          : 'var(--posted)',
+                      color: 'var(--cream)',
+                      fontWeight: 700,
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    {currentUser.role}
+                  </span>
+                )}
               </div>
             )}
 

@@ -42,6 +42,32 @@ export async function requireAuth(
 }
 
 /**
+ * Parses JWT token if present, attaching user to req without blocking if unauthenticated.
+ */
+export async function optionalAuth(
+  req: AuthenticatedRequest,
+  _res: Response,
+  next: NextFunction
+): Promise<void> {
+  const token = req.cookies?.token || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
+  if (!token) {
+    return next();
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as unknown as UserPayload;
+    const user = await AuthService.getUserById(decoded.id);
+    if (user) {
+      req.user = user;
+    }
+  } catch {
+    // Ignore invalid token in optional auth
+  }
+
+  next();
+}
+
+/**
  * Ensures user is an internal staff member (admin, accountant, manager).
  * Blocks 'contact' users with 403 Forbidden.
  */

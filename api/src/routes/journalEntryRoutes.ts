@@ -3,6 +3,7 @@ import { JournalEntryService } from '../services/journalEntryService';
 import { createJournalEntrySchema } from '../shared/schemas/journalEntry';
 import { requireAuth, AuthenticatedRequest } from '../middleware/auth';
 import { requireRole } from '../middleware/role';
+import { scopeFor } from '../services/scope';
 import { sendSuccess, sendError } from '../utils/response';
 
 export const journalEntryRouter = Router();
@@ -12,9 +13,13 @@ journalEntryRouter.use(requireAuth);
 journalEntryRouter.use(requireRole('admin', 'accountant', 'manager'));
 
 // 1. GET /api/journal-entries - list: date, number, partner, journal, total, status
-journalEntryRouter.get('/', async (req: Request, res: Response) => {
+journalEntryRouter.get('/', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const list = await JournalEntryService.listEntries();
+    const scope = scopeFor(req.user!, 'journal_entry');
+    if (scope.allowed === false) {
+      return sendError(res, 'FORBIDDEN', 'Managers are restricted from raw financial ledger records', 403);
+    }
+    const list = await JournalEntryService.listEntries(scope);
     return sendSuccess(res, list);
   } catch (err: any) {
     return sendError(res, 'LIST_FAILED', err.message || 'Failed to list journal entries', 500);
@@ -22,14 +27,18 @@ journalEntryRouter.get('/', async (req: Request, res: Response) => {
 });
 
 // 2. GET /api/journal-entries/:id - with lines
-journalEntryRouter.get('/:id', async (req: Request, res: Response) => {
+journalEntryRouter.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) {
     return sendError(res, 'INVALID_ID', 'Invalid journal entry ID', 400);
   }
 
   try {
-    const entry = await JournalEntryService.getEntryById(id);
+    const scope = scopeFor(req.user!, 'journal_entry');
+    if (scope.allowed === false) {
+      return sendError(res, 'FORBIDDEN', 'Managers are restricted from raw financial ledger records', 403);
+    }
+    const entry = await JournalEntryService.getEntryById(id, scope);
     if (!entry) {
       return sendError(res, 'NOT_FOUND', `Journal entry ${id} not found`, 404);
     }
@@ -41,6 +50,10 @@ journalEntryRouter.get('/:id', async (req: Request, res: Response) => {
 
 // 3. POST /api/journal-entries - manual entry, status draft
 journalEntryRouter.post('/', async (req: AuthenticatedRequest, res: Response) => {
+  const scope = scopeFor(req.user!, 'journal_entry');
+  if (scope.allowed === false) {
+    return sendError(res, 'FORBIDDEN', 'Managers are restricted from creating raw financial journal entries', 403);
+  }
   const parseResult = createJournalEntrySchema.safeParse(req.body);
   if (!parseResult.success) {
     const fields: Record<string, string> = {};

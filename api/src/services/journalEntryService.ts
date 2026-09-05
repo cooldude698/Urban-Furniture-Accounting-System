@@ -48,9 +48,13 @@ export interface JournalEntryDetail {
 
 export class JournalEntryService {
   /**
-   * 1. GET /api/journal-entries list
+   * 1. GET /api/journal-entries
    */
-  static async listEntries(): Promise<JournalEntryListItem[]> {
+  static async listEntries(scope?: Record<string, any>): Promise<JournalEntryListItem[]> {
+    if (scope && scope.allowed === false) {
+      return [];
+    }
+
     const query = `
       SELECT
         je.id,
@@ -82,7 +86,11 @@ export class JournalEntryService {
   /**
    * 2. GET /api/journal-entries/:id
    */
-  static async getEntryById(id: number): Promise<JournalEntryDetail | null> {
+  static async getEntryById(id: number, scope?: Record<string, any>): Promise<JournalEntryDetail | null> {
+    if (scope && scope.allowed === false) {
+      return null;
+    }
+
     const entryRes = await pool.query<{
       id: number;
       number: string;
