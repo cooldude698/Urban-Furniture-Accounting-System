@@ -15,7 +15,20 @@ const isDocker = fs.existsSync('/.dockerenv') || fs.existsSync('/shared');
 const apiTarget = process.env.API_TARGET || (isDocker ? 'http://api:5000' : 'http://localhost:5000');
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'models-case-fallback',
+      configureServer(server) {
+        server.middlewares.use((req, _res, next) => {
+          if (req.url && req.url.startsWith('/models/')) {
+            req.url = req.url.replace(/^\/models\//, '/Models/');
+          }
+          next();
+        });
+      },
+    },
+  ],
   resolve: {
     alias: [
       { find: '@', replacement: path.resolve(__dirname, './src') },
