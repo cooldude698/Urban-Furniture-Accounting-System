@@ -1,122 +1,152 @@
-import React, { useState, useEffect } from 'react';
-import { FormView } from '../../components/FormView';
+import React, { useState, useEffect, useRef } from 'react';
 import { ProductsApi } from '../../api/products.api';
 import { Product, CreateProductInput, ProductType } from '@shared/schemas/product.schema';
-import { NonBlockingWarning } from '../../components/NonBlockingWarning';
-import { Package, Layers, Wrench, IndianRupee, Tag, Barcode, Sparkles, AlertTriangle } from 'lucide-react';
-import Decimal from 'decimal.js';
+import { Camera, ChevronDown, Check, Plus, AlertCircle } from 'lucide-react';
 
 interface ProductFormPageProps {
   productId?: number | null;
   onBack: () => void;
   onSaved: (id: number) => void;
-  onHome: () => void;
+  onHome?: () => void;
   onNew?: () => void;
 }
 
-export const ProductFormPage: React.FC<ProductFormPageProps> = ({ productId, onBack, onSaved, onHome, onNew }) => {
+export const ProductFormPage: React.FC<ProductFormPageProps> = ({
+  productId,
+  onBack,
+  onSaved,
+  onNew,
+}) => {
   const isNew = !productId;
 
-  const [formData, setFormData] = useState<CreateProductInput>({
-    sku: '',
-    name: '',
-    type: 'goods',
-    category: '',
-    sales_price: '0.00',
-    cost_price: '0.00',
-    mrp: '0.00',
-    tax_rate: '18.00',
-    min_stock_threshold: 5,
-    is_archived: false,
-  });
+  const [name, setName] = useState('');
+  const [type, setType] = useState<ProductType>('goods');
+  const [category, setCategory] = useState('');
+  const [salesPrice, setSalesPrice] = useState('100.00');
+  const [costPrice, setCostPrice] = useState('50.00');
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  const [product, setProduct] = useState<Product | null>(null);
+  // Category Many2one dropdown state
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const [categoryQuery, setCategoryQuery] = useState('');
+  const [existingCategories, setExistingCategories] = useState<string[]>([
+    'Electronics',
+    'Furniture',
+    'Chairs & Seating',
+    'Desks & Tables',
+    'Storage',
+  ]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [generatingSku, setGeneratingSku] = useState(false);
+  const [hoveredBtn, setHoveredBtn] = useState<string | null>(null);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const categoryRef = useRef<HTMLDivElement>(null);
+
+  // Load existing categories & product data if editing
   useEffect(() => {
+    // Fetch products to aggregate categories
+    ProductsApi.getAll(false)
+      .then(prods => {
+        const cats = Array.from(
+          new Set(
+            prods
+              .map(p => p.category?.trim())
+              .filter(Boolean) as string[]
+          )
+        );
+        if (cats.length > 0) {
+          setExistingCategories(prev => Array.from(new Set([...prev, ...cats])));
+        }
+      })
+      .catch(() => {});
+
     if (productId) {
       setLoading(true);
       ProductsApi.getById(productId)
-        .then(data => {
-          setProduct(data);
-          setFormData({
-            sku: data.sku,
-            name: data.name,
-            type: data.type,
-            category: data.category,
-            sales_price: data.sales_price,
-            cost_price: data.cost_price,
-            mrp: data.mrp,
-            tax_rate: data.tax_rate,
-            min_stock_threshold: data.min_stock_threshold ?? 5,
-            is_archived: data.is_archived,
-          });
+        .then(p => {
+          setName(p.name);
+          setType(p.type);
+          setCategory(p.category || '');
+          setCategoryQuery(p.category || '');
+          setSalesPrice(p.sales_price || '0.00');
+          setCostPrice(p.cost_price || '0.00');
         })
         .catch(err => setError(err.message))
         .finally(() => setLoading(false));
     } else {
-      setProduct(null);
-      setFormData({
-        sku: '',
-        name: '',
-        type: 'goods',
-        category: '',
-        sales_price: '0.00',
-        cost_price: '0.00',
-        mrp: '0.00',
-        tax_rate: '18.00',
-        min_stock_threshold: 5,
-        is_archived: false,
-      });
+      setName('');
+      setType('goods');
+      setCategory('');
+      setCategoryQuery('');
+      setSalesPrice('100.00');
+      setCostPrice('50.00');
+      setImagePreview(null);
       setError(null);
     }
   }, [productId]);
 
-  const handleGenerateSku = async () => {
-    try {
-      setGeneratingSku(true);
-      const res = await ProductsApi.generateSku(formData.category || 'FURN', formData.name || 'ITEM');
-      setFormData(prev => ({ ...prev, sku: res.sku }));
-    } catch (err: any) {
-      console.error('Failed to generate SKU', err);
-    } finally {
-      setGeneratingSku(false);
+  // Click outside category dropdown
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (categoryRef.current && !categoryRef.current.contains(e.target as Node)) {
+        setIsCategoryDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  // Real-time pricing validation warning
-  const getPricingWarning = (): string | null => {
-    try {
-      const sales = new Decimal(formData.sales_price || '0');
-      const cost = new Decimal(formData.cost_price || '0');
-      const mrp = new Decimal(formData.mrp || '0');
-
-      if (sales.greaterThan(0) && cost.greaterThan(0) && sales.lessThan(cost)) {
-        return `⚠️ Below-Cost Warning: Sales price (₹${sales.toFixed(2)}) is lower than product cost price (₹${cost.toFixed(2)}).`;
-      }
-      if (sales.greaterThan(0) && mrp.greaterThan(0) && sales.greaterThan(mrp)) {
-        return `⚠️ MRP Ceiling Warning: Sales price (₹${sales.toFixed(2)}) exceeds Maximum Retail Price ceiling (₹${mrp.toFixed(2)}).`;
-      }
-    } catch {
-      // Ignore parse errors during active editing
+  const handleConfirm = async () => {
+    if (!name.trim()) {
+      setError('Product Name is required');
+      return;
     }
-    return null;
-  };
+    const finalCategory = category.trim() || categoryQuery.trim() || 'General';
 
-  const pricingWarning = getPricingWarning();
-
-  const handleSave = async () => {
     try {
       setLoading(true);
       setError(null);
 
+      // Clean decimal prices
+      const cleanSales = parseFloat(salesPrice || '0').toFixed(2);
+      const cleanCost = parseFloat(costPrice || '0').toFixed(2);
+
+      const generatedSku = `${finalCategory.slice(0, 3).toUpperCase()}-${name
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .slice(0, 4)
+        .toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      const payload: CreateProductInput = {
+        name: name.trim(),
+        type,
+        category: finalCategory,
+        sales_price: cleanSales,
+        cost_price: cleanCost,
+        mrp: cleanSales,
+        sku: generatedSku,
+        tax_rate: '18.00',
+        min_stock_threshold: 5,
+        is_archived: false,
+      };
+
       let saved: Product;
       if (isNew) {
-        saved = await ProductsApi.create(formData);
+        saved = await ProductsApi.create(payload);
       } else {
-        saved = await ProductsApi.update(productId!, formData);
+        saved = await ProductsApi.update(productId!, payload);
       }
 
       onSaved(saved.id!);
@@ -127,228 +157,558 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({ productId, onB
     }
   };
 
-  const handleArchiveToggle = async () => {
-    if (!productId || !product) return;
-    try {
-      setLoading(true);
-      const updated = await ProductsApi.archive(productId, !product.is_archived);
-      setProduct(updated);
-      setFormData(prev => ({ ...prev, is_archived: updated.is_archived }));
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+  const handleNewClick = () => {
+    if (onNew) {
+      onNew();
+    } else {
+      setName('');
+      setType('goods');
+      setCategory('');
+      setCategoryQuery('');
+      setSalesPrice('100.00');
+      setCostPrice('50.00');
+      setImagePreview(null);
+      setError(null);
     }
   };
 
+  const filteredCategories = existingCategories.filter(c =>
+    c.toLowerCase().includes(categoryQuery.toLowerCase())
+  );
+
+  const canCreateNewCategory =
+    categoryQuery.trim() !== '' &&
+    !existingCategories.some(c => c.toLowerCase() === categoryQuery.trim().toLowerCase());
+
   return (
-    <FormView
-      title={isNew ? 'New Product / Service' : formData.name || 'Edit Product'}
-      subtitle={isNew ? 'Configure product pricing, category, and tax' : `SKU: ${formData.sku}`}
-      isNew={isNew}
-      isArchived={formData.is_archived}
-      onSave={handleSave}
-      onNew={onNew}
-      onArchiveToggle={!isNew ? handleArchiveToggle : undefined}
-      onBack={onBack}
-      onHome={onHome}
-      loading={loading}
-      error={error}
-    >
-      <div className="space-y-8 max-w-4xl mx-auto">
-        {pricingWarning && (
-          <NonBlockingWarning message={pricingWarning} />
-        )}
+    <div style={styles.page}>
+      <div style={styles.container}>
+        {/* Wireframe Header Title: Product Master Form View */}
+        <h1 style={styles.heading}>Product Master Form View</h1>
 
-        {/* Type Selector */}
-        <div>
-          <label className="block text-xs font-semibold text-brown-700 uppercase tracking-wider mb-2">
-            Product Type *
-          </label>
-          <div className="grid grid-cols-3 gap-4">
-            {[
-              { type: 'goods', label: 'Goods', desc: 'Physical furniture item', icon: Package },
-              { type: 'service', label: 'Service', desc: 'Labor, assembly, polishing', icon: Wrench },
-              { type: 'combo', label: 'Combo Package', desc: 'Bundled sets with special pricing', icon: Layers },
-            ].map(({ type, label, desc, icon: Icon }) => (
+        {/* Outer Wireframe Card */}
+        <div style={styles.card}>
+          {/* Top Action Bar: [New] [Confirm] ... [Back] */}
+          <div style={styles.topBar}>
+            <div style={styles.leftBtnGroup}>
               <button
-                key={type}
                 type="button"
-                onClick={() => setFormData({ ...formData, type: type as ProductType })}
-                className={`flex flex-col items-start p-4 rounded-xl border text-left transition-all ${
-                  formData.type === type
-                    ? 'border-brown-700 bg-brown-50/60 ring-2 ring-brown-700/20'
-                    : 'border-brown-200 bg-surface hover:bg-brown-50/30'
-                }`}
+                onClick={handleNewClick}
+                onMouseEnter={() => setHoveredBtn('new')}
+                onMouseLeave={() => setHoveredBtn(null)}
+                style={{
+                  ...styles.wireframeBtn,
+                  ...(hoveredBtn === 'new' ? styles.wireframeBtnHover : {}),
+                }}
               >
-                <div className="flex items-center gap-2 mb-1">
-                  <Icon className={`w-4 h-4 ${formData.type === type ? 'text-brown-800' : 'text-brown-500'}`} />
-                  <span className="font-semibold text-sm text-brown-900">{label}</span>
-                </div>
-                <span className="text-xs text-brown-500">{desc}</span>
+                New
               </button>
-            ))}
-          </div>
-        </div>
 
-        {/* Primary Information */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="md:col-span-2">
-            <label className="block text-xs font-semibold text-brown-700 uppercase tracking-wider mb-1">
-              Product / Service Name *
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.name}
-              onChange={e => setFormData({ ...formData, name: e.target.value })}
-              placeholder="e.g. Ergonomic Walnut Desk"
-              className="w-full px-4 py-2.5 bg-surface border border-brown-200 rounded-lg text-brown-900 placeholder:text-brown-400 focus:outline-none focus:ring-2 focus:ring-brown-500 font-medium"
-            />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-semibold text-brown-700 uppercase tracking-wider">
-                SKU Code *
-              </label>
-              {isNew && (
-                <button
-                  type="button"
-                  onClick={handleGenerateSku}
-                  disabled={generatingSku}
-                  className="inline-flex items-center gap-1 text-[11px] font-semibold text-brown-700 hover:text-brown-900 underline"
-                >
-                  <Sparkles className="w-3 h-3 text-amber-600" />
-                  Auto-Gen
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={loading}
+                onMouseEnter={() => setHoveredBtn('confirm')}
+                onMouseLeave={() => setHoveredBtn(null)}
+                style={{
+                  ...styles.wireframeBtn,
+                  ...(hoveredBtn === 'confirm' ? styles.wireframeBtnHover : {}),
+                  opacity: loading ? 0.7 : 1,
+                }}
+              >
+                {loading ? 'Saving...' : 'Confirm'}
+              </button>
             </div>
-            <div className="relative">
-              <Barcode className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-brown-400" />
-              <input
-                type="text"
-                required
-                value={formData.sku}
-                onChange={e => setFormData({ ...formData, sku: e.target.value.toUpperCase() })}
-                placeholder="DESK-WALN-001"
-                className="w-full pl-9 pr-4 py-2.5 bg-surface border border-brown-200 rounded-lg font-mono text-sm uppercase text-brown-900 focus:outline-none focus:ring-2 focus:ring-brown-500 font-semibold"
-              />
-            </div>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-brown-700 uppercase tracking-wider mb-1">
-              Category *
-            </label>
-            <div className="relative">
-              <Tag className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-brown-400" />
-              <input
-                type="text"
-                required
-                value={formData.category}
-                onChange={e => setFormData({ ...formData, category: e.target.value })}
-                placeholder="e.g. Living Room, Dining, Office"
-                className="w-full pl-9 pr-4 py-2 bg-surface border border-brown-200 rounded-lg text-sm text-brown-900 focus:outline-none focus:ring-2 focus:ring-brown-500"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-brown-700 uppercase tracking-wider mb-1">
-              GST Tax Rate (%) *
-            </label>
-            <select
-              value={formData.tax_rate}
-              onChange={e => setFormData({ ...formData, tax_rate: e.target.value })}
-              className="w-full px-3 py-2 bg-surface border border-brown-200 rounded-lg text-sm text-brown-900 focus:outline-none focus:ring-2 focus:ring-brown-500"
+            <button
+              type="button"
+              onClick={onBack}
+              onMouseEnter={() => setHoveredBtn('back')}
+              onMouseLeave={() => setHoveredBtn(null)}
+              style={{
+                ...styles.wireframeBtn,
+                ...(hoveredBtn === 'back' ? styles.wireframeBtnHover : {}),
+              }}
             >
-              <option value="0.00">0% (Nil / Exempted)</option>
-              <option value="5.00">5% GST</option>
-              <option value="12.00">12% GST</option>
-              <option value="18.00">18% GST (Standard Furniture Rate)</option>
-              <option value="28.00">28% GST</option>
-            </select>
+              Back
+            </button>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-brown-700 uppercase tracking-wider mb-1">
-              Min Stock Threshold (Alerts)
-            </label>
-            <input
-              type="number"
-              min="0"
-              value={formData.min_stock_threshold ?? 5}
-              onChange={e => setFormData({ ...formData, min_stock_threshold: parseInt(e.target.value, 10) || 0 })}
-              className="w-full px-3 py-2 bg-surface border border-brown-200 rounded-lg text-sm text-brown-900 focus:outline-none focus:ring-2 focus:ring-brown-500"
-            />
-          </div>
-        </div>
+          {error && (
+            <div style={styles.errorAlert}>
+              <AlertCircle size={16} />
+              <span>{error}</span>
+            </div>
+          )}
 
-        {/* Pricing Cards */}
-        <div className="border-t border-brown-200 pt-6">
-          <h3 className="text-sm font-bold font-heading text-brown-900 uppercase tracking-wider mb-4">
-            Financial & Pricing Details (Decimal.js Compliant)
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-brown-50/50 rounded-xl border border-brown-200">
-              <label className="block text-xs font-semibold text-brown-700 uppercase tracking-wider mb-1">
-                Sales Price (ex-tax) *
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-sm text-brown-400">₹</span>
+          {/* Form Body matching Wireframe Layout */}
+          <div style={styles.formContent}>
+            {/* Field 1: Product Name */}
+            <div style={styles.fieldRow}>
+              <label style={styles.fieldLabel}>Product Name</label>
+              <div style={styles.inputUnderlineWrapper}>
                 <input
                   type="text"
-                  required
-                  value={formData.sales_price}
-                  onChange={e => setFormData({ ...formData, sales_price: e.target.value })}
-                  placeholder="0.00"
-                  className="w-full pl-7 pr-3 py-2 bg-surface border border-brown-200 rounded-lg font-mono text-base font-semibold text-brown-900 focus:outline-none focus:ring-2 focus:ring-brown-500"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="e.g. Air Conditioner"
+                  style={styles.underlineInput}
                 />
               </div>
-              <span className="text-[11px] text-brown-500 mt-1 block">Default selling price for invoices</span>
             </div>
 
-            <div className="p-4 bg-brown-50/50 rounded-xl border border-brown-200">
-              <label className="block text-xs font-semibold text-brown-700 uppercase tracking-wider mb-1">
-                Cost Price (ex-tax) *
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-sm text-brown-400">₹</span>
-                <input
-                  type="text"
-                  required
-                  value={formData.cost_price}
-                  onChange={e => setFormData({ ...formData, cost_price: e.target.value })}
-                  placeholder="0.00"
-                  className="w-full pl-7 pr-3 py-2 bg-surface border border-brown-200 rounded-lg font-mono text-base font-semibold text-brown-900 focus:outline-none focus:ring-2 focus:ring-brown-500"
-                />
+            {/* Field 2: Product Type (Dropdown of Goods, Service, Combo) */}
+            <div style={styles.fieldRow}>
+              <label style={styles.fieldLabel}>Product Type</label>
+              <div style={styles.inputUnderlineWrapper}>
+                <div style={styles.selectWrapper}>
+                  <select
+                    value={type}
+                    onChange={e => setType(e.target.value as ProductType)}
+                    style={styles.underlineSelect}
+                  >
+                    <option value="goods">Goods</option>
+                    <option value="service">Service</option>
+                    <option value="combo">Combo</option>
+                  </select>
+                  <ChevronDown size={16} style={styles.selectArrow} />
+                </div>
               </div>
-              <span className="text-[11px] text-brown-500 mt-1 block">Purchase cost from vendor bills</span>
             </div>
 
-            <div className="p-4 bg-brown-50/50 rounded-xl border border-brown-200">
-              <label className="block text-xs font-semibold text-brown-700 uppercase tracking-wider mb-1">
-                MRP (Max Retail Price) *
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-sm text-brown-400">₹</span>
-                <input
-                  type="text"
-                  required
-                  value={formData.mrp}
-                  onChange={e => setFormData({ ...formData, mrp: e.target.value })}
-                  placeholder="0.00"
-                  className="w-full pl-7 pr-3 py-2 bg-surface border border-brown-200 rounded-lg font-mono text-base font-semibold text-brown-900 focus:outline-none focus:ring-2 focus:ring-brown-500"
-                />
+            {/* Field 3: Category (Many2one: Dropdown selection + Create on the fly) */}
+            <div style={styles.fieldRow} ref={categoryRef}>
+              <label style={styles.fieldLabel}>Category</label>
+              <div style={styles.inputUnderlineWrapper}>
+                <div
+                  style={styles.categoryInputContainer}
+                  onClick={() => setIsCategoryDropdownOpen(true)}
+                >
+                  <input
+                    type="text"
+                    value={categoryQuery}
+                    onChange={e => {
+                      setCategoryQuery(e.target.value);
+                      setCategory(e.target.value);
+                      setIsCategoryDropdownOpen(true);
+                    }}
+                    onFocus={() => setIsCategoryDropdownOpen(true)}
+                    placeholder="Selection (or type to create new)"
+                    style={styles.underlineInput}
+                  />
+                  <ChevronDown
+                    size={16}
+                    style={{
+                      ...styles.selectArrow,
+                      transform: isCategoryDropdownOpen ? 'rotate(180deg)' : 'none',
+                    }}
+                  />
+                </div>
+
+                {/* Dropdown Options */}
+                {isCategoryDropdownOpen && (
+                  <div style={styles.categoryDropdown}>
+                    {filteredCategories.map(cat => (
+                      <div
+                        key={cat}
+                        onClick={() => {
+                          setCategory(cat);
+                          setCategoryQuery(cat);
+                          setIsCategoryDropdownOpen(false);
+                        }}
+                        style={styles.categoryOption}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#F5ECE1')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <span>{cat}</span>
+                        {category === cat && <Check size={14} color="#4A3A34" />}
+                      </div>
+                    ))}
+
+                    {/* Create & Save on the fly option */}
+                    {canCreateNewCategory && (
+                      <div
+                        onClick={() => {
+                          const newCat = categoryQuery.trim();
+                          setCategory(newCat);
+                          setExistingCategories(prev => [...prev, newCat]);
+                          setIsCategoryDropdownOpen(false);
+                        }}
+                        style={styles.createCategoryOption}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#EDE1D3')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'rgba(235, 215, 190, 0.4)')}
+                      >
+                        <Plus size={14} />
+                        <span>Create &quot;{categoryQuery.trim()}&quot; on the fly</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              <span className="text-[11px] text-brown-500 mt-1 block">Ceiling retail price banner check</span>
+            </div>
+
+            {/* Bottom Row: [Upload Image Box] + [Sales Price & Cost Inputs] */}
+            <div style={styles.bottomSection}>
+              {/* Left: Upload Image Box */}
+              <div
+                style={styles.uploadImageBox}
+                onClick={() => fileInputRef.current?.click()}
+                title="Click to upload image"
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  style={{ display: 'none' }}
+                />
+                {imagePreview ? (
+                  <img
+                    src={imagePreview}
+                    alt="Product preview"
+                    style={styles.uploadedImg}
+                  />
+                ) : (
+                  <div style={styles.uploadPlaceholder}>
+                    <Camera size={22} color="#77574A" style={{ marginBottom: 6 }} />
+                    <span style={styles.uploadImageText}>Upload</span>
+                    <span style={styles.uploadImageText}>Image</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Right: Sales Price & Cost */}
+              <div style={styles.pricingColumn}>
+                {/* Sales Price */}
+                <div style={styles.pricingRow}>
+                  <label style={styles.pricingLabel}>Sales Price</label>
+                  <div style={styles.priceInputWrapper}>
+                    <span style={styles.currencyPrefix}>Rs.</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={salesPrice}
+                      onChange={e => setSalesPrice(e.target.value)}
+                      placeholder="100.00"
+                      style={styles.priceUnderlineInput}
+                    />
+                  </div>
+                </div>
+
+                {/* Cost */}
+                <div style={styles.pricingRow}>
+                  <label style={styles.pricingLabel}>Cost</label>
+                  <div style={styles.priceInputWrapper}>
+                    <span style={styles.currencyPrefix}>Rs.</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={costPrice}
+                      onChange={e => setCostPrice(e.target.value)}
+                      placeholder="50.00"
+                      style={styles.priceUnderlineInput}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </FormView>
+    </div>
   );
+};
+
+const styles = {
+  page: {
+    minHeight: '100%',
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    background: 'var(--cream, #F9F2E4)',
+    padding: '36px 20px 48px 20px',
+    fontFamily: '"DM Sans", var(--font-body), sans-serif',
+  } as React.CSSProperties,
+
+  container: {
+    width: '100%',
+    maxWidth: 780,
+  } as React.CSSProperties,
+
+  heading: {
+    fontFamily: '"Montserrat", var(--font-display), sans-serif',
+    fontWeight: 700,
+    fontSize: 22,
+    color: '#382A24',
+    textAlign: 'center' as const,
+    marginBottom: 18,
+    letterSpacing: '-0.01em',
+  } as React.CSSProperties,
+
+  card: {
+    background: '#FFFFFF',
+    borderRadius: 24,
+    border: '1.5px solid #77574A',
+    boxShadow: '0 10px 32px rgba(74, 58, 52, 0.08)',
+    padding: '28px 36px 36px 36px',
+    width: '100%',
+  } as React.CSSProperties,
+
+  topBar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 36,
+  } as React.CSSProperties,
+
+  leftBtnGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+  } as React.CSSProperties,
+
+  wireframeBtn: {
+    padding: '7px 24px',
+    border: '1.5px solid #4A3A34',
+    borderRadius: 12,
+    fontFamily: '"Montserrat", var(--font-display), sans-serif',
+    fontWeight: 700,
+    fontSize: 13,
+    color: '#4A3A34',
+    background: 'transparent',
+    cursor: 'pointer',
+    transition: 'all 150ms ease',
+    outline: 'none',
+    whiteSpace: 'nowrap' as const,
+  } as React.CSSProperties,
+
+  wireframeBtnHover: {
+    background: '#4A3A34',
+    color: '#FFFFFF',
+  } as React.CSSProperties,
+
+  errorAlert: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '10px 14px',
+    borderRadius: 8,
+    background: '#FDF2F2',
+    border: '1px solid #F8B4B4',
+    color: '#9B1C1C',
+    fontSize: 13,
+    marginBottom: 20,
+  } as React.CSSProperties,
+
+  formContent: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 24,
+  } as React.CSSProperties,
+
+  fieldRow: {
+    display: 'flex',
+    alignItems: 'center',
+    position: 'relative' as const,
+  } as React.CSSProperties,
+
+  fieldLabel: {
+    width: 170,
+    fontFamily: '"Montserrat", var(--font-display), sans-serif',
+    fontWeight: 700,
+    fontSize: 15.5,
+    color: '#382A24',
+    flexShrink: 0,
+  } as React.CSSProperties,
+
+  inputUnderlineWrapper: {
+    flex: 1,
+    position: 'relative' as const,
+  } as React.CSSProperties,
+
+  underlineInput: {
+    width: '100%',
+    border: 'none',
+    borderBottom: '1.5px solid #77574A',
+    background: 'transparent',
+    padding: '8px 4px',
+    fontFamily: '"DM Sans", var(--font-body), sans-serif',
+    fontSize: 15,
+    color: '#382A24',
+    outline: 'none',
+    transition: 'border-color 150ms ease',
+  } as React.CSSProperties,
+
+  selectWrapper: {
+    position: 'relative' as const,
+    width: '100%',
+  } as React.CSSProperties,
+
+  underlineSelect: {
+    width: '100%',
+    border: 'none',
+    borderBottom: '1.5px solid #77574A',
+    background: 'transparent',
+    padding: '8px 4px',
+    fontFamily: '"DM Sans", var(--font-body), sans-serif',
+    fontSize: 15,
+    color: '#382A24',
+    outline: 'none',
+    appearance: 'none' as const,
+    WebkitAppearance: 'none' as const,
+    cursor: 'pointer',
+  } as React.CSSProperties,
+
+  selectArrow: {
+    position: 'absolute' as const,
+    right: 6,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    pointerEvents: 'none' as const,
+    color: '#77574A',
+    transition: 'transform 150ms ease',
+  } as React.CSSProperties,
+
+  categoryInputContainer: {
+    position: 'relative' as const,
+    cursor: 'pointer',
+  } as React.CSSProperties,
+
+  categoryDropdown: {
+    position: 'absolute' as const,
+    top: '100%',
+    left: 0,
+    right: 0,
+    marginTop: 4,
+    background: '#FFFFFF',
+    borderRadius: 12,
+    border: '1.5px solid #77574A',
+    boxShadow: '0 10px 28px rgba(74, 58, 52, 0.12)',
+    zIndex: 100,
+    maxHeight: 200,
+    overflowY: 'auto' as const,
+    padding: '4px 0',
+  } as React.CSSProperties,
+
+  categoryOption: {
+    padding: '8px 14px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    fontSize: 14,
+    color: '#382A24',
+    cursor: 'pointer',
+    transition: 'background 120ms ease',
+  } as React.CSSProperties,
+
+  createCategoryOption: {
+    padding: '9px 14px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    fontSize: 13.5,
+    fontWeight: 600,
+    color: '#4A3A34',
+    cursor: 'pointer',
+    background: 'rgba(235, 215, 190, 0.4)',
+    borderTop: '1px solid #E4D5C7',
+    transition: 'background 120ms ease',
+  } as React.CSSProperties,
+
+  bottomSection: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 36,
+    marginTop: 18,
+    paddingTop: 10,
+  } as React.CSSProperties,
+
+  uploadImageBox: {
+    width: 130,
+    height: 130,
+    borderRadius: 18,
+    border: '1.5px solid #77574A',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    background: '#FAF7F4',
+    overflow: 'hidden',
+    transition: 'all 150ms ease',
+    flexShrink: 0,
+  } as React.CSSProperties,
+
+  uploadPlaceholder: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'center',
+  } as React.CSSProperties,
+
+  uploadImageText: {
+    fontFamily: '"DM Sans", sans-serif',
+    fontSize: 13.5,
+    fontWeight: 500,
+    color: '#77574A',
+    lineHeight: 1.2,
+  } as React.CSSProperties,
+
+  uploadedImg: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover' as const,
+  } as React.CSSProperties,
+
+  pricingColumn: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 22,
+    justifyContent: 'center',
+    paddingTop: 8,
+  } as React.CSSProperties,
+
+  pricingRow: {
+    display: 'flex',
+    alignItems: 'center',
+  } as React.CSSProperties,
+
+  pricingLabel: {
+    width: 140,
+    fontFamily: '"Montserrat", var(--font-display), sans-serif',
+    fontWeight: 700,
+    fontSize: 15.5,
+    color: '#382A24',
+    flexShrink: 0,
+  } as React.CSSProperties,
+
+  priceInputWrapper: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+    borderBottom: '1.5px solid #77574A',
+    padding: '4px 2px',
+  } as React.CSSProperties,
+
+  currencyPrefix: {
+    fontFamily: '"DM Sans", sans-serif',
+    fontSize: 14.5,
+    fontWeight: 600,
+    color: '#5C453A',
+  } as React.CSSProperties,
+
+  priceUnderlineInput: {
+    flex: 1,
+    border: 'none',
+    background: 'transparent',
+    fontFamily: '"DM Sans", sans-serif',
+    fontSize: 15,
+    color: '#382A24',
+    outline: 'none',
+    padding: 0,
+  } as React.CSSProperties,
 };
