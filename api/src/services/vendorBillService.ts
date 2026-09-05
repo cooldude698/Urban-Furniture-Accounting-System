@@ -361,6 +361,10 @@ export class VendorBillService {
              VALUES ($1, $2, 'bill', $3)`,
             [line.productId, line.qty, bill.id]
           );
+          await tx.query(
+            `UPDATE products SET stock_qty = stock_qty + $1 WHERE id = $2`,
+            [line.qty, line.productId]
+          );
         }
       }
 

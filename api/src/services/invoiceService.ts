@@ -224,6 +224,10 @@ export class InvoiceService {
            VALUES ($1, $2, CURRENT_DATE, 'invoice', $3)`,
           [item.product_id, negativeQty, invoiceId]
         );
+        await tx.query(
+          `UPDATE products SET stock_qty = stock_qty + $1 WHERE id = $2`,
+          [negativeQty, item.product_id]
+        );
       }
 
       // 4. Ensure status confirmed
