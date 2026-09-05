@@ -54,11 +54,6 @@ export default function LandingPage() {
           
           {/* Hero Left: Copy & Primary CTA */}
           <div className="lg:col-span-6 z-10 flex flex-col items-start hero-text-reveal">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#EBD7BE]/70 border border-[#D0AE92] text-xs font-mono font-medium text-[#77574A] mb-6">
-              <span className="w-2 h-2 rounded-full bg-[#5F7052] inline-block"></span>
-              FURNITURE BUSINESS & ACCOUNTING ERP
-            </div>
-
             <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#4A3A34] leading-[1.12] mb-6">
               Run Your Furniture Business.{' '}
               <span className="text-[#77574A] block mt-1">
@@ -67,7 +62,7 @@ export default function LandingPage() {
             </h1>
 
             <p className="text-base sm:text-lg text-[#5E453A] leading-relaxed mb-8 max-w-xl">
-              Connect procurement, sales, inventory, payments, budgets and double-entry accounting in one integrated ERP designed specifically for furniture retail and manufacturing.
+              An all-in-one system that brings your orders, inventory, customer billing, and accounting together in one simple, unified place.
             </p>
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
