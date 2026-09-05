@@ -523,4 +523,118 @@ portalRouter.get('/catalogue/:id', requireAuth, requirePortalContact, async (req
   }
 });
 
+// 14. POST /api/portal/quote - Generate official Sales Order Quote directly from 3D Room Studio or Product Viewer
+portalRouter.post('/quote', requireAuth, requirePortalContact, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const scope = scopeFor(req.user!, 'sales_order');
+    const customerId = scope.customerId;
+    if (!customerId) {
+      return sendError(res, 'UNAUTHORIZED', 'Customer contact profile required', 403);
+    }
+
+    const { items, roomName, notes } = req.body;
+    if (!Array.isArray(items) || items.length === 0) {
+      return sendError(res, 'VALIDATION_ERROR', 'At least one product item is required', 400);
+    }
+
+    // Extract product IDs
+    const productIds: number[] = items
+      .map((i: any) => Number(i.productId || i.id))
+      .filter((id: number) => !isNaN(id) && id > 0);
+
+    if (productIds.length === 0) {
+      return sendError(res, 'VALIDATION_ERROR', 'Valid product IDs required', 400);
+    }
+
+    const prodsRes = await pool.query(
+      `SELECT id, name, sku, sales_price::text, tax_rate::text FROM products WHERE id = ANY($1)`,
+      [productIds]
+    );
+
+    const prodMap = new Map(prodsRes.rows.map(p => [p.id, p]));
+
+    const lines = items.map((item: any) => {
+      const pId = Number(item.productId || item.id);
+      const prod = prodMap.get(pId);
+      const qty = item.qty ? String(item.qty) : '1';
+      const unitPrice = prod ? prod.sales_price : (item.salesPrice ? String(item.salesPrice) : '0.00');
+      const taxRate = prod ? prod.tax_rate : '18.00';
+
+      return {
+        productId: pId,
+        qty,
+        unitPrice,
+        taxRate,
+      };
+    });
+
+    const { SalesOrderService } = await import('../services/salesOrderService');
+    const salesOrder = await SalesOrderService.createSalesOrder({
+      customerId,
+      lines,
+    }, req.user!.id);
+
+    return sendSuccess(res, {
+      salesOrder,
+      roomName: roomName || 'Custom 3D Architecture Proposal',
+      notes: notes || 'Draft quotation generated directly from the 3D Room Studio.',
+    }, 201);
+  } catch (err: any) {
+    return sendError(res, 'QUOTE_ERROR', err.message || 'Failed to generate quotation', 400);
+  }
+});
+
+// 15. GET /api/portal/invoices/:id/certificate - Official Certificate of Handcrafted Authenticity & Provenance
+portalRouter.get('/invoices/:id/certificate', requireAuth, requirePortalContact, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const invId = parseInt(String(req.params.id), 10);
+    const scopedInvoice = await PortalService.getPortalInvoiceById(invId, req.user!);
+    if (!scopedInvoice) {
+      return sendError(res, 'NOT_FOUND', 'Invoice not found or unauthorized', 404);
+    }
+
+    const invoiceRes = await pool.query(`
+      SELECT 
+        ci.id, ci.number, ci.invoice_date,
+        c.name AS customer_name, c.city, c.state,
+        cil.product_id, p.name AS product_name, p.category, cil.qty,
+        vis.payment_status
+      FROM customer_invoices ci
+      JOIN contacts c ON c.id = ci.customer_id
+      JOIN customer_invoice_lines cil ON cil.invoice_id = ci.id
+      JOIN products p ON p.id = cil.product_id
+      LEFT JOIN v_invoice_status vis ON vis.invoice_id = ci.id
+      WHERE ci.id = $1
+    `, [invId]);
+
+    if (invoiceRes.rows.length === 0) {
+      return sendError(res, 'NOT_FOUND', 'Invoice items not found', 404);
+    }
+
+    const first = invoiceRes.rows[0];
+    const items = invoiceRes.rows.map((r: any) => ({
+      productName: r.product_name,
+      category: r.category,
+      qty: r.qty,
+      woodSpecies: r.category === 'Beds' ? 'Japanese Hinoki & Teak' : r.category === 'Tables' ? 'French White Oak' : r.category === 'Storage' ? 'American Black Walnut' : 'Solid Natural Teak',
+      serialNumber: `UF-${r.product_id}-${first.number.replace(/[^0-9]/g, '')}`,
+      warranty: '10 Years Structural Guarantee',
+    }));
+
+    return sendSuccess(res, {
+      certificateNumber: `CERT-${first.number.replace(/\//g, '-')}`,
+      issuedTo: first.customer_name,
+      cityState: [first.city, first.state].filter(Boolean).join(', '),
+      issueDate: first.invoice_date,
+      invoiceNumber: first.number,
+      isSettled: first.payment_status === 'paid',
+      items,
+      seal: 'VERIFIED ARCHITECTURAL PROVENANCE',
+    });
+  } catch (err: any) {
+    return sendError(res, 'SERVER_ERROR', err.message, 500);
+  }
+});
+
+
 

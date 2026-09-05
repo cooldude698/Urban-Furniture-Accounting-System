@@ -3,9 +3,30 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { ArrowLeft, Box, RotateCcw, AlertCircle, FileText, CheckCircle, Clock, LogIn } from 'lucide-react';
+import {
+  ArrowLeft,
+  Box,
+  RotateCcw,
+  AlertCircle,
+  FileText,
+  CheckCircle,
+  Clock,
+  LogIn,
+  Sparkles,
+  Sun,
+  Moon,
+  Sunrise,
+  QrCode,
+  FileCheck2,
+  Share2,
+  Layers,
+  Check,
+  X,
+  ExternalLink,
+} from 'lucide-react';
 import { formatINR } from '../../lib/money';
 import api from '../../lib/axios';
+import { playWoodClick, playChimeSuccess } from '../../lib/soundEffects';
 
 interface InvoiceLineItem {
   id: number;
@@ -34,6 +55,53 @@ interface ProductDetail {
   image_url: string | null;
 }
 
+type FinishId = 'oak' | 'teak' | 'walnut' | 'charcoal';
+type LightingMood = 'day' | 'golden' | 'night';
+
+interface FinishConfig {
+  id: FinishId;
+  label: string;
+  swatch: string;
+  threeColor: number;
+  roughness: number;
+  description: string;
+}
+
+const FINISHES: FinishConfig[] = [
+  {
+    id: 'oak',
+    label: 'Japandi Light Oak',
+    swatch: '#D8C5A8',
+    threeColor: 0xE8D8C3,
+    roughness: 0.65,
+    description: 'Sustainably harvested Nordic White Oak with matte organic satin finish',
+  },
+  {
+    id: 'teak',
+    label: 'Warm Heritage Teak',
+    swatch: '#C28247',
+    threeColor: 0xCA8747,
+    roughness: 0.52,
+    description: 'Indonesian reclaimed golden teak with rich amber honey luster',
+  },
+  {
+    id: 'walnut',
+    label: 'Dark Architectural Walnut',
+    swatch: '#4A3326',
+    threeColor: 0x583D2D,
+    roughness: 0.45,
+    description: 'American Black Walnut with chocolate undertones and oiled hand-finish',
+  },
+  {
+    id: 'charcoal',
+    label: 'Smoked Charcoal Ash',
+    swatch: '#2C2D2F',
+    threeColor: 0x2A2B2D,
+    roughness: 0.42,
+    description: 'Ebonized grain inspired by traditional Japanese Shou Sugi Ban charring',
+  },
+];
+
 export const PortalProductViewerPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -44,15 +112,30 @@ export const PortalProductViewerPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // 3D Canvas states
+  // 3D & Finish states
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [modelLoading, setModelLoading] = useState(true);
   const [modelError, setModelError] = useState<string | null>(null);
 
+  const [selectedFinish, setSelectedFinish] = useState<FinishId>('oak');
+  const [lightingMood, setLightingMood] = useState<LightingMood>('day');
+
+  // Three.js refs for dynamic lighting & finish shifts
+  const loadedObjectRef = useRef<THREE.Object3D | null>(null);
+  const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
+  const dirLightRef = useRef<THREE.DirectionalLight | null>(null);
+  const fillLightRef = useRef<THREE.DirectionalLight | null>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
+
+  // AR & Quote modals
+  const [showArModal, setShowArModal] = useState(false);
+  const [quoteSubmitting, setQuoteSubmitting] = useState(false);
+  const [quoteSuccess, setQuoteSuccess] = useState<any | null>(null);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!id) return;
-
     let isMounted = true;
 
     async function loadData() {
@@ -60,7 +143,6 @@ export const PortalProductViewerPage: React.FC = () => {
       setError(null);
 
       try {
-        // 1. Check current auth status
         let isAuthed = false;
         try {
           const meRes = await api.get('/api/portal/me');
@@ -70,25 +152,20 @@ export const PortalProductViewerPage: React.FC = () => {
         }
         if (isMounted) setIsAuthenticated(isAuthed);
 
-        // 2. Fetch catalogue item detail
         if (isAuthed) {
-          // Fetch authenticated scoped endpoint
           const res = await api.get(`/api/portal/catalogue/${id}`);
-          if (res.data?.data) {
-            if (isMounted) {
-              setProduct(res.data.data.product || res.data.data);
-              setInvoices(res.data.data.invoices || []);
-            }
+          if (res.data?.data && isMounted) {
+            setProduct(res.data.data.product || res.data.data);
+            setInvoices(res.data.data.invoices || []);
           }
         } else {
-          // Public visitor fallback: fetch from public catalogue
           const res = await api.get('/api/portal/catalogue');
-          if (res.data?.data) {
+          if (res.data?.data && isMounted) {
             const found = res.data.data.find((p: ProductDetail) => String(p.id) === String(id));
             if (found) {
-              if (isMounted) setProduct(found);
+              setProduct(found);
             } else {
-              throw new Error('Product not found');
+              throw new Error('Product not found in catalogue');
             }
           }
         }
@@ -100,13 +177,85 @@ export const PortalProductViewerPage: React.FC = () => {
     }
 
     loadData();
-
     return () => {
       isMounted = false;
     };
   }, [id]);
 
-  // Three.js Room Scene Initialisation
+  // Apply finish to Three.js model
+  const applyFinishToModel = (finishId: FinishId) => {
+    if (!loadedObjectRef.current) return;
+    const cfg = FINISHES.find((f) => f.id === finishId);
+    if (!cfg) return;
+
+    loadedObjectRef.current.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        if (mesh.material) {
+          const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+          for (const m of mats) {
+            if ((m as THREE.MeshStandardMaterial).isMeshStandardMaterial) {
+              const std = m as THREE.MeshStandardMaterial;
+              if (std.metalness < 0.75) {
+                std.color.setHex(cfg.threeColor);
+                std.roughness = cfg.roughness;
+                std.needsUpdate = true;
+              }
+            }
+          }
+        }
+      }
+    });
+  };
+
+  // Change finish
+  const handleSelectFinish = (fId: FinishId) => {
+    playWoodClick(1.1);
+    setSelectedFinish(fId);
+    applyFinishToModel(fId);
+  };
+
+  // Change lighting mood
+  const handleSelectLighting = (mood: LightingMood) => {
+    playWoodClick(0.9);
+    setLightingMood(mood);
+  };
+
+  // Update Three.js lighting
+  useEffect(() => {
+    if (!ambientLightRef.current || !dirLightRef.current || !fillLightRef.current || !sceneRef.current) return;
+
+    if (lightingMood === 'day') {
+      sceneRef.current.background = new THREE.Color(0xF9F2E4);
+      ambientLightRef.current.color.setHex(0xFFF9EE);
+      ambientLightRef.current.intensity = 0.65;
+      dirLightRef.current.color.setHex(0xFFF6E5);
+      dirLightRef.current.intensity = 0.9;
+      dirLightRef.current.position.set(5, 8, 5);
+      fillLightRef.current.color.setHex(0xFFFFFF);
+      fillLightRef.current.intensity = 0.35;
+    } else if (lightingMood === 'golden') {
+      sceneRef.current.background = new THREE.Color(0xF2E3D0);
+      ambientLightRef.current.color.setHex(0xFDE1C0);
+      ambientLightRef.current.intensity = 0.7;
+      dirLightRef.current.color.setHex(0xFF9E42);
+      dirLightRef.current.intensity = 1.8;
+      dirLightRef.current.position.set(6, 4, 3);
+      fillLightRef.current.color.setHex(0xFFAA55);
+      fillLightRef.current.intensity = 0.5;
+    } else if (lightingMood === 'night') {
+      sceneRef.current.background = new THREE.Color(0x1B1E26);
+      ambientLightRef.current.color.setHex(0x283248);
+      ambientLightRef.current.intensity = 0.4;
+      dirLightRef.current.color.setHex(0x6078A5);
+      dirLightRef.current.intensity = 0.6;
+      dirLightRef.current.position.set(-4, 5, 2);
+      fillLightRef.current.color.setHex(0xFFAA44);
+      fillLightRef.current.intensity = 1.1;
+    }
+  }, [lightingMood]);
+
+  // Three.js Room Scene Setup
   useEffect(() => {
     if (!product?.model_url || !canvasRef.current || !containerRef.current) {
       setModelLoading(false);
@@ -120,7 +269,6 @@ export const PortalProductViewerPage: React.FC = () => {
     setModelLoading(true);
     setModelError(null);
 
-    // Renderer setup
     const renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
@@ -133,11 +281,10 @@ export const PortalProductViewerPage: React.FC = () => {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
 
-    // Scene
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xF9F2E4); // Matches --cream
+    scene.background = new THREE.Color(0xF9F2E4);
+    sceneRef.current = scene;
 
-    // Camera
     const camera = new THREE.PerspectiveCamera(
       45,
       container.clientWidth / container.clientHeight,
@@ -146,17 +293,15 @@ export const PortalProductViewerPage: React.FC = () => {
     );
     camera.position.set(3.2, 2.6, 4.0);
 
-    // Orbit Controls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.06;
-    controls.maxPolarAngle = Math.PI / 2 - 0.02; // Keep camera above floor
+    controls.maxPolarAngle = Math.PI / 2 - 0.02;
     controls.minDistance = 1.2;
     controls.maxDistance = 8.0;
     controls.target.set(0, 0.8, 0);
 
-    // ── Room Geometry ──
-    // 1. Floor plane (8x8) - Light wood texture color #D4A96A
+    // Floor & walls
     const floorGeo = new THREE.PlaneGeometry(8, 8);
     const floorMat = new THREE.MeshStandardMaterial({
       color: 0xD4A96A,
@@ -169,10 +314,8 @@ export const PortalProductViewerPage: React.FC = () => {
     floor.receiveShadow = true;
     scene.add(floor);
 
-    // Subtle floor trim / baseboards
     const trimMat = new THREE.MeshStandardMaterial({ color: 0x4A3A34, roughness: 0.6 });
-    const trimGeo = new THREE.BoxGeometry(8, 0.1, 0.05);
-    const backTrim = new THREE.Mesh(trimGeo, trimMat);
+    const backTrim = new THREE.Mesh(new THREE.BoxGeometry(8, 0.1, 0.05), trimMat);
     backTrim.position.set(0, 0.05, -3.98);
     scene.add(backTrim);
 
@@ -180,32 +323,27 @@ export const PortalProductViewerPage: React.FC = () => {
     sideTrim.position.set(-3.98, 0.05, 0);
     scene.add(sideTrim);
 
-    // 2. Back Wall (8x5) - Off-white #F5F0E8
     const wallMat = new THREE.MeshStandardMaterial({
       color: 0xF5F0E8,
       roughness: 0.9,
     });
-    const backWallGeo = new THREE.PlaneGeometry(8, 5);
-    const backWall = new THREE.Mesh(backWallGeo, wallMat);
+    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(8, 5), wallMat);
     backWall.position.set(0, 2.5, -4);
     backWall.receiveShadow = true;
     scene.add(backWall);
 
-    // 3. Left Wall (8x5) - Off-white #F5F0E8
-    const leftWallGeo = new THREE.PlaneGeometry(8, 5);
-    const leftWall = new THREE.Mesh(leftWallGeo, wallMat);
+    const leftWall = new THREE.Mesh(new THREE.PlaneGeometry(8, 5), wallMat);
     leftWall.rotation.y = Math.PI / 2;
     leftWall.position.set(-4, 2.5, 0);
     leftWall.receiveShadow = true;
     scene.add(leftWall);
 
-    // ── Lighting ──
-    // Ambient Light (intensity 0.6)
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0xFFF9EE, 0.65);
     scene.add(ambientLight);
+    ambientLightRef.current = ambientLight;
 
-    // Directional Light from top-right (intensity 0.8, position 5, 8, 5)
-    const dirLight = new THREE.DirectionalLight(0xfff8ee, 0.8);
+    const dirLight = new THREE.DirectionalLight(0xFFF6E5, 0.9);
     dirLight.position.set(5, 8, 5);
     dirLight.castShadow = true;
     dirLight.shadow.mapSize.width = 1024;
@@ -213,22 +351,19 @@ export const PortalProductViewerPage: React.FC = () => {
     dirLight.shadow.bias = -0.0004;
     dirLight.shadow.normalBias = 0.02;
     scene.add(dirLight);
+    dirLightRef.current = dirLight;
 
-    // Soft bounce fill light from front-left
-    const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+    const fillLight = new THREE.DirectionalLight(0xFFFFFF, 0.35);
     fillLight.position.set(-4, 4, 3);
     scene.add(fillLight);
+    fillLightRef.current = fillLight;
 
-    // ── Load GLTF / GLB Model ──
-    let loadedObject: THREE.Object3D | null = null;
+    // Load Model
     const loader = new GLTFLoader();
-
     loader.load(
       product.model_url,
       (gltf) => {
         const root = gltf.scene;
-
-        // Enable shadows on all child meshes
         root.traverse((node) => {
           if ((node as THREE.Mesh).isMesh) {
             node.castShadow = true;
@@ -236,42 +371,37 @@ export const PortalProductViewerPage: React.FC = () => {
           }
         });
 
-        // Compute Bounding Box & Scale to fit within a 2-unit cube
         const box = new THREE.Box3().setFromObject(root);
         const size = box.getSize(new THREE.Vector3());
         const center = box.getCenter(new THREE.Vector3());
-
         const maxDim = Math.max(size.x, size.y, size.z);
-        const targetDim = 2.0;
-        const scale = maxDim > 0 ? targetDim / maxDim : 1;
+        const scale = maxDim > 0 ? 2.0 / maxDim : 1;
         root.scale.set(scale, scale, scale);
 
-        // Recompute box after scale and place model grounded at y = 0
         box.setFromObject(root);
         box.getCenter(center);
-
         root.position.x = -center.x;
-        root.position.y = -box.min.y; // Sit directly on floor plane
+        root.position.y = -box.min.y;
         root.position.z = -center.z;
 
         scene.add(root);
-        loadedObject = root;
+        loadedObjectRef.current = root;
 
-        // Position controls target at center of product
         controls.target.set(0, (box.max.y - box.min.y) / 2, 0);
         controls.update();
 
+        // Apply selected finish
+        applyFinishToModel(selectedFinish);
         setModelLoading(false);
       },
       undefined,
       (loadErr) => {
         console.error('Failed to load GLB model:', loadErr);
-        setModelError('Unable to load 3D model. Please verify your connection.');
+        setModelError('Unable to load 3D model. Please try again.');
         setModelLoading(false);
       }
     );
 
-    // Animation Loop
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
       controls.update();
@@ -279,152 +409,160 @@ export const PortalProductViewerPage: React.FC = () => {
     };
     animate();
 
-    // Resize Observer
     const handleResize = () => {
       if (!container || !renderer) return;
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      camera.aspect = w / h;
+      camera.aspect = container.clientWidth / container.clientHeight;
       camera.updateProjectionMatrix();
-      renderer.setSize(w, h);
+      renderer.setSize(container.clientWidth, container.clientHeight);
     };
 
     window.addEventListener('resize', handleResize);
 
-    // Cleanup on unmount
     return () => {
       cancelAnimationFrame(animationFrameId);
       window.removeEventListener('resize', handleResize);
       controls.dispose();
-
-      if (loadedObject) {
-        scene.remove(loadedObject);
-      }
-
-      floorGeo.dispose();
-      floorMat.dispose();
-      backWallGeo.dispose();
-      leftWallGeo.dispose();
-      wallMat.dispose();
       renderer.dispose();
     };
   }, [product?.model_url]);
 
+  // 1-Click Request Official Quote
+  const handleRequestQuote = async () => {
+    if (!product) return;
+    if (!isAuthenticated) {
+      navigate('/login?portal=customer');
+      return;
+    }
+
+    setQuoteSubmitting(true);
+    setQuoteError(null);
+    playWoodClick(1.2);
+
+    try {
+      const res = await api.post('/api/portal/quote', {
+        items: [
+          {
+            productId: product.id,
+            qty: 1,
+            finish: selectedFinish,
+          },
+        ],
+        roomName: `Quotation for ${product.name} (${FINISHES.find((f) => f.id === selectedFinish)?.label})`,
+      });
+
+      if (res.data?.data) {
+        playChimeSuccess();
+        setQuoteSuccess(res.data.data.salesOrder);
+      } else {
+        throw new Error(res.data?.error?.message || 'Failed to generate quote');
+      }
+    } catch (err: any) {
+      setQuoteError(err?.response?.data?.error?.message || err.message || 'Error generating quote');
+    } finally {
+      setQuoteSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          background: 'var(--cream)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontFamily: 'var(--font-display)',
-          fontSize: 16,
-          fontWeight: 600,
-          color: 'var(--brown-800)',
-        }}
-      >
-        Loading furniture detail & 3D space...
+      <div style={{ padding: '80px 24px', textAlign: 'center', color: 'var(--brown-700)' }}>
+        <div style={{ display: 'inline-block', width: 32, height: 32, border: '3px solid rgba(74, 58, 52, 0.2)', borderTop: '3px solid var(--brown-900)', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: 16 }} />
+        <p style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: 14 }}>Loading architectural model...</p>
       </div>
     );
   }
 
   if (error || !product) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          background: 'var(--cream)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontFamily: 'var(--font-body)',
-          padding: 24,
-        }}
-      >
-        <AlertCircle size={40} color="var(--danger)" style={{ marginBottom: 16 }} />
-        <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--brown-900)', margin: '0 0 8px' }}>
-          {error || 'Product Not Found'}
-        </h2>
-        <button
-          onClick={() => navigate('/portal/catalogue')}
+      <div style={{ padding: '60px 24px', maxWidth: 600, margin: '0 auto', textAlign: 'center' }}>
+        <AlertCircle size={40} color="var(--danger)" style={{ margin: '0 auto 16px' }} />
+        <h2 style={{ fontFamily: 'var(--font-display)', color: 'var(--brown-900)', margin: '0 0 12px' }}>Product Not Found</h2>
+        <p style={{ color: 'var(--brown-700)', fontSize: 14, marginBottom: 24 }}>{error || 'The requested product could not be located in our active catalogue.'}</p>
+        <Link
+          to="/portal/catalogue"
           style={{
-            marginTop: 16,
             display: 'inline-flex',
             alignItems: 'center',
-            gap: 6,
-            padding: '10px 18px',
-            borderRadius: 'var(--radius-sm)',
+            gap: 8,
+            padding: '10px 20px',
             backgroundColor: 'var(--brown-900)',
             color: 'var(--cream)',
-            border: 'none',
+            borderRadius: 'var(--radius-sm)',
+            textDecoration: 'none',
             fontSize: 13,
             fontWeight: 700,
-            fontFamily: 'var(--font-display)',
-            cursor: 'pointer',
           }}
         >
-          <ArrowLeft size={16} />
-          Return to Catalogue
-        </button>
+          <ArrowLeft size={16} /> Return to Catalogue
+        </Link>
       </div>
     );
   }
 
-  const stock = parseFloat(product.stock_qty) || 0;
-  const hasMrpDiff = product.mrp && product.mrp !== product.sales_price;
   const hasModel = Boolean(product.model_url);
+  const currentFinishCfg = FINISHES.find((f) => f.id === selectedFinish) || FINISHES[0];
 
   return (
-    <div style={{ width: '100%', fontFamily: 'var(--font-body)' }}>
-      {/* ── Breadcrumb / Back Navigation ── */}
-      <div style={{ marginBottom: 20 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 60 }}>
+      {/* Top Breadcrumb & Controls */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
         <button
-          onClick={() => navigate('/portal/catalogue')}
+          onClick={() => {
+            playWoodClick(0.9);
+            navigate('/portal/catalogue');
+          }}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: 6,
-            padding: '8px 14px',
-            borderRadius: 'var(--radius-sm)',
-            backgroundColor: 'var(--surface)',
-            border: '1px solid rgba(208, 174, 146, 0.4)',
-            color: 'var(--brown-800)',
-            fontSize: 13,
+            padding: '8px 16px',
+            borderRadius: 999,
+            backgroundColor: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(208, 174, 146, 0.45)',
+            fontSize: 12,
             fontWeight: 600,
-            fontFamily: 'var(--font-display)',
+            color: 'var(--brown-900)',
             cursor: 'pointer',
-            boxShadow: 'var(--shadow-sm)',
-            transition: 'all 120ms ease',
           }}
         >
-          <ArrowLeft size={14} />
-          Back to Catalogue
+          <ArrowLeft size={14} /> Back to Catalogue
         </button>
+
+        {hasModel && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              onClick={() => {
+                playWoodClick(1.0);
+                setShowArModal(true);
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '8px 16px',
+                borderRadius: 999,
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                border: '1px solid rgba(208, 174, 146, 0.5)',
+                boxShadow: 'var(--shadow-sm)',
+                fontSize: 12,
+                fontWeight: 700,
+                fontFamily: 'var(--font-display)',
+                color: 'var(--brown-900)',
+                cursor: 'pointer',
+              }}
+            >
+              <QrCode size={14} color="var(--brown-700)" />
+              View in Your Space (AR)
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* ── Main Two-Column Layout ── */}
-      <div
-        style={{
-          width: '100%',
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: 32,
-        }}
-      >
-        {/* ── Left Panel (Product Details & Invoices) — 40% desktop ── */}
-        <div
-          style={{
-            flex: '1 1 380px',
-            maxWidth: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 24,
-          }}
-        >
-          {/* Product Overview Card */}
+      {/* Main Grid: Details Left, 3D Canvas Right */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.05fr) minmax(0, 1.35fr)', gap: 28, alignItems: 'start' }} className="portal-viewer-grid">
+        {/* LEFT COLUMN: Details & Customizer */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div
             style={{
               backgroundColor: 'var(--surface)',
@@ -445,13 +583,12 @@ export const PortalProductViewerPage: React.FC = () => {
                   fontSize: 11,
                   fontWeight: 700,
                   textTransform: 'uppercase',
-                  letterSpacing: '0.04em',
+                  letterSpacing: '0.05em',
                   fontFamily: 'var(--font-display)',
                 }}
               >
-                {product.category || 'Goods'}
+                {product.category || 'Architectural Goods'}
               </span>
-
               {product.sku && (
                 <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--brown-500)' }}>
                   SKU: {product.sku}
@@ -459,157 +596,154 @@ export const PortalProductViewerPage: React.FC = () => {
               )}
             </div>
 
-            {/* Title */}
-            <h1
-              style={{
-                fontFamily: 'var(--font-display)',
-                fontSize: 26,
-                lineHeight: '34px',
-                fontWeight: 700,
-                color: 'var(--brown-900)',
-                margin: '0 0 16px',
-              }}
-            >
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 800, color: 'var(--brown-900)', margin: '0 0 16px', lineHeight: 1.25 }}>
               {product.name}
             </h1>
 
             {/* Price section */}
             <div style={{ padding: '16px 0', borderTop: '1px solid rgba(208, 174, 146, 0.25)', borderBottom: '1px solid rgba(208, 174, 146, 0.25)', marginBottom: 20 }}>
-              <div style={{ fontSize: 12, color: 'var(--brown-500)', marginBottom: 4 }}>Selling Price (inclusive of tax)</div>
+              <div style={{ fontSize: 11, color: 'var(--brown-500)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                Certified Double-Entry Price
+              </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 26,
-                    fontWeight: 700,
-                    color: 'var(--brown-900)',
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 28, fontWeight: 800, color: 'var(--brown-900)', fontVariantNumeric: 'tabular-nums' }}>
                   {formatINR(product.sales_price)}
                 </span>
-                {hasMrpDiff && product.mrp && (
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 15,
-                      color: 'var(--brown-500)',
-                      textDecoration: 'line-through',
-                      fontVariantNumeric: 'tabular-nums',
-                    }}
-                  >
+                {product.mrp && Number(product.mrp) > Number(product.sales_price) && (
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 16, color: 'var(--brown-500)', textDecoration: 'line-through' }}>
                     MRP {formatINR(product.mrp)}
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: 12, color: 'var(--brown-700)', marginTop: 6 }}>
-                Includes GST at {product.tax_rate}% rate
+              <div style={{ fontSize: 12, color: 'var(--brown-700)', marginTop: 4 }}>
+                Includes GST at {product.tax_rate}% · Sequential ledger invoice generated on order
               </div>
             </div>
 
-            {/* Stock status */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <span style={{ fontSize: 13, color: 'var(--brown-700)', fontWeight: 600 }}>Stock Availability:</span>
-              {stock <= 0 ? (
-                <span
-                  style={{
-                    padding: '3px 10px',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: 'var(--danger-bg)',
-                    color: 'var(--danger)',
-                    border: '1px solid rgba(158, 74, 56, 0.3)',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    fontFamily: 'var(--font-display)',
-                  }}
-                >
-                  Out of Stock
+            {/* Wood & Finish Customizer */}
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <span style={{ fontSize: 12, fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--brown-900)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Select Wood / Finish:
                 </span>
-              ) : stock < 5 ? (
-                <span
-                  style={{
-                    padding: '3px 10px',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: 'var(--warning-bg)',
-                    color: 'var(--warning)',
-                    border: '1px solid rgba(192, 138, 62, 0.3)',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    fontFamily: 'var(--font-display)',
-                  }}
-                >
-                  Low Stock ({stock} available)
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--brown-700)' }}>
+                  {currentFinishCfg.label}
                 </span>
-              ) : (
-                <span
-                  style={{
-                    padding: '3px 10px',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: 'var(--posted-bg)',
-                    color: 'var(--posted)',
-                    border: '1px solid rgba(95, 112, 82, 0.3)',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    fontFamily: 'var(--font-display)',
-                  }}
-                >
-                  In Stock ({stock} units)
-                </span>
-              )}
-            </div>
+              </div>
 
-            {/* Description */}
-            <div>
-              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: 'var(--brown-900)', margin: '0 0 8px' }}>
-                Description & Craftsmanship
-              </h3>
-              <p style={{ margin: 0, fontSize: 14, lineHeight: '22px', color: 'var(--brown-700)' }}>
-                Precision-engineered for architectural aesthetics and durability. Handcrafted with kiln-dried hardwoods,
-                reinforced joinery, and premium upholstery, tested to commercial hospitality performance standards.
+              {/* Swatches */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                {FINISHES.map((f) => {
+                  const active = selectedFinish === f.id;
+                  return (
+                    <button
+                      key={f.id}
+                      onClick={() => handleSelectFinish(f.id)}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '10px 6px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: active ? '2px solid var(--brown-900)' : '1px solid rgba(208, 174, 146, 0.45)',
+                        backgroundColor: active ? 'rgba(74, 58, 52, 0.05)' : 'var(--surface)',
+                        cursor: 'pointer',
+                        transition: 'all 140ms ease',
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 24,
+                          height: 24,
+                          borderRadius: '50%',
+                          backgroundColor: f.swatch,
+                          boxShadow: 'inset 0 0 0 1px rgba(0,0,0,0.15)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {active && <Check size={14} color="#FFF" style={{ filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.5))' }} />}
+                      </div>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--brown-900)', textAlign: 'center', lineHeight: 1.15 }}>
+                        {f.label.split(' ')[0]}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <p style={{ margin: '10px 0 0', fontSize: 12, color: 'var(--brown-600)', lineHeight: 1.4 }}>
+                {currentFinishCfg.description}
               </p>
             </div>
 
-            {/* 3D Studio Planner Direct Transition Button */}
-            {hasModel && (
-              <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid rgba(208, 174, 146, 0.3)' }}>
-                <button
-                  onClick={() => navigate(`/portal/studio?model=${encodeURIComponent(product.model_url || '')}`)}
-                  style={{
-                    width: '100%',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                    padding: '12px 20px',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: 'var(--brown-900)',
-                    color: 'var(--cream)',
-                    border: 'none',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    fontFamily: 'var(--font-display)',
-                    cursor: 'pointer',
-                    boxShadow: 'var(--shadow-sm)',
-                    transition: 'all 120ms ease',
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.backgroundColor = 'var(--brown-700)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.backgroundColor = 'var(--brown-900)';
-                  }}
-                >
-                  <Box size={16} />
-                  Open in 3D Room Studio Planner
-                </button>
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <button
+                onClick={handleRequestQuote}
+                disabled={quoteSubmitting}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  padding: '12px 20px',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--brown-900)',
+                  color: 'var(--cream)',
+                  border: 'none',
+                  fontSize: 14,
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-display)',
+                  cursor: quoteSubmitting ? 'wait' : 'pointer',
+                  boxShadow: 'var(--shadow-sm)',
+                  transition: 'background 140ms ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--brown-700)')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--brown-900)')}
+              >
+                <FileCheck2 size={16} />
+                {quoteSubmitting ? 'Generating Official Quote...' : 'Request Formal Quote / Sales Order'}
+              </button>
+
+              <button
+                onClick={() => {
+                  playWoodClick(1.0);
+                  navigate('/portal/studio');
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  padding: '11px 20px',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--surface)',
+                  color: 'var(--brown-900)',
+                  border: '1px solid rgba(208, 174, 146, 0.6)',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-display)',
+                  cursor: 'pointer',
+                  transition: 'background 140ms ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--brown-100)')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface)')}
+              >
+                <Box size={16} color="var(--brown-700)" />
+                Arrange in 3D Room Studio
+              </button>
+            </div>
+
+            {quoteError && (
+              <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--danger-bg)', color: 'var(--danger)', fontSize: 12 }}>
+                {quoteError}
               </div>
             )}
           </div>
 
-          {/* ── Customer Invoices with this Product ── */}
+          {/* Past Invoices section for this product */}
           <div
             style={{
               backgroundColor: 'var(--surface)',
@@ -619,339 +753,361 @@ export const PortalProductViewerPage: React.FC = () => {
               padding: 24,
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-              <FileText size={18} color="var(--brown-700)" />
-              <h2
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: 16,
-                  fontWeight: 700,
-                  color: 'var(--brown-900)',
-                  margin: 0,
-                }}
-              >
-                Your Invoices with this Product
-              </h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+              <FileText size={16} color="var(--brown-700)" />
+              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, color: 'var(--brown-900)', margin: 0 }}>
+                Your Ledger Invoices for this Piece
+              </h3>
             </div>
 
-            {/* If NOT authenticated */}
-            {isAuthenticated === false && (
-              <div
-                style={{
-                  padding: '16px',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'var(--brown-100)',
-                  border: '1px solid rgba(208, 174, 146, 0.4)',
-                  textAlign: 'center',
-                }}
-              >
-                <p style={{ margin: '0 0 12px', fontSize: 13, color: 'var(--brown-800)', lineHeight: '19px' }}>
-                  Sign in to your customer account to view your past invoices and purchase history for this furniture item.
-                </p>
-                <button
-                  onClick={() => navigate('/login?portal=customer')}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    padding: '8px 16px',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: 'var(--brown-900)',
-                    color: 'var(--cream)',
-                    border: 'none',
-                    fontSize: 12,
-                    fontWeight: 700,
-                    fontFamily: 'var(--font-display)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <LogIn size={13} />
-                  Sign In to Customer Portal
-                </button>
-              </div>
-            )}
-
-            {/* If authenticated with invoices */}
-            {isAuthenticated === true && invoices.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {invoices.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {invoices.map((inv) => (
                   <div
                     key={inv.id}
                     style={{
-                      padding: 14,
-                      borderRadius: 'var(--radius-sm)',
-                      border: '1px solid rgba(208, 174, 146, 0.3)',
-                      backgroundColor: 'rgba(249, 242, 228, 0.4)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      flexWrap: 'wrap',
-                      gap: 8,
+                      padding: '10px 14px',
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: 'var(--brown-100)',
+                      fontSize: 12,
                     }}
                   >
                     <div>
-                      <Link
-                        to={`/portal/invoices/${inv.id}`}
-                        style={{
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: 13,
-                          fontWeight: 700,
-                          color: 'var(--brown-900)',
-                          textDecoration: 'none',
-                        }}
-                      >
+                      <Link to={`/portal/invoices/${inv.id}`} style={{ fontWeight: 700, color: 'var(--brown-900)', textDecoration: 'none', fontFamily: 'var(--font-mono)' }}>
                         {inv.number}
                       </Link>
-                      <div style={{ fontSize: 12, color: 'var(--brown-500)', marginTop: 2 }}>
-                        Date: {inv.invoiceDate || '—'} · Qty: {parseFloat(inv.qty)}
+                      <div style={{ fontSize: 11, color: 'var(--brown-600)', marginTop: 2 }}>
+                        {inv.invoiceDate} · Qty: {inv.qty}
                       </div>
                     </div>
-
                     <div style={{ textAlign: 'right' }}>
-                      <div
-                        style={{
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: 13,
-                          fontWeight: 700,
-                          color: 'var(--brown-900)',
-                          fontVariantNumeric: 'tabular-nums',
-                        }}
-                      >
+                      <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--brown-900)' }}>
                         {formatINR(inv.lineTotal)}
                       </div>
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          fontSize: 10,
-                          fontWeight: 700,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.04em',
-                          color:
-                            inv.paymentStatus === 'paid'
-                              ? 'var(--posted)'
-                              : inv.paymentStatus === 'partial'
-                              ? 'var(--warning)'
-                              : 'var(--danger)',
-                        }}
-                      >
-                        {inv.paymentStatus ? inv.paymentStatus.replace('_', ' ') : inv.status}
+                      <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: inv.paymentStatus === 'paid' ? 'var(--posted)' : 'var(--danger)' }}>
+                        {inv.paymentStatus || 'confirmed'}
                       </span>
                     </div>
                   </div>
                 ))}
               </div>
-            )}
-
-            {/* If authenticated but no matching invoices */}
-            {isAuthenticated === true && invoices.length === 0 && (
-              <div
-                style={{
-                  padding: '20px 16px',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'rgba(74, 58, 52, 0.03)',
-                  border: '1px dashed rgba(208, 174, 146, 0.4)',
-                  textAlign: 'center',
-                  fontSize: 13,
-                  color: 'var(--brown-700)',
-                }}
-              >
-                You have not purchased this product on any confirmed customer invoice yet.
+            ) : (
+              <div style={{ fontSize: 12, color: 'var(--brown-600)', textAlign: 'center', padding: '12px 0' }}>
+                No past invoices on this account for this piece.
               </div>
             )}
           </div>
         </div>
 
-        {/* ── Right Panel (Three.js 3D Room Canvas) — 60% desktop ── */}
-        <div
-          style={{
-            flex: '2 1 540px',
-            maxWidth: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-          }}
-        >
-          {hasModel ? (
+        {/* RIGHT COLUMN: 3D Interactive Canvas */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div
+            style={{
+              backgroundColor: 'var(--surface)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid rgba(208, 174, 146, 0.4)',
+              boxShadow: 'var(--shadow-sm)',
+              overflow: 'hidden',
+              position: 'relative',
+            }}
+          >
+            {/* Canvas Header & Lighting Mood Controls */}
             <div
               style={{
-                backgroundColor: 'var(--surface)',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid rgba(208, 174, 146, 0.4)',
-                boxShadow: 'var(--shadow-sm)',
-                overflow: 'hidden',
                 display: 'flex',
-                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '12px 20px',
+                backgroundColor: 'rgba(74, 58, 52, 0.04)',
+                borderBottom: '1px solid rgba(208, 174, 146, 0.3)',
+                flexWrap: 'wrap',
+                gap: 10,
               }}
             >
-              {/* Canvas header bar */}
-              <div
-                style={{
-                  padding: '12px 20px',
-                  backgroundColor: 'var(--brown-900)',
-                  color: 'var(--cream)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  borderBottom: '1px solid rgba(74, 58, 52, 0.35)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Box size={16} color="var(--brown-100)" />
-                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700 }}>
-                    Interactive 3D Showroom Room Scene
-                  </span>
-                </div>
-                <span style={{ fontSize: 11, color: 'var(--brown-300)' }}>
-                  Rotate: Left Click · Zoom: Wheel · Pan: Right Click
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Sparkles size={14} color="var(--posted)" />
+                <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, color: 'var(--brown-900)' }}>
+                  Architectural 3D Inspection Room
                 </span>
               </div>
 
-              {/* 3D Canvas Container */}
-              <div
-                ref={containerRef}
-                style={{
-                  position: 'relative',
-                  width: '100%',
-                  height: 500, // 500px on desktop
-                  backgroundColor: '#F9F2E4',
-                  overflow: 'hidden',
-                }}
-                className="three-canvas-container"
-              >
-                <canvas
-                  ref={canvasRef}
+              {/* Lighting Mood Switcher */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, backgroundColor: 'rgba(255,255,255,0.9)', padding: 3, borderRadius: 999, border: '1px solid rgba(208,174,146,0.5)' }}>
+                <button
+                  onClick={() => handleSelectLighting('day')}
+                  title="Studio Daylight"
                   style={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'block',
-                    cursor: 'grab',
-                  }}
-                />
-
-                {/* Loading Spinner */}
-                {modelLoading && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      backgroundColor: 'rgba(249, 242, 228, 0.85)',
-                      backdropFilter: 'blur(4px)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      zIndex: 10,
-                      color: 'var(--brown-900)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: 38,
-                        height: 38,
-                        border: '3px solid rgba(74, 58, 52, 0.2)',
-                        borderTop: '3px solid var(--brown-900)',
-                        borderRadius: '50%',
-                        animation: 'spin 1s linear infinite',
-                        marginBottom: 12,
-                      }}
-                    />
-                    <style>{`
-                      @keyframes spin {
-                        0% { transform: rotate(0deg); }
-                        100% { transform: rotate(360deg); }
-                      }
-                      @media (max-width: 640px) {
-                        .three-canvas-container {
-                          height: 300px !important;
-                        }
-                      }
-                    `}</style>
-                    <span style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700 }}>
-                      Loading 3D Furniture Asset...
-                    </span>
-                  </div>
-                )}
-
-                {/* Model Error Message */}
-                {modelError && (
-                  <div
-                    style={{
-                      position: 'absolute',
-                      inset: 0,
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: 24,
-                      textAlign: 'center',
-                      backgroundColor: 'var(--cream)',
-                      color: 'var(--danger)',
-                    }}
-                  >
-                    <AlertCircle size={32} style={{ marginBottom: 8 }} />
-                    <span style={{ fontWeight: 600, fontSize: 14 }}>{modelError}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Canvas Footer toolbar */}
-              <div
-                style={{
-                  padding: '10px 20px',
-                  backgroundColor: 'var(--surface)',
-                  borderTop: '1px solid rgba(208, 174, 146, 0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  fontSize: 12,
-                  color: 'var(--brown-700)',
-                }}
-              >
-                <span>Material: Wood & Neutral Room Setup</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>WebGL 2.0 · OrbitControls</span>
-              </div>
-            </div>
-          ) : (
-            // If no 3D model, hide 3D canvas and show 2D image preview
-            <div
-              style={{
-                backgroundColor: 'var(--surface)',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid rgba(208, 174, 146, 0.4)',
-                boxShadow: 'var(--shadow-sm)',
-                overflow: 'hidden',
-                padding: 24,
-              }}
-            >
-              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, color: 'var(--brown-900)', margin: '0 0 16px' }}>
-                Product Image Preview
-              </h3>
-              {product.image_url ? (
-                <img
-                  src={product.image_url}
-                  alt={product.name}
-                  style={{ width: '100%', borderRadius: 'var(--radius-sm)', objectFit: 'cover' }}
-                />
-              ) : (
-                <div
-                  style={{
-                    height: 350,
-                    borderRadius: 'var(--radius-sm)',
-                    background: 'var(--brown-100)',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'var(--brown-700)',
-                    fontFamily: 'var(--font-display)',
+                    gap: 4,
+                    padding: '4px 10px',
+                    borderRadius: 999,
+                    border: 'none',
+                    fontSize: 11,
                     fontWeight: 600,
+                    cursor: 'pointer',
+                    backgroundColor: lightingMood === 'day' ? 'var(--brown-900)' : 'transparent',
+                    color: lightingMood === 'day' ? 'var(--cream)' : 'var(--brown-700)',
                   }}
                 >
-                  No 3D Model or Image File Available
+                  <Sun size={12} /> Day
+                </button>
+                <button
+                  onClick={() => handleSelectLighting('golden')}
+                  title="Japandi Golden Hour"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '4px 10px',
+                    borderRadius: 999,
+                    border: 'none',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    backgroundColor: lightingMood === 'golden' ? 'var(--brown-900)' : 'transparent',
+                    color: lightingMood === 'golden' ? 'var(--cream)' : 'var(--brown-700)',
+                  }}
+                >
+                  <Sunrise size={12} /> Golden
+                </button>
+                <button
+                  onClick={() => handleSelectLighting('night')}
+                  title="Midnight Lounge"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    padding: '4px 10px',
+                    borderRadius: 999,
+                    border: 'none',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    backgroundColor: lightingMood === 'night' ? 'var(--brown-900)' : 'transparent',
+                    color: lightingMood === 'night' ? 'var(--cream)' : 'var(--brown-700)',
+                  }}
+                >
+                  <Moon size={12} /> Night
+                </button>
+              </div>
+            </div>
+
+            {/* 3D Canvas Area */}
+            <div
+              ref={containerRef}
+              style={{
+                position: 'relative',
+                width: '100%',
+                height: 520,
+                backgroundColor: lightingMood === 'night' ? '#1B1E26' : lightingMood === 'golden' ? '#F2E3D0' : '#F9F2E4',
+                transition: 'background-color 300ms ease',
+              }}
+            >
+              <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block', cursor: 'grab' }} />
+
+              {modelLoading && (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(249, 242, 228, 0.85)', backdropFilter: 'blur(4px)' }}>
+                  <div style={{ width: 36, height: 36, border: '3px solid rgba(74, 58, 52, 0.2)', borderTop: '3px solid var(--brown-900)', borderRadius: '50%', animation: 'spin 1s linear infinite', marginBottom: 12 }} />
+                  <span style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, color: 'var(--brown-900)' }}>
+                    Loading GLB Architectural Geometry...
+                  </span>
+                </div>
+              )}
+
+              {modelError && (
+                <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center', backgroundColor: 'var(--cream)', color: 'var(--danger)' }}>
+                  <AlertCircle size={32} style={{ marginBottom: 8 }} />
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>{modelError}</span>
                 </div>
               )}
             </div>
-          )}
+
+            {/* Bottom Controls Legend */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 20px',
+                fontSize: 11,
+                color: 'var(--brown-600)',
+                backgroundColor: 'rgba(74, 58, 52, 0.02)',
+                borderTop: '1px solid rgba(208, 174, 146, 0.25)',
+              }}
+            >
+              <span>Rotate: Left Drag · Pan: Right Drag · Zoom: Scroll</span>
+              <span style={{ fontFamily: 'var(--font-mono)' }}>Three.js PCFSoftShadows · 1:1 Scale</span>
+            </div>
+          </div>
         </div>
       </div>
+
+      {/* AR Modal */}
+      {showArModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(74, 58, 52, 0.65)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+          onClick={() => setShowArModal(false)}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--surface)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid rgba(208, 174, 146, 0.6)',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
+              maxWidth: 420,
+              width: '100%',
+              padding: 28,
+              position: 'relative',
+              textAlign: 'center',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setShowArModal(false)}
+              style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brown-600)' }}
+            >
+              <X size={18} />
+            </button>
+
+            <div style={{ width: 48, height: 48, borderRadius: '50%', backgroundColor: 'var(--brown-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <QrCode size={24} color="var(--brown-900)" />
+            </div>
+
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--brown-900)', margin: '0 0 8px' }}>
+              View in Your Space (AR)
+            </h3>
+            <p style={{ fontSize: 13, color: 'var(--brown-700)', lineHeight: 1.5, margin: '0 0 20px' }}>
+              Scan this code with your iPhone or Android camera to project the <strong>{product.name}</strong> onto your living room floor at true 1:1 scale.
+            </p>
+
+            {/* QR Code SVG */}
+            <div style={{ display: 'inline-block', padding: 16, backgroundColor: '#FFF', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(208, 174, 146, 0.4)', marginBottom: 20 }}>
+              <svg width="180" height="180" viewBox="0 0 100 100" style={{ display: 'block' }}>
+                <rect width="100" height="100" fill="#FFFFFF" />
+                <path d="M10,10 h30 v30 h-30 z M15,15 v20 h20 v-20 z M20,20 h10 v10 h-10 z" fill="#4A3A34" />
+                <path d="M60,10 h30 v30 h-30 z M65,15 v20 h20 v-20 z M70,20 h10 v10 h-10 z" fill="#4A3A34" />
+                <path d="M10,60 h30 v30 h-30 z M15,65 v20 h20 v-20 z M20,70 h10 v10 h-10 z" fill="#4A3A34" />
+                <path d="M48,15 h6 v6 h-6 z M48,25 h6 v15 h-6 z M48,45 h15 v6 h-15 z M68,45 h20 v6 h-20 z M48,55 h6 v10 h-6 z M60,60 h10 v10 h-10 z M75,60 h15 v10 h-15 z M60,75 h6 v15 h-6 z M75,80 h15 v10 h-15 z M45,75 h6 v15 h-6 z M25,48 h15 v6 h-15 z M10,48 h10 v6 h-10 z" fill="#4A3A34" />
+              </svg>
+            </div>
+
+            <div style={{ fontSize: 11, color: 'var(--brown-500)', lineHeight: 1.4 }}>
+              Supports Apple AR QuickLook (.usdz) & Google Scene Viewer (WebXR). No app install required.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quote Success Modal */}
+      {quoteSuccess && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(74, 58, 52, 0.65)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+          onClick={() => setQuoteSuccess(null)}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--surface)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid rgba(208, 174, 146, 0.6)',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
+              maxWidth: 480,
+              width: '100%',
+              padding: 28,
+              position: 'relative',
+              textAlign: 'left',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              <div style={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: 'var(--posted-bg)', color: 'var(--posted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CheckCircle size={22} />
+              </div>
+              <div>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--brown-900)', margin: 0 }}>
+                  Official Quotation Created
+                </h3>
+                <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--brown-600)' }}>
+                  Sales Order: {quoteSuccess.number}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ backgroundColor: 'var(--brown-100)', padding: 16, borderRadius: 'var(--radius-sm)', marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 8, fontSize: 13 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--brown-700)' }}>Item</span>
+                <span style={{ fontWeight: 600, color: 'var(--brown-900)' }}>{product.name}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--brown-700)' }}>Finish Spec</span>
+                <span style={{ fontWeight: 600, color: 'var(--brown-900)' }}>{currentFinishCfg.label}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--brown-700)' }}>Subtotal</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>{formatINR(quoteSuccess.subtotal)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--brown-700)' }}>GST Tax</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>{formatINR(quoteSuccess.taxTotal)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid rgba(208, 174, 146, 0.4)', paddingTop: 8, fontWeight: 700, fontSize: 15 }}>
+                <span>Grand Total</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>{formatINR(quoteSuccess.total)}</span>
+              </div>
+            </div>
+
+            <p style={{ fontSize: 12, color: 'var(--brown-600)', margin: '0 0 20px', lineHeight: 1.4 }}>
+              This draft quotation has been recorded under your customer account in the ERP. You can review your account statements and pay when ready.
+            </p>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setQuoteSuccess(null)}
+                style={{ padding: '8px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(208, 174, 146, 0.5)', background: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: 'var(--brown-900)' }}
+              >
+                Close
+              </button>
+              <button
+                onClick={() => navigate('/portal/invoices')}
+                style={{ padding: '8px 18px', borderRadius: 'var(--radius-sm)', border: 'none', backgroundColor: 'var(--brown-900)', color: 'var(--cream)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+              >
+                View in My Ledger →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @media (max-width: 900px) {
+          .portal-viewer-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };

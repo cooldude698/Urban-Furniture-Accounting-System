@@ -5,6 +5,8 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import { formatINR } from '../../lib/money';
 import { loadRazorpayScript } from '../../lib/razorpay';
 import api from '../../lib/axios';
+import { Award, ShieldCheck, Printer, X, Sparkles, CheckCircle } from 'lucide-react';
+import { playWoodClick, playChimeSuccess } from '../../lib/soundEffects';
 
 /* ─── types ──────────────────────────────────────────────────────────── */
 interface InvoiceLine {
@@ -122,6 +124,28 @@ export const PortalInvoiceDetail: React.FC = () => {
 
   /* PDF download loading */
   const [pdfLoading, setPdfLoading] = useState(false);
+
+  /* Certificate modal state */
+  const [certModalOpen, setCertModalOpen] = useState(false);
+  const [certLoading, setCertLoading] = useState(false);
+  const [certificate, setCertificate] = useState<any | null>(null);
+
+  const handleOpenCertificate = async () => {
+    playWoodClick(1.1);
+    setCertLoading(true);
+    try {
+      const res = await api.get(`/api/portal/invoices/${invoiceId}/certificate`);
+      if (res.data?.data) {
+        setCertificate(res.data.data);
+        playChimeSuccess();
+        setCertModalOpen(true);
+      }
+    } catch (err: any) {
+      console.error('Failed to load certificate:', err);
+    } finally {
+      setCertLoading(false);
+    }
+  };
 
   const fetchInvoice = () => {
     setLoading(true);
@@ -362,6 +386,30 @@ export const PortalInvoiceDetail: React.FC = () => {
 
         {/* Right: action buttons */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            onClick={handleOpenCertificate}
+            disabled={certLoading}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '7px 14px',
+              fontSize: 12,
+              fontFamily: 'var(--font-display)',
+              fontWeight: 700,
+              background: 'rgba(74, 58, 52, 0.06)',
+              border: '1px solid rgba(208, 174, 146, 0.6)',
+              borderRadius: 'var(--radius-sm)',
+              color: 'var(--brown-900)',
+              cursor: certLoading ? 'wait' : 'pointer',
+              boxShadow: 'var(--shadow-sm)',
+              transition: 'all 120ms ease-out',
+            }}
+          >
+            <Award size={14} color="var(--posted)" />
+            <span>{certLoading ? 'Loading…' : 'Provenance Certificate'}</span>
+          </button>
+
           <button
             onClick={handleDownloadPdf}
             disabled={pdfLoading}
@@ -666,6 +714,169 @@ export const PortalInvoiceDetail: React.FC = () => {
           }
         }
       `}</style>
+
+      {/* ── Certificate of Handcrafted Authenticity Modal ──────────────── */}
+      {certModalOpen && certificate && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(74, 58, 52, 0.7)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+          onClick={() => setCertModalOpen(false)}
+        >
+          <div
+            style={{
+              backgroundColor: '#FFFDF9',
+              borderRadius: 'var(--radius-md)',
+              border: '2px solid #C4975A',
+              boxShadow: '0 25px 60px rgba(74, 58, 52, 0.35)',
+              maxWidth: 580,
+              width: '100%',
+              padding: 36,
+              position: 'relative',
+              textAlign: 'center',
+              backgroundImage: 'radial-gradient(circle at center, rgba(196, 151, 90, 0.04) 0%, transparent 70%)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setCertModalOpen(false)}
+              style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brown-600)' }}
+            >
+              <X size={18} />
+            </button>
+
+            {/* Emblem Seal */}
+            <div
+              style={{
+                width: 54,
+                height: 54,
+                borderRadius: '50%',
+                backgroundColor: '#F7EEDB',
+                border: '2px solid #C4975A',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 12px',
+                color: '#8A6229',
+              }}
+            >
+              <ShieldCheck size={28} />
+            </div>
+
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: '#8A6229', marginBottom: 4 }}>
+              URBAN FURNITURE ARCHITECTURAL ATELIER
+            </div>
+
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 800, color: 'var(--brown-900)', margin: '0 0 6px', letterSpacing: '0.02em' }}>
+              Certificate of Handcrafted Authenticity
+            </h2>
+
+            <p style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--brown-600)', margin: '0 0 20px' }}>
+              {certificate.certificateNumber} · Verified Record #{invoiceId}
+            </p>
+
+            <div style={{ borderTop: '1px solid #E2D2BC', borderBottom: '1px solid #E2D2BC', padding: '16px 0', marginBottom: 20, textAlign: 'left' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+                <div>
+                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--brown-500)', letterSpacing: '0.05em' }}>
+                    Certified Owner
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--brown-900)', marginTop: 2 }}>
+                    {certificate.issuedTo}
+                  </div>
+                  {certificate.cityState && (
+                    <div style={{ fontSize: 11, color: 'var(--brown-600)' }}>{certificate.cityState}</div>
+                  )}
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--brown-500)', letterSpacing: '0.05em' }}>
+                    Issue Date & Status
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--brown-900)', marginTop: 2 }}>
+                    {certificate.issueDate}
+                  </div>
+                  <div style={{ fontSize: 11, color: certificate.isSettled ? 'var(--posted)' : 'var(--warning)', fontWeight: 600 }}>
+                    {certificate.isSettled ? '✓ Fully Settled & Backed' : 'Pending Payment Confirmation'}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', color: 'var(--brown-700)', fontWeight: 700, marginBottom: 8 }}>
+                Certified Pieces & Wood Provenance:
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {certificate.items.map((item: any, idx: number) => (
+                  <div
+                    key={idx}
+                    style={{
+                      padding: '8px 12px',
+                      backgroundColor: 'rgba(247, 238, 219, 0.5)',
+                      borderRadius: 4,
+                      border: '1px solid rgba(196, 151, 90, 0.3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      fontSize: 12,
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 700, color: 'var(--brown-900)' }}>{item.productName}</div>
+                      <div style={{ fontSize: 10, color: 'var(--brown-600)' }}>
+                        Provenance: {item.woodSpecies} · Serial: {item.serialNumber}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right', fontSize: 10, color: '#8A6229', fontWeight: 600 }}>
+                      {item.warranty}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ textAlign: 'left' }}>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 11, fontWeight: 700, color: 'var(--brown-900)' }}>
+                  Urban Furniture Verification Seal
+                </div>
+                <div style={{ fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--brown-500)' }}>
+                  100% Zero-VOC Oils · Sustainable Forest Certified
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={() => window.print()}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '8px 16px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'var(--brown-900)',
+                    color: 'var(--cream)',
+                    border: 'none',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Printer size={13} />
+                  Print Certificate
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

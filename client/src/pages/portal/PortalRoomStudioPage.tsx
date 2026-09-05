@@ -30,7 +30,14 @@ import {
   Eye,
   Sparkles,
   Compass,
+  FileCheck2,
+  Volume2,
+  VolumeX,
+  CheckCircle,
 } from 'lucide-react';
+import api from '../../lib/axios';
+import { formatINR } from '../../lib/money';
+import { playWoodClick, playChimeSuccess, toggleAmbientSoundscape } from '../../lib/soundEffects';
 
 interface ShowroomModel {
   id: string;
@@ -54,6 +61,7 @@ interface PlacedFurniture {
   rotationY: number;
   scale: number;
   scaleFactor: number;
+  finish?: 'oak' | 'teak' | 'walnut' | 'charcoal';
 }
 
 type AmbienceMode = 'morning' | 'studio' | 'dusk';
@@ -93,6 +101,12 @@ export const PortalRoomStudioPage: React.FC = () => {
   const standingLampGroupRef = useRef<THREE.Group | null>(null);
   const gridHelperRef = useRef<THREE.GridHelper | null>(null);
 
+  // Interaction refs
+  const isDraggingItemRef = useRef<boolean>(false);
+  const draggedInstanceIdRef = useRef<string | null>(null);
+  const dragOffsetRef = useRef<THREE.Vector3>(new THREE.Vector3());
+  const mouseMoveCountRef = useRef<number>(0);
+
   // Camera animation ref
   const cameraAnimRef = useRef<{
     active: boolean;
@@ -114,6 +128,7 @@ export const PortalRoomStudioPage: React.FC = () => {
 
   // Data states
   const [catalogModels, setCatalogModels] = useState<ShowroomModel[]>([]);
+  const [catalogueProducts, setCatalogueProducts] = useState<any[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [placedItems, setPlacedItems] = useState<PlacedFurniture[]>([]);
@@ -130,7 +145,13 @@ export const PortalRoomStudioPage: React.FC = () => {
   const [loadingModel, setLoadingModel] = useState<boolean>(false);
   const [isDraggingOverCanvas, setIsDraggingOverCanvas] = useState<boolean>(false);
 
-  // 1. Fetch available models from API
+  // Quote & Audio States
+  const [quoteSubmitting, setQuoteSubmitting] = useState<boolean>(false);
+  const [quoteSuccess, setQuoteSuccess] = useState<any | null>(null);
+  const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [ambientSoundActive, setAmbientSoundActive] = useState<boolean>(false);
+
+  // 1. Fetch available models from API & Catalogue products
   useEffect(() => {
     fetch('/api/portal/models')
       .then((res) => res.json())
@@ -145,6 +166,14 @@ export const PortalRoomStudioPage: React.FC = () => {
         }
       })
       .catch((err) => console.error('Failed to load models:', err));
+
+    api.get('/api/portal/catalogue')
+      .then((res) => {
+        if (res.data?.data) {
+          setCatalogueProducts(res.data.data);
+        }
+      })
+      .catch((err) => console.warn('Failed to load catalogue products:', err));
   }, []);
 
   // 2. Initialise Three.js Studio Scene
@@ -635,6 +664,86 @@ export const PortalRoomStudioPage: React.FC = () => {
       gridHelperRef.current.visible = showGrid;
     }
   }, [ambience, ceilingLightOn, standingLampOn, showGrid]);
+
+  // Finish Customization for Selected Placed Piece
+  const FINISH_PRESETS = {
+    oak: { label: 'Japandi Oak', threeColor: 0xE8D8C3, roughness: 0.65 },
+    teak: { label: 'Warm Teak', threeColor: 0xCA8747, roughness: 0.52 },
+    walnut: { label: 'Dark Walnut', threeColor: 0x583D2D, roughness: 0.45 },
+    charcoal: { label: 'Charcoal Ash', threeColor: 0x2A2B2D, roughness: 0.42 },
+  };
+
+  const handleUpdateFinishSelected = (finish: 'oak' | 'teak' | 'walnut' | 'charcoal') => {
+    if (!selectedInstanceId) return;
+    playWoodClick(1.1);
+    const cfg = FINISH_PRESETS[finish];
+    const obj = placedMeshesRef.current.get(selectedInstanceId);
+    if (obj) {
+      obj.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh;
+          if (mesh.material) {
+            const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+            for (const m of mats) {
+              if ((m as THREE.MeshStandardMaterial).isMeshStandardMaterial && (m as THREE.MeshStandardMaterial).metalness < 0.75) {
+                (m as THREE.MeshStandardMaterial).color.setHex(cfg.threeColor);
+                (m as THREE.MeshStandardMaterial).roughness = cfg.roughness;
+                (m as THREE.MeshStandardMaterial).needsUpdate = true;
+              }
+            }
+          }
+        }
+      });
+    }
+    setPlacedItems((prev) => prev.map((p) => (p.instanceId === selectedInstanceId ? { ...p, finish } : p)));
+  };
+
+  const handleToggleAudio = () => {
+    const newState = toggleAmbientSoundscape();
+    setAmbientSoundActive(newState);
+    playWoodClick(1.0);
+  };
+
+  const handleRequestRoomQuote = async () => {
+    if (placedItems.length === 0) return;
+    setQuoteSubmitting(true);
+    setQuoteError(null);
+    playWoodClick(1.2);
+
+    try {
+      const items = placedItems.map((item) => {
+        const match = catalogueProducts.find(
+          (p) =>
+            (p.model_url && item.url && p.model_url.toLowerCase().includes(item.url.replace('/Models/', '').toLowerCase())) ||
+            p.name.toLowerCase().includes(item.name.toLowerCase()) ||
+            p.category.toLowerCase() === item.category.toLowerCase()
+        ) || catalogueProducts[0];
+
+        return {
+          productId: match ? match.id : 1,
+          qty: 1,
+          finish: item.finish || 'oak',
+        };
+      });
+
+      const res = await api.post('/api/portal/quote', {
+        items,
+        roomName: `Custom 3D Architecture Proposal (${placedItems.length} Handcrafted Pieces)`,
+        notes: 'Interactive room arrangement generated from Urban Furniture 3D Studio Planner.',
+      });
+
+      if (res.data?.data) {
+        playChimeSuccess();
+        setQuoteSuccess(res.data.data.salesOrder);
+      } else {
+        throw new Error(res.data?.error?.message || 'Failed to generate quotation');
+      }
+    } catch (err: any) {
+      setQuoteError(err?.response?.data?.error?.message || err.message || 'Error generating quote');
+    } finally {
+      setQuoteSubmitting(false);
+    }
+  };
 
   // 5. Update Selection Ring Indicator Position
   useEffect(() => {
@@ -1431,6 +1540,56 @@ export const PortalRoomStudioPage: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* 1-Click Formal Quote CTA */}
+          <button
+            onClick={handleRequestRoomQuote}
+            disabled={placedItems.length === 0 || quoteSubmitting}
+            title={placedItems.length === 0 ? 'Place furniture pieces to request an official quote' : 'Generate official quotation & draft sales order'}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              backgroundColor: placedItems.length > 0 ? 'var(--brown-900)' : 'rgba(255, 255, 255, 0.7)',
+              color: placedItems.length > 0 ? 'var(--cream)' : 'var(--brown-500)',
+              backdropFilter: 'blur(12px)',
+              padding: '7px 16px',
+              borderRadius: 999,
+              border: '1px solid rgba(208, 174, 146, 0.45)',
+              boxShadow: 'var(--shadow-sm)',
+              fontSize: 12,
+              fontWeight: 700,
+              fontFamily: 'var(--font-display)',
+              cursor: placedItems.length > 0 ? (quoteSubmitting ? 'wait' : 'pointer') : 'not-allowed',
+              transition: 'all 150ms ease',
+            }}
+          >
+            <FileCheck2 size={14} />
+            {quoteSubmitting ? 'Drafting...' : `Request Quote (${placedItems.length})`}
+          </button>
+
+          {/* Ambient Japandi Audio Toggle */}
+          <button
+            onClick={handleToggleAudio}
+            title={ambientSoundActive ? 'Mute ambient soundscape' : 'Play Japandi ambient garden breeze'}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(208, 174, 146, 0.45)',
+              boxShadow: 'var(--shadow-sm)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: ambientSoundActive ? 'var(--posted)' : 'var(--brown-700)',
+              transition: 'all 120ms ease',
+            }}
+          >
+            {ambientSoundActive ? <Volume2 size={14} /> : <VolumeX size={14} />}
+          </button>
         </div>
       </div>
 
@@ -1552,6 +1711,32 @@ export const PortalRoomStudioPage: React.FC = () => {
             >
               <RotateCw size={13} />
             </button>
+          </div>
+
+          <div style={{ height: 20, width: 1, backgroundColor: 'rgba(208, 174, 146, 0.5)' }} />
+
+          {/* Wood Finish Swatches */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 10, color: 'var(--brown-600)', textTransform: 'uppercase', letterSpacing: '0.04em', marginRight: 2 }}>
+              Finish:
+            </span>
+            {(['oak', 'teak', 'walnut', 'charcoal'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => handleUpdateFinishSelected(f)}
+                title={`Select ${f.toUpperCase()} finish`}
+                style={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  backgroundColor: f === 'oak' ? '#D8C5A8' : f === 'teak' ? '#C28247' : f === 'walnut' ? '#4A3326' : '#2C2D2F',
+                  border: (selectedItem.finish || 'oak') === f ? '2px solid var(--brown-900)' : '1px solid rgba(0,0,0,0.15)',
+                  cursor: 'pointer',
+                  padding: 0,
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                }}
+              />
+            ))}
           </div>
 
           <div style={{ height: 20, width: 1, backgroundColor: 'rgba(208, 174, 146, 0.5)' }} />
@@ -1904,6 +2089,91 @@ export const PortalRoomStudioPage: React.FC = () => {
             }}
           />
           Placing piece in room...
+        </div>
+      )}
+
+      {/* Quote Proposal Modal */}
+      {quoteSuccess && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(74, 58, 52, 0.65)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 20,
+          }}
+          onClick={() => setQuoteSuccess(null)}
+        >
+          <div
+            style={{
+              backgroundColor: 'var(--surface)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid rgba(208, 174, 146, 0.6)',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.25)',
+              maxWidth: 520,
+              width: '100%',
+              padding: 28,
+              position: 'relative',
+              textAlign: 'left',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+              <div style={{ width: 42, height: 42, borderRadius: '50%', backgroundColor: 'var(--posted-bg)', color: 'var(--posted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CheckCircle size={24} />
+              </div>
+              <div>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--brown-900)', margin: 0 }}>
+                  Official 3D Room Quotation Generated
+                </h3>
+                <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--brown-600)' }}>
+                  Sales Order Reference: {quoteSuccess.number}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ backgroundColor: 'var(--brown-100)', padding: 16, borderRadius: 'var(--radius-sm)', marginBottom: 20, display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(208, 174, 146, 0.3)', paddingBottom: 6 }}>
+                <span style={{ color: 'var(--brown-700)', fontWeight: 600 }}>Architecture Layout</span>
+                <span style={{ fontWeight: 700, color: 'var(--brown-900)' }}>{placedItems.length} Placed Pieces</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--brown-700)' }}>Subtotal</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>{formatINR(quoteSuccess.subtotal)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span style={{ color: 'var(--brown-700)' }}>GST (18%)</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>{formatINR(quoteSuccess.taxTotal)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '2px solid var(--brown-300)', paddingTop: 8, fontWeight: 800, fontSize: 16, color: 'var(--brown-900)' }}>
+                <span>Grand Total</span>
+                <span style={{ fontFamily: 'var(--font-mono)' }}>{formatINR(quoteSuccess.total)}</span>
+              </div>
+            </div>
+
+            <p style={{ fontSize: 12, color: 'var(--brown-600)', margin: '0 0 20px', lineHeight: 1.45 }}>
+              This proposal has been registered in the ERP database under your verified customer ledger. You can inspect your invoices and complete online checkout anytime.
+            </p>
+
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button
+                onClick={() => setQuoteSuccess(null)}
+                style={{ padding: '8px 16px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(208, 174, 146, 0.5)', background: 'none', fontSize: 13, fontWeight: 600, cursor: 'pointer', color: 'var(--brown-900)' }}
+              >
+                Continue Designing
+              </button>
+              <button
+                onClick={() => navigate('/portal/invoices')}
+                style={{ padding: '8px 18px', borderRadius: 'var(--radius-sm)', border: 'none', backgroundColor: 'var(--brown-900)', color: 'var(--cream)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+              >
+                View Customer Invoices →
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
