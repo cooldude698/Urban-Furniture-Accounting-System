@@ -102,8 +102,8 @@ invoiceRouter.get('/:id/payments', async (req: Request, res: Response) => {
   }
 });
 
-// 6. GET /api/invoices/:id/pdf - Export PDF (server-side Puppeteer)
-invoiceRouter.get('/:id/pdf', async (req: Request, res: Response) => {
+// 6. GET & POST /api/invoices/:id/pdf - Export PDF (server-side Puppeteer)
+const handleInvoicePdf = async (req: Request, res: Response) => {
   try {
     const invId = parseInt(String(req.params.id), 10);
     if (isNaN(invId)) {
@@ -139,5 +139,8 @@ invoiceRouter.get('/:id/pdf', async (req: Request, res: Response) => {
   } catch (err: any) {
     return sendError(res, 'SERVER_ERROR', err.message, 500);
   }
-});
+};
+
+invoiceRouter.get('/:id/pdf', handleInvoicePdf);
+invoiceRouter.post('/:id/pdf', handleInvoicePdf);
 
