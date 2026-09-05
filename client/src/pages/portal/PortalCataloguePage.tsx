@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, NavLink } from 'react-router-dom';
-import { Box, Eye, Sparkles, LogIn, ArrowLeft } from 'lucide-react';
+import Decimal from 'decimal.js';
+import { Box, Eye, Sparkles, LogIn, SlidersHorizontal, Search, Check, ShoppingBag } from 'lucide-react';
 import { BrandLogo } from '../../components/ui/BrandLogo';
 import { formatINR } from '../../lib/money';
+import { RoomArrangerDrawer, ROOM_PRESETS, type ArrangedItem, type RoomPreset } from './RoomArrangerDrawer';
 
 export interface CatalogueProduct {
   id: number;
@@ -26,8 +28,29 @@ export const PortalCataloguePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [maxPrice, setMaxPrice] = useState<number>(100000);
+  const [onlyInStock, setOnlyInStock] = useState(false);
   const [imageErrors, setImageErrors] = useState<Record<number, boolean>>({});
   const [currentUser, setCurrentUser] = useState<{ full_name: string; login_id: string } | null>(null);
+
+  // Room Arranger & Budget Wallet State
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [budget, setBudget] = useState<number>(100000);
+  const [arrangedItems, setArrangedItems] = useState<ArrangedItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('urban_room_arrangement');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('urban_room_arrangement', JSON.stringify(arrangedItems));
+    } catch {}
+  }, [arrangedItems]);
 
   useEffect(() => {
     // Check if user is logged in
@@ -73,9 +96,78 @@ export const PortalCataloguePage: React.FC = () => {
       .toUpperCase();
   };
 
+  // Arranger actions
+  const handleAddItem = (product: CatalogueProduct) => {
+    setArrangedItems((prev) => {
+      const existing = prev.find((it) => it.product.id === product.id);
+      if (existing) {
+        return prev.map((it) => (it.product.id === product.id ? { ...it, qty: it.qty + 1 } : it));
+      }
+      return [...prev, { product, qty: 1 }];
+    });
+  };
+
+  const handleUpdateQty = (productId: number, qty: number) => {
+    if (qty <= 0) {
+      handleRemoveItem(productId);
+      return;
+    }
+    setArrangedItems((prev) => prev.map((it) => (it.product.id === productId ? { ...it, qty } : it)));
+  };
+
+  const handleRemoveItem = (productId: number) => {
+    setArrangedItems((prev) => prev.filter((it) => it.product.id !== productId));
+  };
+
+  const handleClearArrangement = () => {
+    setArrangedItems([]);
+  };
+
+  const handleLoadPreset = (preset: RoomPreset) => {
+    const matchedProducts: CatalogueProduct[] = [];
+    for (const sku of preset.skus) {
+      const prod = products.find((p) => p.sku === sku);
+      if (prod) {
+        matchedProducts.push(prod);
+      }
+    }
+    // Fallback if SKUs don't match exactly
+    if (matchedProducts.length === 0 && products.length > 0) {
+      matchedProducts.push(...products.slice(0, 3));
+    }
+
+    setArrangedItems(matchedProducts.map((p) => ({ product: p, qty: 1 })));
+    setBudget(preset.targetBudget);
+    setDrawerOpen(true);
+  };
+
+  const totalArrangedCost = arrangedItems.reduce((acc, it) => {
+    return acc.plus(new Decimal(it.product.sales_price).times(it.qty));
+  }, new Decimal(0));
+
   const filteredProducts = products.filter((p) => {
-    if (activeCategory === 'All') return true;
-    return p.category?.toLowerCase() === activeCategory.toLowerCase();
+    // 1. Category
+    if (activeCategory !== 'All' && p.category?.toLowerCase() !== activeCategory.toLowerCase()) {
+      return false;
+    }
+    // 2. Search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchName = p.name.toLowerCase().includes(q);
+      const matchSku = p.sku?.toLowerCase().includes(q);
+      if (!matchName && !matchSku) return false;
+    }
+    // 3. Price range
+    const price = parseFloat(p.sales_price) || 0;
+    if (price > maxPrice) {
+      return false;
+    }
+    // 4. In stock
+    if (onlyInStock) {
+      const stock = parseFloat(p.stock_qty) || 0;
+      if (stock <= 0) return false;
+    }
+    return true;
   });
 
   return (
@@ -150,6 +242,21 @@ export const PortalCataloguePage: React.FC = () => {
               })}
             >
               Customer Invoices
+            </NavLink>
+            <NavLink
+              to="/portal/payments"
+              style={({ isActive }) => ({
+                padding: '6px 14px',
+                fontSize: 12,
+                fontFamily: 'var(--font-display)',
+                fontWeight: 700,
+                borderRadius: 7,
+                textDecoration: 'none',
+                backgroundColor: isActive ? 'var(--cream)' : 'transparent',
+                color: isActive ? 'var(--brown-900)' : 'var(--brown-300)',
+              })}
+            >
+              Payment Logs
             </NavLink>
             <NavLink
               to="/portal/bills"
@@ -230,7 +337,7 @@ export const PortalCataloguePage: React.FC = () => {
       {/* ── Main Container ── */}
       <main style={{ maxWidth: 1280, margin: '0 auto', width: '100%', padding: '36px 32px 64px' }}>
         {/* Header section */}
-        <div style={{ marginBottom: 32 }}>
+        <div style={{ marginBottom: 28 }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -274,52 +381,256 @@ export const PortalCataloguePage: React.FC = () => {
                   margin: 0,
                 }}
               >
-                Furniture Catalogue
+                Furniture Catalogue & Room Arranger
               </h1>
               <p style={{ margin: '6px 0 0', fontSize: 15, color: 'var(--brown-700)' }}>
-                Browse our handcrafted architectural furniture collection with interactive 3D inspection.
+                Inspect 3D pieces, set your personal budget wallet, or load pre-built room templates.
               </p>
             </div>
 
-            <div style={{ fontSize: 13, color: 'var(--brown-700)', alignSelf: 'flex-end' }}>
-              Showing <strong style={{ color: 'var(--brown-900)' }}>{filteredProducts.length}</strong> items
+            {/* Room Arranger Button */}
+            <button
+              onClick={() => setDrawerOpen(true)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '10px 18px',
+                backgroundColor: 'var(--brown-900)',
+                color: 'var(--cream)',
+                borderRadius: 'var(--radius-sm, 6px)',
+                border: 'none',
+                fontSize: 13,
+                fontWeight: 700,
+                fontFamily: 'var(--font-display)',
+                cursor: 'pointer',
+                boxShadow: 'var(--shadow-sm)',
+                transition: 'background 120ms ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#5c4033')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--brown-900)')}
+            >
+              <span>🛋️</span>
+              <span>Room Arranger & Wallet</span>
+              {arrangedItems.length > 0 && (
+                <span
+                  style={{
+                    backgroundColor: 'var(--posted)',
+                    color: 'var(--cream)',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    padding: '2px 6px',
+                    borderRadius: 999,
+                  }}
+                >
+                  {arrangedItems.length}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* ── Ready-to-Use Room Presets Row ── */}
+          <div style={{ marginTop: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+              <Sparkles size={14} color="var(--warning)" />
+              <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--brown-800)', fontFamily: 'var(--font-display)' }}>
+                Pre-Built Room Templates (Free Customizable Presets)
+              </span>
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                gap: 12,
+              }}
+            >
+              {ROOM_PRESETS.map((preset) => (
+                <div
+                  key={preset.id}
+                  style={{
+                    backgroundColor: 'var(--surface)',
+                    border: '1px solid rgba(208, 174, 146, 0.45)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '14px 16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between',
+                    boxShadow: 'var(--shadow-sm)',
+                    transition: 'border-color 150ms ease',
+                  }}
+                >
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                      <span style={{ fontSize: 18 }}>{preset.icon}</span>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          fontFamily: 'var(--font-mono)',
+                          color: 'var(--posted)',
+                          backgroundColor: 'rgba(56, 102, 65, 0.08)',
+                          padding: '2px 6px',
+                          borderRadius: 4,
+                        }}
+                      >
+                        ~{formatINR(preset.targetBudget.toFixed(2))}
+                      </span>
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--brown-900)', fontFamily: 'var(--font-display)' }}>
+                      {preset.name}
+                    </div>
+                    <p style={{ margin: '4px 0 10px', fontSize: 11, color: 'var(--brown-600)', lineHeight: 1.4 }}>
+                      {preset.description}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleLoadPreset(preset)}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 'var(--radius-sm)',
+                      backgroundColor: 'var(--cream)',
+                      border: '1px solid rgba(208, 174, 146, 0.60)',
+                      color: 'var(--brown-800)',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      fontFamily: 'var(--font-display)',
+                      cursor: 'pointer',
+                      transition: 'background 120ms ease',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 4,
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--brown-100)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--cream)')}
+                  >
+                    <span>Load This Layout</span>
+                    <span>→</span>
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* ── Category Filter Row ── */}
+          {/* ── Advanced Filter & Range Toolbar ── */}
           <div
             style={{
               marginTop: 24,
+              backgroundColor: 'var(--surface)',
+              border: '1px solid rgba(208, 174, 146, 0.40)',
+              borderRadius: 'var(--radius-md)',
+              padding: '16px 20px',
+              boxShadow: 'var(--shadow-sm)',
               display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              flexWrap: 'wrap',
+              flexDirection: 'column',
+              gap: 16,
             }}
           >
-            {CATEGORIES.map((cat) => {
-              const isActive = activeCategory === cat;
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
+            {/* Top Toolbar: Search + Category Pills */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              {/* Search Bar */}
+              <div style={{ position: 'relative', width: '100%', maxWidth: 300 }}>
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by name or SKU…"
                   style={{
-                    padding: '8px 18px',
-                    borderRadius: 999,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    fontFamily: 'var(--font-display)',
-                    cursor: 'pointer',
-                    transition: 'all 150ms ease',
-                    border: isActive ? '1px solid var(--brown-900)' : '1px solid rgba(208, 174, 146, 0.45)',
-                    backgroundColor: isActive ? 'var(--brown-900)' : 'var(--surface)',
-                    color: isActive ? 'var(--cream)' : 'var(--brown-700)',
-                    boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
+                    width: '100%',
+                    padding: '8px 12px 8px 32px',
+                    fontSize: 12,
+                    fontFamily: 'var(--font-body)',
+                    border: '1px solid rgba(208, 174, 146, 0.60)',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'var(--cream)',
+                    color: 'var(--brown-900)',
+                    outline: 'none',
                   }}
-                >
-                  {cat}
-                </button>
-              );
-            })}
+                />
+                <Search
+                  size={14}
+                  style={{
+                    position: 'absolute',
+                    left: 10,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--brown-500)',
+                  }}
+                />
+              </div>
+
+              {/* Category Pills */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                {CATEGORIES.map((cat) => {
+                  const isActive = activeCategory === cat;
+                  return (
+                    <button
+                      key={cat}
+                      onClick={() => setActiveCategory(cat)}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: 999,
+                        fontSize: 12,
+                        fontWeight: 600,
+                        fontFamily: 'var(--font-display)',
+                        cursor: 'pointer',
+                        transition: 'all 120ms ease',
+                        border: isActive ? '1px solid var(--brown-900)' : '1px solid rgba(208, 174, 146, 0.45)',
+                        backgroundColor: isActive ? 'var(--brown-900)' : 'var(--cream)',
+                        color: isActive ? 'var(--cream)' : 'var(--brown-700)',
+                      }}
+                    >
+                      {cat}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Bottom Toolbar: Price Range Slider & In-Stock Toggle */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 16,
+                paddingTop: 12,
+                borderTop: '1px solid rgba(208, 174, 146, 0.25)',
+              }}
+            >
+              {/* Max Price Range Slider */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 280 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--brown-700)', whiteSpace: 'nowrap' }}>
+                  Max Price: <strong style={{ color: 'var(--brown-900)', fontFamily: 'var(--font-mono)' }}>{formatINR(maxPrice.toFixed(2))}</strong>
+                </span>
+                <input
+                  type="range"
+                  min={10000}
+                  max={100000}
+                  step={5000}
+                  value={maxPrice}
+                  onChange={(e) => setMaxPrice(Number(e.target.value))}
+                  style={{ flex: 1, accentColor: 'var(--brown-800)', cursor: 'pointer' }}
+                />
+              </div>
+
+              {/* In-Stock Toggle */}
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--brown-800)' }}>
+                <input
+                  type="checkbox"
+                  checked={onlyInStock}
+                  onChange={(e) => setOnlyInStock(e.target.checked)}
+                  style={{ accentColor: 'var(--brown-800)', cursor: 'pointer' }}
+                />
+                <span>Show Only In-Stock Items</span>
+              </label>
+
+              {/* Items Counter */}
+              <div style={{ fontSize: 12, color: 'var(--brown-600)' }}>
+                Showing <strong style={{ color: 'var(--brown-900)' }}>{filteredProducts.length}</strong> of {products.length} pieces
+              </div>
+            </div>
           </div>
         </div>
 
@@ -369,6 +680,9 @@ export const PortalCataloguePage: React.FC = () => {
               const hasMrpDiff = p.mrp && p.mrp !== p.sales_price;
               const hasModel = Boolean(p.model_url);
               const imgFailed = imageErrors[p.id];
+              const arrangedEntry = arrangedItems.find((it) => it.product.id === p.id);
+              const isArranged = Boolean(arrangedEntry);
+              const arrangedQty = arrangedEntry?.qty || 0;
 
               return (
                 <div
@@ -629,41 +943,76 @@ export const PortalCataloguePage: React.FC = () => {
                       )}
                     </div>
 
-                    {/* Action Button */}
-                    <div style={{ marginTop: 'auto' }}>
-                      <button
-                        onClick={() => navigate(`/portal/catalogue/${p.id}`)}
-                        style={{
-                          width: '100%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: 8,
-                          padding: '10px 16px',
-                          borderRadius: 'var(--radius-sm)',
-                          backgroundColor: hasModel ? 'var(--brown-900)' : 'var(--surface)',
-                          color: hasModel ? 'var(--cream)' : 'var(--brown-900)',
-                          border: hasModel ? 'none' : '1px solid var(--brown-300)',
-                          fontSize: 13,
-                          fontWeight: 700,
-                          fontFamily: 'var(--font-display)',
-                          cursor: 'pointer',
-                          transition: 'all 150ms ease',
-                          boxShadow: hasModel ? 'var(--shadow-sm)' : 'none',
-                        }}
-                      >
-                        {hasModel ? (
-                          <>
-                            <Box size={15} />
-                            View in 3D
-                          </>
-                        ) : (
-                          <>
-                            <Eye size={15} />
-                            Details
-                          </>
-                        )}
-                      </button>
+                    {/* Action Buttons */}
+                    <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                        <button
+                          onClick={() => navigate(`/portal/catalogue/${p.id}`)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 6,
+                            padding: '8px 10px',
+                            borderRadius: 'var(--radius-sm)',
+                            backgroundColor: 'var(--surface)',
+                            color: 'var(--brown-900)',
+                            border: '1px solid var(--brown-300)',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            fontFamily: 'var(--font-display)',
+                            cursor: 'pointer',
+                            transition: 'all 120ms ease',
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--brown-100)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface)')}
+                        >
+                          {hasModel ? (
+                            <>
+                              <Box size={14} />
+                              <span>3D View</span>
+                            </>
+                          ) : (
+                            <>
+                              <Eye size={14} />
+                              <span>Details</span>
+                            </>
+                          )}
+                        </button>
+
+                        <button
+                          onClick={() => handleAddItem(p)}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 6,
+                            padding: '8px 10px',
+                            borderRadius: 'var(--radius-sm)',
+                            backgroundColor: isArranged ? 'var(--posted)' : 'var(--brown-900)',
+                            color: 'var(--cream)',
+                            border: 'none',
+                            fontSize: 12,
+                            fontWeight: 700,
+                            fontFamily: 'var(--font-display)',
+                            cursor: 'pointer',
+                            transition: 'all 120ms ease',
+                            boxShadow: 'var(--shadow-sm)',
+                          }}
+                        >
+                          {isArranged ? (
+                            <>
+                              <Check size={14} />
+                              <span>In Room ({arrangedQty})</span>
+                            </>
+                          ) : (
+                            <>
+                              <ShoppingBag size={14} />
+                              <span>+ Add</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -671,6 +1020,74 @@ export const PortalCataloguePage: React.FC = () => {
             })}
           </div>
         )}
+
+        {/* ── Floating Room Arranger Bar at Bottom Right ── */}
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            right: 28,
+            zIndex: 40,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            backgroundColor: 'var(--brown-900)',
+            color: 'var(--cream)',
+            padding: '10px 20px',
+            borderRadius: 999,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+            border: '1px solid rgba(255,255,255,0.15)',
+            cursor: 'pointer',
+            transition: 'transform 150ms ease',
+          }}
+          onClick={() => setDrawerOpen(true)}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 20 }}>🛋️</span>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-display)', color: 'var(--cream)' }}>
+                Room Arranger & Budget Wallet
+              </div>
+              <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--brown-300)' }}>
+                {arrangedItems.length} piece{arrangedItems.length === 1 ? '' : 's'} • {formatINR(totalArrangedCost.toFixed(2))} / {formatINR(budget.toFixed(2))}
+              </div>
+            </div>
+          </div>
+          <button
+            style={{
+              padding: '6px 14px',
+              borderRadius: 999,
+              backgroundColor: 'var(--cream)',
+              color: 'var(--brown-900)',
+              border: 'none',
+              fontSize: 11,
+              fontWeight: 700,
+              fontFamily: 'var(--font-display)',
+              cursor: 'pointer',
+              marginLeft: 8,
+            }}
+          >
+            Open Layout →
+          </button>
+        </div>
+
+        {/* ── Slide-Over Room Arranger Drawer ── */}
+        <RoomArrangerDrawer
+          isOpen={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          items={arrangedItems}
+          onUpdateQty={handleUpdateQty}
+          onRemoveItem={handleRemoveItem}
+          onClear={handleClearArrangement}
+          budget={budget}
+          onSetBudget={setBudget}
+          allProducts={products}
+          onAddItem={handleAddItem}
+          onLoadPreset={handleLoadPreset}
+          currentUser={currentUser}
+        />
       </main>
     </div>
   );
