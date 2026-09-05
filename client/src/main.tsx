@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import './index.css';
 
 import AppShell from './components/layout/AppShell';
+import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
@@ -44,7 +45,8 @@ createRoot(document.getElementById('root')!).render(
 
           {/* ── Main app shell ── */}
           <Route element={<AppShell />}>
-            <Route index element={<Navigate to="/sales" replace />} />
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard"  element={<Dashboard />} />
             <Route path="sales/*"    element={<Placeholder name="Sales" />} />
             <Route path="purchase/*" element={<Placeholder name="Purchase" />} />
             <Route path="account/*"  element={<Placeholder name="Account" />} />

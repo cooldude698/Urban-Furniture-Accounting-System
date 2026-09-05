@@ -33,7 +33,8 @@ export default function AppShell() {
           }}
         >
           {/* Brand */}
-          <span
+          <NavLink
+            to="/dashboard"
             style={{
               fontFamily: 'var(--font-display)',
               fontWeight: 700,
@@ -41,10 +42,12 @@ export default function AppShell() {
               color: 'var(--brown-900)',
               marginRight: 'var(--space-8)',
               letterSpacing: '-0.01em',
+              textDecoration: 'none',
+              cursor: 'pointer',
             }}
           >
             Urban Furniture
-          </span>
+          </NavLink>
 
           {/* Nav items — exactly four */}
           {NAV_ITEMS.map(({ label, to }) => (
