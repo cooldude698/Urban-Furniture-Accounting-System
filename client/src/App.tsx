@@ -165,7 +165,7 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
 
   const navTabs: NavigationTab[] = ['Dashboard', 'Sales', 'Purchase', 'Account', 'Report'];
 
-  const formatCurrency = (val: string | number) => {
+  const formatFullCurrency = (val: string | number) => {
     const num = Number(val);
     if (isNaN(num)) return '₹0.00';
     return new Intl.NumberFormat('en-IN', {
@@ -173,6 +173,21 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
       currency: 'INR',
       maximumFractionDigits: 2,
     }).format(num);
+  };
+
+  const formatCurrency = (val: string | number) => {
+    const num = Number(val);
+    if (isNaN(num)) return '₹0.00';
+    const abs = Math.abs(num);
+    const sign = num < 0 ? '-' : '';
+
+    if (abs >= 1000000) {
+      return `${sign}₹${(abs / 10000000).toFixed(2)} Cr`;
+    }
+    if (abs >= 100000) {
+      return `${sign}₹${(abs / 100000).toFixed(2)} L`;
+    }
+    return formatFullCurrency(val);
   };
 
   return (
@@ -469,7 +484,10 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
                   <span>Cash in Hand</span>
                   <Wallet className="w-4 h-4 text-emerald-700" />
                 </div>
-                <div className="text-xl font-bold font-mono text-brown-900">
+                <div
+                  className="text-xl font-bold font-mono text-brown-900 truncate"
+                  title={formatFullCurrency(kpis.cash)}
+                >
                   {formatCurrency(kpis.cash)}
                 </div>
               </div>
@@ -479,7 +497,10 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
                   <span>Bank Balance</span>
                   <Building className="w-4 h-4 text-blue-700" />
                 </div>
-                <div className="text-xl font-bold font-mono text-brown-900">
+                <div
+                  className="text-xl font-bold font-mono text-brown-900 truncate"
+                  title={formatFullCurrency(kpis.bank)}
+                >
                   {formatCurrency(kpis.bank)}
                 </div>
               </div>
@@ -489,7 +510,10 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
                   <span>Total Receivable</span>
                   <ArrowDownLeft className="w-4 h-4 text-amber-700" />
                 </div>
-                <div className="text-xl font-bold font-mono text-brown-900">
+                <div
+                  className="text-xl font-bold font-mono text-brown-900 truncate"
+                  title={formatFullCurrency(kpis.receivable)}
+                >
                   {formatCurrency(kpis.receivable)}
                 </div>
               </div>
@@ -499,7 +523,10 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
                   <span>Total Payable</span>
                   <ArrowUpRight className="w-4 h-4 text-rose-700" />
                 </div>
-                <div className="text-xl font-bold font-mono text-brown-900">
+                <div
+                  className="text-xl font-bold font-mono text-brown-900 truncate"
+                  title={formatFullCurrency(kpis.payable)}
+                >
                   {formatCurrency(kpis.payable)}
                 </div>
               </div>
@@ -724,7 +751,12 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
                         </span>
                       </div>
                       <div className="flex items-center gap-4">
-                        <span className="font-mono font-semibold text-brown-900">{formatCurrency(act.total)}</span>
+                        <span
+                          className="font-mono font-semibold text-brown-900 truncate max-w-[120px]"
+                          title={formatFullCurrency(act.total)}
+                        >
+                          {formatCurrency(act.total)}
+                        </span>
                         <span className="text-brown-500">{act.date}</span>
                       </div>
                     </div>
