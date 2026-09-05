@@ -4,8 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "docker compose up -d",
-    "docker:up": "docker compose up -d",
+    "dev": "docker compose up",
+    "dev:detached": "docker compose up -d",
+    "docker:up": "docker compose up",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
     "dev:api": "npm run dev --prefix api",
