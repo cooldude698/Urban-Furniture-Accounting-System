@@ -145,6 +145,67 @@ portalRouter.post(['/invoices/:id/payments', '/invoices/:id/pay'], requireAuth, 
   }
 });
 
+// 7b. POST /api/portal/invoices/:id/razorpay/create-order - Create Razorpay order for portal customer
+portalRouter.post('/invoices/:id/razorpay/create-order', requireAuth, requirePortalContact, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const invId = parseInt(String(req.params.id), 10);
+    if (isNaN(invId)) {
+      return sendError(res, 'INVALID_ID', 'Invoice ID must be a number', 400);
+    }
+
+    const invoice = await PortalService.getPortalInvoiceById(invId, req.user!);
+    if (!invoice) {
+      return sendError(res, 'NOT_FOUND', 'Invoice not found or unauthorized', 404);
+    }
+
+    const amount = req.body.amount || invoice.amountDue;
+    const { RazorpayService } = await import('../services/razorpayService');
+    const order = await RazorpayService.createOrder(amount, `port_inv_${invoice.id}_${Date.now()}`, {
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.number,
+      customerId: req.user!.contact_id,
+    });
+
+    return sendSuccess(res, order);
+  } catch (err: any) {
+    return sendError(res, 'RAZORPAY_ERROR', err.message, 400);
+  }
+});
+
+// 7c. POST /api/portal/invoices/:id/razorpay/verify-payment - Verify signature & record customer payment
+portalRouter.post('/invoices/:id/razorpay/verify-payment', requireAuth, requirePortalContact, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const invId = parseInt(String(req.params.id), 10);
+    if (isNaN(invId)) {
+      return sendError(res, 'INVALID_ID', 'Invoice ID must be a number', 400);
+    }
+
+    const invoice = await PortalService.getPortalInvoiceById(invId, req.user!);
+    if (!invoice) {
+      return sendError(res, 'NOT_FOUND', 'Invoice not found or unauthorized', 404);
+    }
+
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = req.body;
+    const { RazorpayService } = await import('../services/razorpayService');
+    const isValid = RazorpayService.verifySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+    if (!isValid) {
+      return sendError(res, 'INVALID_SIGNATURE', 'Razorpay payment signature verification failed', 400);
+    }
+
+    const paymentAmount = amount || invoice.amountDue;
+    const payment = await PortalService.recordPortalPayment(
+      invId,
+      req.user!,
+      'bank',
+      paymentAmount
+    );
+
+    return sendSuccess(res, { success: true, payment, razorpayPaymentId: razorpay_payment_id });
+  } catch (err: any) {
+    return sendError(res, 'PAYMENT_ERROR', err.message, 400);
+  }
+});
+
 // 8. GET /api/portal/contact-user/:contactId - Check if contact has portal user
 portalRouter.get('/contact-user/:contactId', requireAuth, requireInternalUser, async (req: Request, res: Response) => {
   try {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Decimal from 'decimal.js';
+import { loadRazorpayScript } from '../../lib/razorpay';
 
 interface InvoiceLine {
   lineNo: number;
@@ -32,6 +33,7 @@ interface InvoiceDetail {
   amountPaid: string;
   amountDue: string;
   paymentStatus: string;
+  customerName?: string;
   lines: InvoiceLine[];
   payments: PaymentHistoryItem[];
 }
@@ -49,9 +51,9 @@ export const PortalInvoiceDetail: React.FC<PortalInvoiceDetailProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Manual payment modal state
+  // Payment modal state
   const [showPayModal, setShowPayModal] = useState(false);
-  const [payMethod, setPayMethod] = useState<'bank' | 'cash'>('bank');
+  const [payMethod, setPayMethod] = useState<'razorpay' | 'bank' | 'cash'>('razorpay');
   const [payAmount, setPayAmount] = useState('');
   const [paySubmitting, setPaySubmitting] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
@@ -77,8 +79,91 @@ export const PortalInvoiceDetail: React.FC<PortalInvoiceDetailProps> = ({
     fetchInvoice();
   }, [invoiceId]);
 
+  const handleRazorpayPayment = async (customAmt?: string) => {
+    setPayError(null);
+    setPaySuccess(null);
+    const amt = new Decimal(customAmt || payAmount || invoice?.amountDue || '0');
+    if (amt.lessThanOrEqualTo(0)) {
+      setPayError('Payment amount must be greater than zero');
+      return;
+    }
+
+    setPaySubmitting(true);
+    try {
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        throw new Error('Could not load Razorpay SDK. Please check your internet connection.');
+      }
+
+      const res = await fetch(`/api/portal/invoices/${invoiceId}/razorpay/create-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: amt.toFixed(2) }),
+      });
+      const orderJson = await res.json();
+      if (!res.ok || orderJson.error) {
+        throw new Error(orderJson.error?.message || 'Failed to create Razorpay payment order');
+      }
+
+      const orderData = orderJson.data;
+      const rzp = new (window as any).Razorpay({
+        key: orderData.keyId,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: 'Urban Furniture',
+        description: `Settlement for Invoice #${invoice?.number}`,
+        order_id: orderData.orderId,
+        handler: async (response: any) => {
+          try {
+            const verifyRes = await fetch(`/api/portal/invoices/${invoiceId}/razorpay/verify-payment`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                amount: amt.toFixed(2),
+              }),
+            });
+            const verifyJson = await verifyRes.json();
+            if (!verifyRes.ok || verifyJson.error) {
+              throw new Error(verifyJson.error?.message || 'Signature verification failed');
+            }
+            setPaySuccess(`Payment of ₹${amt.toFixed(2)} completed via Razorpay (Ref: ${response.razorpay_payment_id})!`);
+            setShowPayModal(false);
+            fetchInvoice();
+          } catch (vErr: any) {
+            setPayError(vErr.message || 'Payment verification failed');
+          } finally {
+            setPaySubmitting(false);
+          }
+        },
+        prefill: {
+          name: invoice?.customerName || '',
+        },
+        theme: {
+          color: '#4A3A34',
+        },
+      });
+
+      rzp.on('payment.failed', function (resp: any) {
+        setPayError(`Payment failed: ${resp.error?.description || 'Cancelled'}`);
+        setPaySubmitting(false);
+      });
+
+      rzp.open();
+    } catch (err: any) {
+      setPayError(err.message || 'Razorpay initialization failed');
+      setPaySubmitting(false);
+    }
+  };
+
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (payMethod === 'razorpay') {
+      return handleRazorpayPayment();
+    }
+
     setPayError(null);
     setPaySuccess(null);
 
@@ -166,12 +251,21 @@ export const PortalInvoiceDetail: React.FC<PortalInvoiceDetailProps> = ({
 
         <div className="flex items-center space-x-3">
           {!isFullyPaid && (
-            <button
-              onClick={() => setShowPayModal(true)}
-              className="px-4 py-2 bg-brown-900 hover:bg-brown-800 text-cream font-bold font-display text-xs uppercase tracking-wider rounded-[8px] transition-colors shadow-sm active:scale-[0.99] cursor-pointer"
-            >
-              💳 Pay Now (₹{invoice.amountDue})
-            </button>
+            <>
+              <button
+                onClick={() => handleRazorpayPayment()}
+                disabled={paySubmitting}
+                className="px-4 py-2 bg-blue-800 hover:bg-blue-700 text-white font-bold font-display text-xs uppercase tracking-wider rounded-[8px] transition-colors shadow-sm active:scale-[0.99] cursor-pointer flex items-center gap-1.5"
+              >
+                <span>⚡</span> Pay with Razorpay (₹{invoice.amountDue})
+              </button>
+              <button
+                onClick={() => setShowPayModal(true)}
+                className="px-3.5 py-2 bg-brown-900 hover:bg-brown-800 text-cream font-bold font-display text-xs uppercase tracking-wider rounded-[8px] transition-colors shadow-sm active:scale-[0.99] cursor-pointer"
+              >
+                Offline Pay
+              </button>
+            </>
           )}
           <button
             onClick={() => window.print()}
@@ -393,11 +487,22 @@ export const PortalInvoiceDetail: React.FC<PortalInvoiceDetailProps> = ({
                 <label className="block text-xs font-semibold uppercase tracking-wider text-brown-700 mb-1.5 font-body">
                   Payment Method
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPayMethod('razorpay')}
+                    className={`py-2 px-2 text-xs font-bold rounded-[8px] border transition-all cursor-pointer ${
+                      payMethod === 'razorpay'
+                        ? 'bg-blue-800 text-white border-blue-800 shadow-xs font-display'
+                        : 'bg-surface text-blue-900 border-blue-200 hover:bg-blue-50 font-body'
+                    }`}
+                  >
+                    ⚡ Razorpay Online
+                  </button>
                   <button
                     type="button"
                     onClick={() => setPayMethod('bank')}
-                    className={`py-2 px-3 text-xs font-bold rounded-[8px] border transition-all cursor-pointer ${
+                    className={`py-2 px-2 text-xs font-bold rounded-[8px] border transition-all cursor-pointer ${
                       payMethod === 'bank'
                         ? 'bg-brown-900 text-cream border-brown-900 shadow-xs font-display'
                         : 'bg-surface text-brown-800 border-brown-300 hover:bg-brown-100/50 font-body'
@@ -408,13 +513,13 @@ export const PortalInvoiceDetail: React.FC<PortalInvoiceDetailProps> = ({
                   <button
                     type="button"
                     onClick={() => setPayMethod('cash')}
-                    className={`py-2 px-3 text-xs font-bold rounded-[8px] border transition-all cursor-pointer ${
+                    className={`py-2 px-2 text-xs font-bold rounded-[8px] border transition-all cursor-pointer ${
                       payMethod === 'cash'
                         ? 'bg-brown-900 text-cream border-brown-900 shadow-xs font-display'
                         : 'bg-surface text-brown-800 border-brown-300 hover:bg-brown-100/50 font-body'
                     }`}
                   >
-                    💵 Cash Payment
+                    💵 Cash
                   </button>
                 </div>
               </div>
@@ -446,9 +551,17 @@ export const PortalInvoiceDetail: React.FC<PortalInvoiceDetailProps> = ({
                 <button
                   type="submit"
                   disabled={paySubmitting}
-                  className="px-5 py-2 bg-brown-900 hover:bg-brown-800 text-cream font-bold font-display text-xs uppercase tracking-wider rounded-[8px] transition-colors shadow-sm disabled:opacity-60 cursor-pointer"
+                  className={`px-5 py-2 font-bold font-display text-xs uppercase tracking-wider rounded-[8px] transition-colors shadow-sm disabled:opacity-60 cursor-pointer ${
+                    payMethod === 'razorpay'
+                      ? 'bg-blue-800 hover:bg-blue-700 text-white'
+                      : 'bg-brown-900 hover:bg-brown-800 text-cream'
+                  }`}
                 >
-                  {paySubmitting ? 'CONFIRMING…' : 'CONFIRM & SETTLE'}
+                  {paySubmitting
+                    ? 'PROCESSING…'
+                    : payMethod === 'razorpay'
+                    ? '⚡ PAY VIA RAZORPAY'
+                    : 'CONFIRM & SETTLE'}
                 </button>
               </div>
             </form>

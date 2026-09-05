@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { InvoiceService } from '../services/invoiceService';
 import { sendSuccess, sendError } from '../utils/response';
 import { z } from 'zod';
+import Decimal from 'decimal.js';
 
 export const invoiceRouter = Router();
 
@@ -48,6 +49,19 @@ invoiceRouter.get('/', async (req: Request, res: Response) => {
     const customerId = req.query.customerId ? parseInt(String(req.query.customerId), 10) : undefined;
     const invoices = await InvoiceService.listInvoices({ status, customerId });
     return sendSuccess(res, invoices);
+  } catch (err: any) {
+    return sendError(res, 'SERVER_ERROR', err.message, 500);
+  }
+});
+
+// 2b. GET /api/invoices/open - List open confirmed customer invoices
+invoiceRouter.get('/open', async (req: Request, res: Response) => {
+  try {
+    const partnerId = req.query.partner_id || req.query.customerId;
+    const customerId = partnerId ? parseInt(String(partnerId), 10) : undefined;
+    const invoices = await InvoiceService.listInvoices({ status: 'confirmed', customerId });
+    const openInvoices = invoices.filter(inv => new Decimal(inv.amountDue || '0').greaterThan(0));
+    return sendSuccess(res, openInvoices);
   } catch (err: any) {
     return sendError(res, 'SERVER_ERROR', err.message, 500);
   }
@@ -142,6 +156,78 @@ invoiceRouter.post('/:id/payments', async (req: Request, res: Response) => {
     );
 
     return sendSuccess(res, payment, 201);
+  } catch (err: any) {
+    return sendError(res, 'PAYMENT_FAILED', err.message, 400);
+  }
+});
+
+// 5c. POST /api/invoices/:id/razorpay/create-order - Create Razorpay order for this invoice
+invoiceRouter.post('/:id/razorpay/create-order', async (req: Request, res: Response) => {
+  try {
+    const invId = parseInt(String(req.params.id), 10);
+    if (isNaN(invId)) {
+      return sendError(res, 'INVALID_ID', 'Invoice ID must be a number', 400);
+    }
+
+    const invoice = await InvoiceService.getInvoiceById(invId);
+    if (!invoice) {
+      return sendError(res, 'NOT_FOUND', `Customer invoice #${invId} not found`, 404);
+    }
+
+    const amount = req.body.amount || invoice.amountDue;
+    const { RazorpayService } = await import('../services/razorpayService');
+    const order = await RazorpayService.createOrder(amount, `inv_${invoice.id}_${Date.now()}`, {
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.number,
+      customerId: invoice.customerId,
+    });
+
+    return sendSuccess(res, order);
+  } catch (err: any) {
+    return sendError(res, 'RAZORPAY_ERROR', err.message, 400);
+  }
+});
+
+// 5d. POST /api/invoices/:id/razorpay/verify-payment - Verify signature and record ledger payment
+invoiceRouter.post('/:id/razorpay/verify-payment', async (req: Request, res: Response) => {
+  try {
+    const invId = parseInt(String(req.params.id), 10);
+    if (isNaN(invId)) {
+      return sendError(res, 'INVALID_ID', 'Invoice ID must be a number', 400);
+    }
+
+    const invoice = await InvoiceService.getInvoiceById(invId);
+    if (!invoice) {
+      return sendError(res, 'NOT_FOUND', `Customer invoice #${invId} not found`, 404);
+    }
+
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = req.body;
+    const { RazorpayService } = await import('../services/razorpayService');
+    const isValid = RazorpayService.verifySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature);
+    if (!isValid) {
+      return sendError(res, 'INVALID_SIGNATURE', 'Razorpay payment signature verification failed', 400);
+    }
+
+    const paymentAmount = String(amount || invoice.amountDue);
+    const { PaymentService } = await import('../services/paymentService');
+    const payment = await PaymentService.createPayment(
+      {
+        direction: 'inbound',
+        partnerId: invoice.customerId,
+        method: 'bank',
+        paymentDate: new Date().toISOString().split('T')[0],
+        amount: paymentAmount,
+        allocations: [
+          {
+            invoiceId: invoice.id,
+            amount: paymentAmount,
+          },
+        ],
+      },
+      (req as any).user?.id
+    );
+
+    return sendSuccess(res, { success: true, payment, razorpayPaymentId: razorpay_payment_id });
   } catch (err: any) {
     return sendError(res, 'PAYMENT_FAILED', err.message, 400);
   }
