@@ -22,6 +22,7 @@ import { poRouter } from './routes/purchaseOrderRoutes';
 import { billRouter } from './routes/vendorBillRoutes';
 import { budgetRouter } from './routes/budgetRoutes';
 import { dashboardRouter } from './routes/dashboardRoutes';
+import { requireAuth, requireInternalUser } from './middleware/auth';
 import { sendError } from './utils/response';
 
 dotenv.config();
@@ -45,29 +46,31 @@ app.get('/api/health', (req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Routes
+// Public / Portal routes
 app.use('/api/auth', authRouter);
 app.use('/api/portal', portalRouter);
-app.use('/api/journal-entries', journalEntryRouter);
-app.use('/api/sales-orders', salesOrderRouter);
-app.use('/api/invoices', invoiceRouter);
-app.use('/api/payments', paymentRouter);
-app.use('/api/receivables', receivablesRouter);
-app.use('/api/aging', agingRouter);
-app.use('/api/contacts', contactRouter);
-app.use('/api/reports', reportRouter);
-app.use('/api/ledger', ledgerRouter);
-app.use('/api/verify', verifyRouter);
-app.use('/api/audit', auditRouter);
-app.use('/api/products', productRouter);
-app.use('/api/accounts', accountRouter);
-app.use('/api/journals', journalRouter);
-app.use('/api/analytic-accounts', analyticRouter);
-app.use('/api/purchase-orders', poRouter);
-app.use('/api/bills', billRouter);
-app.use('/api/vendor-bills', billRouter);
-app.use('/api/budgets', budgetRouter);
-app.use('/api/dashboard', dashboardRouter);
+
+// ALL internal data routes require valid authentication & internal staff role
+app.use('/api/journal-entries', requireAuth, requireInternalUser, journalEntryRouter);
+app.use('/api/sales-orders', requireAuth, requireInternalUser, salesOrderRouter);
+app.use('/api/invoices', requireAuth, requireInternalUser, invoiceRouter);
+app.use('/api/payments', requireAuth, requireInternalUser, paymentRouter);
+app.use('/api/receivables', requireAuth, requireInternalUser, receivablesRouter);
+app.use('/api/aging', requireAuth, requireInternalUser, agingRouter);
+app.use('/api/contacts', requireAuth, requireInternalUser, contactRouter);
+app.use('/api/reports', requireAuth, requireInternalUser, reportRouter);
+app.use('/api/ledger', requireAuth, requireInternalUser, ledgerRouter);
+app.use('/api/verify', requireAuth, requireInternalUser, verifyRouter);
+app.use('/api/audit', requireAuth, requireInternalUser, auditRouter);
+app.use('/api/products', requireAuth, requireInternalUser, productRouter);
+app.use('/api/accounts', requireAuth, requireInternalUser, accountRouter);
+app.use('/api/journals', requireAuth, requireInternalUser, journalRouter);
+app.use('/api/analytic-accounts', requireAuth, requireInternalUser, analyticRouter);
+app.use('/api/purchase-orders', requireAuth, requireInternalUser, poRouter);
+app.use('/api/bills', requireAuth, requireInternalUser, billRouter);
+app.use('/api/vendor-bills', requireAuth, requireInternalUser, billRouter);
+app.use('/api/budgets', requireAuth, requireInternalUser, budgetRouter);
+app.use('/api/dashboard', requireAuth, requireInternalUser, dashboardRouter);
 
 
 // 404 handler
