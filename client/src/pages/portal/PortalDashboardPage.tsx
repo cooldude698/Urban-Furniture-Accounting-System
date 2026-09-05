@@ -4,10 +4,7 @@ import {
   Sparkles,
   ArrowRight,
   Box,
-  Layers,
-  Eye,
   CheckCircle2,
-  Sun,
   Clock,
   CreditCard,
   ChevronRight,
@@ -17,8 +14,8 @@ import {
   Briefcase,
   ShieldCheck,
   Compass,
-  Sliders,
   LogIn,
+  Layers,
 } from 'lucide-react';
 import { usePortalAuth } from './PortalAuthGuard';
 import { formatINR } from '../../lib/money';
@@ -34,8 +31,6 @@ export const PortalDashboardPage: React.FC = () => {
   const { user } = usePortalAuth();
 
   const [activeRoom, setActiveRoom] = useState<'living' | 'bedroom' | 'dining' | 'study'>('living');
-  const [activeFinish, setActiveFinish] = useState<'ash' | 'teak' | 'walnut' | 'sheesham'>('ash');
-  const [activeLighting, setActiveLighting] = useState<'daylight' | 'golden' | 'evening'>('golden');
   const [invoiceSummary, setInvoiceSummary] = useState<InvoiceSummary>({
     totalDue: '0.00',
     totalInvoiced: '0.00',
@@ -107,19 +102,6 @@ export const PortalDashboardPage: React.FC = () => {
   ] as const;
 
   const currentRoom = rooms.find((r) => r.id === activeRoom) || rooms[0];
-
-  const finishes = [
-    { id: 'ash', name: 'White Ash', color: '#DCC7A1', tone: 'Pale Scandinavian Grain' },
-    { id: 'teak', name: 'Golden Teak', color: '#B37D4E', tone: 'Honey Amber Classic' },
-    { id: 'walnut', name: 'American Walnut', color: '#5B3E31', tone: 'Deep Rich Espresso' },
-    { id: 'sheesham', name: 'Heritage Sheesham', color: '#7E4B2F', tone: 'Contrasting Dense Grain' },
-  ] as const;
-
-  const lightingPresets = [
-    { id: 'daylight', label: 'Daylight', temp: '5500K', bg: 'rgba(255,255,255,0.85)' },
-    { id: 'golden', label: 'Golden Hour', temp: '3200K', bg: 'rgba(254, 243, 199, 0.85)' },
-    { id: 'evening', label: 'Showroom Ambient', temp: '2700K', bg: 'rgba(254, 215, 170, 0.85)' },
-  ] as const;
 
   return (
     <div style={{ width: '100%', fontFamily: 'var(--font-body)', display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -268,17 +250,12 @@ export const PortalDashboardPage: React.FC = () => {
             style={{
               position: 'absolute',
               inset: 0,
-              background:
-                activeLighting === 'daylight'
-                  ? 'linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(74, 58, 52, 0.65) 100%)'
-                  : activeLighting === 'golden'
-                    ? 'linear-gradient(180deg, rgba(254, 243, 199, 0.25) 0%, rgba(74, 58, 52, 0.72) 100%)'
-                    : 'linear-gradient(180deg, rgba(74, 58, 52, 0.35) 0%, rgba(30, 20, 15, 0.85) 100%)',
+              background: 'linear-gradient(180deg, rgba(254, 243, 199, 0.15) 0%, rgba(74, 58, 52, 0.75) 100%)',
               pointerEvents: 'none',
             }}
           />
 
-          {/* Top Pill Badges (Inspired by Reference) */}
+          {/* Top Pill Badges */}
           <div
             style={{
               position: 'relative',
@@ -290,7 +267,6 @@ export const PortalDashboardPage: React.FC = () => {
               gap: 10,
             }}
           >
-            {/* Live Indicator Pill */}
             <div
               style={{
                 display: 'inline-flex',
@@ -303,61 +279,25 @@ export const PortalDashboardPage: React.FC = () => {
                 fontSize: 12,
                 fontWeight: 700,
                 color: 'var(--brown-900)',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
               }}
             >
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#EF4444' }} />
-              <span>Live Concept</span>
+              <Sparkles size={13} color="var(--brown-700)" />
+              <span>Architectural Space</span>
             </div>
 
-            {/* Spec Chips */}
             <div
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                flexWrap: 'wrap',
+                padding: '6px 14px',
+                borderRadius: 999,
+                backgroundColor: 'rgba(255, 255, 255, 0.88)',
+                backdropFilter: 'blur(8px)',
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'var(--brown-900)',
               }}
             >
-              <div
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: 999,
-                  backgroundColor: 'rgba(255, 255, 255, 0.88)',
-                  backdropFilter: 'blur(8px)',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: 'var(--brown-900)',
-                }}
-              >
-                🌡️ 24°C Studio Temp
-              </div>
-              <div
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: 999,
-                  backgroundColor: 'rgba(255, 255, 255, 0.88)',
-                  backdropFilter: 'blur(8px)',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: 'var(--brown-900)',
-                }}
-              >
-                🪵 Kiln-Dried Hardwood
-              </div>
-              <div
-                style={{
-                  padding: '6px 12px',
-                  borderRadius: 999,
-                  backgroundColor: 'rgba(255, 255, 255, 0.88)',
-                  backdropFilter: 'blur(8px)',
-                  fontSize: 11,
-                  fontWeight: 600,
-                  color: 'var(--brown-900)',
-                }}
-              >
-                📦 White-Glove Dispatch
-              </div>
+              Natural Teak & Solid Oak
             </div>
           </div>
 
@@ -408,7 +348,7 @@ export const PortalDashboardPage: React.FC = () => {
               Harmonising Japanese minimalism with Scandinavian craftsmanship. Features {currentRoom.highlight}.
             </p>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <button
                 type="button"
                 onClick={() => navigate('/portal/studio')}
@@ -432,7 +372,7 @@ export const PortalDashboardPage: React.FC = () => {
                 onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
               >
                 <Box size={16} />
-                <span>Enter 3D Studio Planner</span>
+                <span>Enter 3D Room Studio</span>
                 <ArrowRight size={14} />
               </button>
 
@@ -462,7 +402,7 @@ export const PortalDashboardPage: React.FC = () => {
           </div>
         </div>
 
-        {/* ── 2. Curated Spaces & Rooms Sidebar (Inspired by Reference) ── */}
+        {/* ── 2. Curated Spaces & Rooms Sidebar ── */}
         <div
           style={{
             backgroundColor: 'var(--surface)',
@@ -594,7 +534,8 @@ export const PortalDashboardPage: React.FC = () => {
             onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
             onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
           >
-            <span>+ Explore Full Catalogue</span>
+            <span>Explore Full Catalogue</span>
+            <ArrowRight size={14} />
           </button>
         </div>
       </div>
@@ -767,7 +708,7 @@ export const PortalDashboardPage: React.FC = () => {
           </button>
         </div>
 
-        {/* ── Card 2: Materials & Showroom Lighting Ambience ── */}
+        {/* ── Card 2: 3D Room Planner Studio ── */}
         <div
           style={{
             backgroundColor: 'var(--surface)',
@@ -793,100 +734,59 @@ export const PortalDashboardPage: React.FC = () => {
                     fontFamily: 'var(--font-display)',
                   }}
                 >
-                  Wood Finishes & Lighting
+                  Interactive Architecture
                 </span>
                 <h4 style={{ margin: '2px 0 0', fontSize: 16, fontWeight: 700, color: 'var(--brown-900)' }}>
-                  Tactile Materials
+                  3D Room Studio Planner
                 </h4>
               </div>
-              <Sliders size={18} color="var(--brown-700)" />
+              <Layers size={18} color="var(--brown-700)" />
             </div>
 
-            {/* Wood Swatches Selector */}
-            <div style={{ marginBottom: 18 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--brown-600)', display: 'block', marginBottom: 8 }}>
-                Hardwood Selection:
-              </span>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                {finishes.map((f) => {
-                  const isSelected = f.id === activeFinish;
-                  return (
-                    <button
-                      key={f.id}
-                      type="button"
-                      onClick={() => setActiveFinish(f.id as any)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 8,
-                        padding: '8px 10px',
-                        borderRadius: 10,
-                        backgroundColor: isSelected ? 'var(--cream)' : 'transparent',
-                        border: isSelected ? '1px solid var(--brown-900)' : '1px solid rgba(208, 174, 146, 0.4)',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        transition: 'all 120ms ease',
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: 18,
-                          height: 18,
-                          borderRadius: '50%',
-                          backgroundColor: f.color,
-                          border: '1px solid rgba(0,0,0,0.1)',
-                          flexShrink: 0,
-                        }}
-                      />
-                      <span style={{ fontSize: 11, fontWeight: isSelected ? 700 : 500, color: 'var(--brown-900)' }}>
-                        {f.name}
-                      </span>
-                    </button>
-                  );
-                })}
+            <p style={{ fontSize: 13, color: 'var(--brown-700)', lineHeight: '20px', margin: '0 0 16px' }}>
+              Arrange real 3D furniture pieces inside our architectural blank room pad. Drag, rotate, toggle ambient lighting, and visualise floor layouts in full 3D.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--brown-900)' }}>
+                <CheckCircle2 size={15} color="var(--posted)" />
+                <span>Drag & drop pieces directly across the floor</span>
               </div>
-            </div>
-
-            {/* Showroom Lighting Mode */}
-            <div>
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--brown-600)', display: 'block', marginBottom: 8 }}>
-                Showroom Lighting:
-              </span>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {lightingPresets.map((l) => {
-                  const isSelected = l.id === activeLighting;
-                  return (
-                    <button
-                      key={l.id}
-                      type="button"
-                      onClick={() => setActiveLighting(l.id as any)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '8px 12px',
-                        borderRadius: 8,
-                        backgroundColor: isSelected ? 'var(--brown-900)' : 'var(--cream)',
-                        color: isSelected ? 'var(--cream)' : 'var(--brown-900)',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: 11,
-                        fontWeight: 600,
-                        transition: 'all 120ms ease',
-                      }}
-                    >
-                      <span>{l.label}</span>
-                      <span style={{ opacity: 0.75, fontFamily: 'var(--font-mono)' }}>{l.temp}</span>
-                    </button>
-                  );
-                })}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--brown-900)' }}>
+                <CheckCircle2 size={15} color="var(--posted)" />
+                <span>Morning, Studio & Dusk lighting environments</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--brown-900)' }}>
+                <CheckCircle2 size={15} color="var(--posted)" />
+                <span>Wall mounts, ceiling pendants & standing lamps</span>
               </div>
             </div>
           </div>
 
-          <div style={{ marginTop: 16, fontSize: 11, color: 'var(--brown-600)', textAlign: 'center' }}>
-            All finishes kiln-dried to &lt;10% moisture content
-          </div>
+          <button
+            type="button"
+            onClick={() => navigate('/portal/studio')}
+            style={{
+              width: '100%',
+              padding: '11px 16px',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'var(--brown-900)',
+              color: 'var(--cream)',
+              fontFamily: 'var(--font-display)',
+              fontSize: 12,
+              fontWeight: 700,
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              boxShadow: 'var(--shadow-sm)',
+            }}
+          >
+            <Layers size={15} />
+            <span>Open 3D Room Studio</span>
+          </button>
         </div>
 
         {/* ── Card 3: Customer Financials & Order Status ── */}
@@ -1048,29 +948,24 @@ export const PortalDashboardPage: React.FC = () => {
               padding: '11px 16px',
               borderRadius: 'var(--radius-sm)',
               backgroundColor: 'var(--surface)',
-              border: '1px solid rgba(208, 174, 146, 0.45)',
               color: 'var(--brown-900)',
               fontFamily: 'var(--font-display)',
               fontSize: 12,
               fontWeight: 700,
+              border: '1px solid rgba(208, 174, 146, 0.5)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: 8,
               boxShadow: 'var(--shadow-sm)',
-              transition: 'background 120ms ease',
             }}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--cream)')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface)')}
           >
-            <span>Go to My Invoices</span>
-            <ArrowRight size={14} />
+            <CreditCard size={15} />
+            <span>Manage My Invoices</span>
           </button>
         </div>
       </div>
     </div>
   );
 };
-
-export default PortalDashboardPage;

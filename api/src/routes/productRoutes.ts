@@ -73,7 +73,7 @@ productRouter.get('/available-models', async (_req: Request, res: Response) => {
           name: displayName,
           sizeBytes: stat.size,
           sizeKB: (stat.size / 1024).toFixed(1),
-          url: `/models/${filename}`,
+          url: `/Models/${filename}`,
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -117,7 +117,7 @@ productRouter.post('/upload-model', async (req: Request, res: Response) => {
     const stat = fs.statSync(targetPath);
     return sendSuccess(res, {
       filename: safeFilename,
-      model_url: `/models/${safeFilename}`,
+      model_url: `/Models/${safeFilename}`,
       sizeBytes: stat.size,
       sizeKB: (stat.size / 1024).toFixed(1),
     }, 201);
