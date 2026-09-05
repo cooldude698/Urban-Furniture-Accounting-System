@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { X, FileText, CheckCircle2, Calculator, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
 import { BusinessTemplateDetail } from '../../types/template';
 
@@ -15,10 +15,13 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
   onClose,
   onUseTemplate,
 }) => {
-  const modalRef = useRef<HTMLDivElement>(null);
+  const cols = template?.structure?.columns || [];
+  const previewRows = template?.previewData?.rows || [];
 
-  // Lock background scroll completely whenever modal is open
-  useEffect(() => {
+  const previewCardRef = React.useRef<HTMLDivElement>(null);
+
+  // Lock background scroll when preview modal is open
+  React.useEffect(() => {
     if (!isOpen) return;
 
     const prevBodyOverflow = document.body.style.overflow;
@@ -27,32 +30,32 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
     document.body.style.overflow = 'hidden';
     document.documentElement.style.overflow = 'hidden';
 
-    const preventScroll = (e: WheelEvent | TouchEvent) => {
-      if (modalRef.current && modalRef.current.contains(e.target as Node)) {
+    const preventBackgroundScroll = (e: WheelEvent | TouchEvent) => {
+      if (previewCardRef.current && previewCardRef.current.contains(e.target as Node)) {
         return;
       }
       e.preventDefault();
     };
 
-    window.addEventListener('wheel', preventScroll, { passive: false });
-    window.addEventListener('touchmove', preventScroll, { passive: false });
+    window.addEventListener('wheel', preventBackgroundScroll, { passive: false });
+    window.addEventListener('touchmove', preventBackgroundScroll, { passive: false });
 
     return () => {
       document.body.style.overflow = prevBodyOverflow;
       document.documentElement.style.overflow = prevHtmlOverflow;
-      window.removeEventListener('wheel', preventScroll);
-      window.removeEventListener('touchmove', preventScroll);
+      window.removeEventListener('wheel', preventBackgroundScroll);
+      window.removeEventListener('touchmove', preventBackgroundScroll);
     };
   }, [isOpen]);
 
   if (!isOpen || !template) return null;
 
-  const cols = template.structure?.columns || [];
-  const previewRows = template.previewData?.rows || [];
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div ref={modalRef} className="bg-white border border-black rounded-[12px] shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+      <div
+        ref={previewCardRef}
+        className="bg-white border border-black rounded-[12px] shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
+      >
         {/* Modal Header - Crisp Black and White */}
         <div className="px-6 py-4 border-b border-gray-200 bg-white flex items-center justify-between">
           <div className="flex items-center gap-3">
