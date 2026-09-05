@@ -46,10 +46,16 @@ export default defineConfig({
         target: apiTarget,
         changeOrigin: true,
       },
+      '/socket.io': {
+        target: apiTarget,
+        ws: true,
+        changeOrigin: true,
+      },
       '/uploads': {
         target: apiTarget,
         changeOrigin: true,
       },
     },
+
   },
 });

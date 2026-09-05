@@ -1,5 +1,7 @@
 import { pool } from '../db/pool';
 import Decimal from 'decimal.js';
+import { fetchLedgerIntegrityPayload } from './ledgerEvents';
+
 
 export interface ProfitLossReport {
   from: string | null;
@@ -52,7 +54,16 @@ export interface VerificationResult {
   totalDebit: string;
   totalCredit: string;
   difference: string;
+  entryCount?: number;
+  lineCount?: number;
+  lastEntry?: {
+    number: string;
+    date: string;
+    time?: string;
+    journal: string;
+  } | null;
 }
+
 
 export class ReportService {
   /**
@@ -357,21 +368,13 @@ export class ReportService {
   /**
    * Health endpoint: verify total debit vs total credit across all journal entry lines
    */
+  /**
+   * Health endpoint: verify total debit vs total credit across all journal entry lines
+   */
   static async verifyLedger(): Promise<VerificationResult> {
-    const query = `
-      SELECT 
-        COALESCE(SUM(debit), 0)::numeric(14,2)::text AS total_debit,
-        COALESCE(SUM(credit), 0)::numeric(14,2)::text AS total_credit,
-        (COALESCE(SUM(debit), 0) - COALESCE(SUM(credit), 0))::numeric(14,2)::text AS difference
-      FROM journal_entry_lines;
-    `;
-    const res = await pool.query(query);
-    return {
-      totalDebit: res.rows[0].total_debit,
-      totalCredit: res.rows[0].total_credit,
-      difference: res.rows[0].difference,
-    };
+    return await fetchLedgerIntegrityPayload();
   }
+
 
   /**
    * Multi-level ledger drill-down: Report -> Account -> Journal Entries

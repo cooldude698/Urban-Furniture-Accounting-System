@@ -129,18 +129,20 @@ export const PortalInvoiceList: React.FC = () => {
 
       const rzpKey = (window as any).__VITE_RAZORPAY_KEY_ID__ || (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || 'rzp_test_TYL9FJAZxMYoFc';
 
+      const orderId = order.orderId || order.id;
+
       const rzp = new (window as any).Razorpay({
         key: rzpKey,
         amount: order.amount,
         currency: order.currency || 'INR',
         name: 'Urban Furniture',
         description: `Payment for Invoice ${row.number}`,
-        order_id: order.id,
+        order_id: orderId,
         theme: { color: '#77574A' },
         handler: async (response: any) => {
           try {
             const verifyRes = await api.post(`/api/portal/invoices/${row.id}/razorpay/verify-payment`, {
-              razorpay_order_id: response.razorpay_order_id,
+              razorpay_order_id: response.razorpay_order_id || orderId,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
               amount: new Decimal(row.amountDue).toFixed(2),

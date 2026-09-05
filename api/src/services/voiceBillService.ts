@@ -118,6 +118,75 @@ export class VoiceBillService {
   }
 
   /**
+   * Deletes a line item by ID from the active session and recalculates totals
+   */
+  static deleteLineItem(sessionId: string, itemId: string): VoiceBillSession {
+    const session = this.getOrCreateSession(sessionId);
+    session.lineItems = session.lineItems.filter(item => item.id !== itemId);
+    this.recalculateTotals(session);
+    this.updateSessionStatus(session);
+    session.updatedAt = new Date();
+    return session;
+  }
+
+  /**
+   * Updates a line item's quantity, price, or discount in the active session
+   */
+  static updateLineItem(
+    sessionId: string,
+    itemId: string,
+    updates: { qty?: number; unitPrice?: number; discountPercent?: number }
+  ): VoiceBillSession {
+    const session = this.getOrCreateSession(sessionId);
+    const item = session.lineItems.find(i => i.id === itemId);
+    if (item) {
+      if (updates.qty !== undefined) {
+        if (updates.qty <= 0) {
+          return this.deleteLineItem(sessionId, itemId);
+        }
+        item.qty = updates.qty;
+        item.isQtyAssumed = false;
+        item.qtyNeedsReview = false;
+      }
+      if (updates.unitPrice !== undefined) {
+        item.unitPrice = updates.unitPrice;
+        item.isPriceAssumed = false;
+        item.priceNeedsReview = false;
+      }
+      if (updates.discountPercent !== undefined) {
+        item.discountPercent = updates.discountPercent;
+        item.discountNeedsReview = false;
+      }
+      this.recalculateTotals(session);
+      this.updateSessionStatus(session);
+      session.updatedAt = new Date();
+    }
+    return session;
+  }
+
+  /**
+   * Updates session status (collecting vs ready_for_confirm)
+   */
+  static updateSessionStatus(session: VoiceBillSession): void {
+    if (session.status === 'confirmed') return;
+
+    if (session.lineItems.length === 0) {
+      session.status = 'collecting';
+      return;
+    }
+
+    const allItemsValid = session.lineItems.every(
+      item => (item.productId || item.productName) && item.qty > 0 && item.unitPrice > 0
+    );
+
+    if (allItemsValid && session.customerName && session.phone) {
+      session.status = 'ready_for_confirm';
+    } else {
+      session.status = 'collecting';
+    }
+  }
+
+  /**
    * Fuzzy-match product phrase against database Product Master using pg_trgm similarity & ILIKE
    */
   static async matchProduct(productPhrase: string): Promise<{
@@ -267,43 +336,108 @@ export class VoiceBillService {
   }
 
   /**
-   * Calls the locally-hosted Ollama LLM service for slot extraction.
-   * Prompts Ollama with the exact extraction schema, temperature 0.1, format: "json".
-   * Retries once on JSON parse error. Gracefully degrades to null if unreachable or on error.
+   * Fetches customer contacts from PostgreSQL database for autocomplete and direct linking
    */
-  static async callOllamaExtraction(
-    text: string,
-    isRetry = false,
-    catalogProducts: string[] = []
-  ): Promise<OllamaExtractionResult | null> {
+  static async getCustomers(): Promise<Array<{
+    id: number;
+    name: string;
+    mobile: string | null;
+    email: string | null;
+    city: string | null;
+    state: string | null;
+    gstin: string | null;
+  }>> {
+    const res = await pool.query(`
+      SELECT id, name, mobile, email, city, state, gstin
+      FROM contacts
+      WHERE type IN ('customer', 'both') AND is_archived = false
+      ORDER BY name ASC
+      LIMIT 100;
+    `);
+    return res.rows;
+  }
+
+  private static readonly FEW_SHOT_CUSTOMER_PHONE = `Extract customer_name and phone (10 digits) from user input as JSON. Here are examples:
+
+Input: name rahul phone 9876543210 product sofa quantity 2 price 15000 discount 10 percent
+Output: {"customer_name": "rahul", "phone": "9876543210"}
+
+Input: rahul 9876543210 oak wood planks
+Output: {"customer_name": "rahul", "phone": "9876543210"}
+
+Input: naam suresh, phone number 9123456780, do table chahiye, price 8000
+Output: {"customer_name": "suresh", "phone": "9123456780"}
+
+Now extract from this input, following the exact same JSON shape, using null for anything not mentioned — do not guess:
+Input: {user_input}
+Output:`;
+
+  private static readonly FEW_SHOT_LINE_ITEMS = `Extract line_items (each with product, qty, price, discount_percent) from user input as JSON. Here are examples:
+
+Input: name rahul phone 9876543210 product sofa quantity 2 price 15000 discount 10 percent
+Output: {"line_items": [{"product": "sofa", "qty": 2, "price": 15000, "discount_percent": 10}]}
+
+Input: rahul 9876543210 oak wood planks
+Output: {"line_items": [{"product": "oak wood planks", "qty": null, "price": null, "discount_percent": null}]}
+
+Input: naam suresh, phone number 9123456780, do table chahiye, price 8000
+Output: {"line_items": [{"product": "table", "qty": 2, "price": 8000, "discount_percent": null}]}
+
+Rules:
+1. Return ONLY valid JSON in shape: {"line_items": [{"product": string or null, "qty": number or null, "price": number or null, "discount_percent": number or null}]}.
+2. If a field is not mentioned or unclear, use null — do not guess or invent values.
+3. Units of count (e.g. piece, pieces, pcs, pc, units, items, पीस, नग) are NOT product names. If a message contains only a quantity and a unit (e.g. "two pieces", "2 pcs", "दो पीस"), extract the qty and set product to null.
+4. If the user does NOT mention any furniture or product in the input (e.g. they only provide customer name, phone number, a number like "0", or conversational replies), return {"line_items": []}. NEVER invent, assume, or hallucinate products.
+{catalog_grounding}
+Now extract from this input, following the exact same JSON shape, using null for anything not mentioned — do not guess:
+Input: {user_input}
+Output:`;
+
+  /**
+   * Warm-up request to Ollama on server boot to load model into memory
+   */
+  static async warmUpOllama(): Promise<void> {
     const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://ollama:11434';
     const model = process.env.OLLAMA_MODEL || 'qwen2.5:7b';
-    const timeoutMs = parseInt(process.env.OLLAMA_TIMEOUT_MS || '20000', 10);
+    console.log(`[Ollama] Sending warm-up request for model "${model}"...`);
+    try {
+      const res = await fetch(`${ollamaUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          prompt: 'hello',
+          keep_alive: '30m',
+          stream: false,
+          options: { num_predict: 5 },
+        }),
+      });
+      if (res.ok) {
+        console.log(`[Ollama] Model "${model}" warmed up and active in memory (keep_alive: 30m).`);
+      } else {
+        console.warn(`[Ollama] Warm-up returned status ${res.status}`);
+      }
+    } catch (err: any) {
+      console.warn(`[Ollama] Warm-up non-blocking ping: ${err.message}`);
+    }
+  }
+
+  /**
+   * Call A: Extract { customer_name, phone }
+   */
+  static async extractCustomerAndPhone(
+    text: string,
+    isRetry = false
+  ): Promise<{ customer_name: string | null; phone: string | null } | null> {
+    const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://ollama:11434';
+    const model = process.env.OLLAMA_MODEL || 'qwen2.5:7b';
+    const timeoutMs = parseInt(process.env.OLLAMA_TIMEOUT_MS || '30000', 10);
+    const isDebug = process.env.DEBUG_OLLAMA === 'true' || Boolean(process.env.DEBUG);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    const catalogGrounding = catalogProducts.length > 0
-      ? `\n4. Database Catalog: [${catalogProducts.slice(0, 50).join(', ')}]. If the user mentions any of these products (in English, Hindi, or phonetically), map it to the catalog product name.`
-      : '';
-
-    const baseSystemPrompt = `You are a billing assistant that extracts structured data from a customer's message, which may be in English, Hindi, or a mix of both. Extract the following fields if present: customer_name, phone (10 digits), and a list of line_items, each with product, qty, price, and discount_percent. Return ONLY valid JSON in this exact shape, with no explanation, no markdown formatting, no extra text:
-
-{
-  "customer_name": string or null,
-  "phone": string or null,
-  "line_items": [
-    { "product": string or null, "qty": number or null, "price": number or null, "discount_percent": number or null }
-  ]
-}
-
-Rules:
-1. If a field is not mentioned or unclear, use null — do not guess or invent values.
-2. If the product name is informal or misspelled, return it as-is; do not try to correct it.
-3. Units of count (e.g. piece, pieces, pcs, pc, units, items, पीस, नग) are NOT product names. If a message contains only a quantity and a unit (e.g. "two pieces", "2 pcs", "दो पीस"), extract the qty and set product to null.${catalogGrounding}`;
-
-    const systemPrompt = isRetry
-      ? `${baseSystemPrompt}\n\nReturn ONLY the JSON object, nothing else.`
-      : baseSystemPrompt;
+    const prompt = this.FEW_SHOT_CUSTOMER_PHONE.replace('{user_input}', text);
+    const startTime = Date.now();
 
     try {
       const res = await fetch(`${ollamaUrl}/api/generate`, {
@@ -311,40 +445,182 @@ Rules:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model,
-          prompt: text,
-          system: systemPrompt,
+          prompt,
           format: 'json',
           stream: false,
+          keep_alive: '30m',
           options: {
             temperature: 0.1,
+            num_predict: 100,
           },
         }),
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
+      const rtt = Date.now() - startTime;
 
       if (!res.ok) {
-        console.warn(`Ollama returned status ${res.status}`);
+        if (isDebug) console.warn(`[Ollama Call A - Customer/Phone] HTTP ${res.status} (${rtt}ms)`);
         return null;
       }
 
       const body = (await res.json()) as { response?: string };
-      if (!body.response) return null;
+      const raw = body.response || '';
+      if (isDebug) {
+        console.log(`[Ollama Call A - Customer/Phone] RTT: ${rtt}ms, Raw: ${raw.replace(/\n/g, ' ')}`);
+      }
 
       try {
-        const parsed = JSON.parse(body.response) as OllamaExtractionResult;
-        return parsed;
-      } catch (parseErr) {
+        const parsed = JSON.parse(raw);
+        return {
+          customer_name: typeof parsed.customer_name === 'string' && parsed.customer_name.trim() !== '' ? parsed.customer_name.trim() : null,
+          phone: typeof parsed.phone === 'string' && parsed.phone.trim() !== '' ? parsed.phone.trim() : (typeof parsed.phone === 'number' ? String(parsed.phone) : null),
+        };
+      } catch (parseErr: any) {
+        if (isDebug) console.warn(`[Ollama Call A - Customer/Phone] JSON parse error: ${parseErr.message}`);
         if (!isRetry) {
-          console.warn('Ollama JSON parse failed on first attempt, retrying once with explicit instruction...');
-          return await this.callOllamaExtraction(text, true);
+          return await this.extractCustomerAndPhone(text, true);
         }
-        console.warn('Ollama JSON parse failed twice, falling back 100% to deterministic parser.');
         return null;
       }
     } catch (err: any) {
       clearTimeout(timeoutId);
-      console.warn(`Ollama service call skipped (${err.message || 'timeout'}), using deterministic parser fallback.`);
+      const rtt = Date.now() - startTime;
+      if (isDebug) console.warn(`[Ollama Call A - Customer/Phone] Error/Timeout (${rtt}ms): ${err.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Call B: Extract { line_items }
+   */
+  static async extractLineItems(
+    text: string,
+    isRetry = false,
+    catalogProducts: string[] = []
+  ): Promise<{ line_items: OllamaLineItem[] } | null> {
+    const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://ollama:11434';
+    const model = process.env.OLLAMA_MODEL || 'qwen2.5:7b';
+    const timeoutMs = parseInt(process.env.OLLAMA_TIMEOUT_MS || '30000', 10);
+    const isDebug = process.env.DEBUG_OLLAMA === 'true' || Boolean(process.env.DEBUG);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    // Only pass catalog hints if the user's input actually contains words matching catalog products
+    // This prevents Ollama from hallucinating random catalog items on follow-up turns!
+    const userWords = text
+      .toLowerCase()
+      .split(/[\s,.:;!?]+/)
+      .filter(w => w.length >= 3 && !['name', 'phone', 'customer', 'mobile', 'price', 'quantity', 'discount', 'free', 'bill', 'for', 'rupees', 'rs', 'pieces', 'pcs', 'chahiye', 'kardo'].includes(w));
+
+    const relevantCatalog = userWords.length > 0
+      ? catalogProducts.filter(p => userWords.some(w => p.toLowerCase().includes(w))).slice(0, 8)
+      : [];
+
+    const catalogGrounding = relevantCatalog.length > 0
+      ? `\n4. Potential Catalog Matches: [${relevantCatalog.join(', ')}]. If the user mentions any of these, map to the exact name.`
+      : '';
+
+    const prompt = this.FEW_SHOT_LINE_ITEMS
+      .replace('{catalog_grounding}', catalogGrounding)
+      .replace('{user_input}', text);
+
+    const startTime = Date.now();
+
+    try {
+      const res = await fetch(`${ollamaUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          prompt,
+          format: 'json',
+          stream: false,
+          keep_alive: '30m',
+          options: {
+            temperature: 0.1,
+            num_predict: 200,
+          },
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      const rtt = Date.now() - startTime;
+
+      if (!res.ok) {
+        if (isDebug) console.warn(`[Ollama Call B - Line Items] HTTP ${res.status} (${rtt}ms)`);
+        return null;
+      }
+
+      const body = (await res.json()) as { response?: string };
+      const raw = body.response || '';
+      if (isDebug) {
+        console.log(`[Ollama Call B - Line Items] RTT: ${rtt}ms, Raw: ${raw.replace(/\n/g, ' ')}`);
+      }
+
+      try {
+        const parsed = JSON.parse(raw);
+        const items = Array.isArray(parsed.line_items) ? parsed.line_items : [];
+        return { line_items: items };
+      } catch (parseErr: any) {
+        if (isDebug) console.warn(`[Ollama Call B - Line Items] JSON parse error: ${parseErr.message}`);
+        if (!isRetry) {
+          return await this.extractLineItems(text, true, catalogProducts);
+        }
+        return null;
+      }
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      const rtt = Date.now() - startTime;
+      if (isDebug) console.warn(`[Ollama Call B - Line Items] Error/Timeout (${rtt}ms): ${err.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Calls Ollama LLM service for slot extraction.
+   * Runs two focused parallel calls:
+   *   Call A: { customer_name, phone }
+   *   Call B: { line_items }
+   * Runs both in parallel via Promise.all for lowest latency.
+   * Merges results into OllamaExtractionResult.
+   * Falls back gracefully to null on failure or timeout so deterministic parser takes over.
+   */
+  static async callOllamaExtraction(
+    text: string,
+    isRetry = false,
+    catalogProducts: string[] = []
+  ): Promise<OllamaExtractionResult | null> {
+    const startTime = Date.now();
+    const isDebug = process.env.DEBUG_OLLAMA === 'true' || Boolean(process.env.DEBUG);
+
+    try {
+      const [customerRes, itemsRes] = await Promise.all([
+        this.extractCustomerAndPhone(text, isRetry),
+        this.extractLineItems(text, isRetry, catalogProducts),
+      ]);
+
+      const totalRtt = Date.now() - startTime;
+
+      // If both calls failed or timed out, return null to trigger deterministic fallback
+      if (!customerRes && !itemsRes) {
+        if (isDebug) console.warn(`[Ollama Parallel] Both calls returned null (${totalRtt}ms). Falling back to deterministic.`);
+        return null;
+      }
+
+      const merged: OllamaExtractionResult = {
+        customer_name: customerRes?.customer_name ?? null,
+        phone: customerRes?.phone ?? null,
+        line_items: itemsRes?.line_items ?? [],
+      };
+
+      if (isDebug) {
+        console.log(`[Ollama Parallel Total RTT: ${totalRtt}ms] Merged: ${JSON.stringify(merged)}`);
+      }
+
+      return merged;
+    } catch (err: any) {
+      if (isDebug) console.warn(`[Ollama Parallel] Error (${Date.now() - startTime}ms): ${err.message}`);
       return null;
     }
   }
@@ -437,6 +713,23 @@ Rules:
         slotSources.productName = 'llm';
       } else if (detParsed.productName && !countUnits.has(detParsed.productName.trim().toLowerCase())) {
         slotSources.productName = 'deterministic';
+      }
+
+      // Hallucination Guard: Verify that at least one token of the product name actually exists in the raw input text
+      if (parsed.productName && !parsed.isUpdate && !parsed.isRemoval) {
+        const rawLower = text.toLowerCase();
+        const prodTokens = parsed.productName
+          .toLowerCase()
+          .split(/[\s,.-]+/)
+          .filter(t => t.length >= 3);
+        const hasTokenInInput =
+          prodTokens.some(t => rawLower.includes(t)) ||
+          Object.keys(HINDI_PRODUCT_KEYWORD_MAP).some(k => rawLower.includes(k.toLowerCase()));
+
+        if (!hasTokenInInput) {
+          delete parsed.productName;
+          delete slotSources.productName;
+        }
       }
 
       // 3. PHONE: Validate exactly 10 digits; if not, cross-check deterministic parser regex
@@ -538,6 +831,76 @@ Rules:
 
     Object.assign(session.slotSources, slotSources);
 
+    // 4b. Handle removal command or quantity = 0
+    if (
+      parsed.isRemoval ||
+      parsed.quantity === 0 ||
+      (parsed.isUpdate && parsed.updateField === 'quantity' && parsed.quantity === 0)
+    ) {
+      let removedItem: DraftLineItem | undefined;
+      const target = (parsed.removalTarget || '').toLowerCase();
+
+      if (target && target.length >= 2 && !['item', 'product', 'it', 'ko', 'hai', 'सामान', 'चीज़'].includes(target)) {
+        const idx = session.lineItems.findIndex(i =>
+          (i.matchedName && i.matchedName.toLowerCase().includes(target)) ||
+          (i.productName && i.productName.toLowerCase().includes(target))
+        );
+        if (idx !== -1) {
+          removedItem = session.lineItems.splice(idx, 1)[0];
+        }
+      }
+
+      // If no specific target matched or user just entered 0, remove the last item
+      if (!removedItem && session.lineItems.length > 0) {
+        removedItem = session.lineItems.pop();
+      }
+
+      if (removedItem) {
+        this.recalculateTotals(session);
+        VoiceBillService.updateSessionStatus(session);
+
+        const reply =
+          lang === 'hi'
+            ? `${removedItem.matchedName || removedItem.productName} बिल से हटा दिया गया है।`
+            : `Removed "${removedItem.matchedName || removedItem.productName}" from the bill.`;
+
+        let followUp = '';
+        if (session.lineItems.length > 0) {
+          const last = session.lineItems[session.lineItems.length - 1];
+          if (!last.qty || last.qty <= 0) {
+            followUp = lang === 'hi' ? ` कृपया ${last.matchedName || last.productName} की मात्रा बताएं।` : ` Please specify the quantity for ${last.matchedName || last.productName}.`;
+          } else if (!last.unitPrice || last.unitPrice <= 0) {
+            followUp = lang === 'hi' ? ` कृपया ${last.matchedName || last.productName} की कीमत बताएं।` : ` Please specify the unit price for ${last.matchedName || last.productName}.`;
+          } else if (!session.customerName) {
+            followUp = lang === 'hi' ? ' कृपया ग्राहक का नाम बताएं।' : ' Please provide the customer name.';
+          } else if (!session.phone) {
+            followUp = lang === 'hi' ? ' कृपया ग्राहक का 10-अंकीय फ़ोन नंबर बताएं।' : ' Please provide the customer phone number.';
+          }
+        } else {
+          followUp = lang === 'hi' ? ' आप कौन सा उत्पाद जोड़ना चाहते हैं?' : ' What product would you like to add?';
+        }
+
+        return {
+          reply: reply + followUp,
+          language: lang,
+          session,
+          readyForConfirm: session.status === 'ready_for_confirm',
+          isConfirmed: false,
+        };
+      } else {
+        const reply = lang === 'hi'
+          ? 'हटाने के लिए बिल में कोई उत्पाद नहीं मिला।'
+          : 'No items in the bill to remove.';
+        return {
+          reply,
+          language: lang,
+          session,
+          readyForConfirm: session.status === 'ready_for_confirm',
+          isConfirmed: false,
+        };
+      }
+    }
+
     // 5. Handle slot updates (e.g. "change quantity to 4")
     if (parsed.isUpdate && parsed.updateField) {
       if (parsed.updateField === 'quantity' && parsed.quantity) {
@@ -596,53 +959,77 @@ Rules:
         // High confidence match: add or update line item
         session.ambiguousCandidates = undefined;
 
-        // Check if existing line item can be populated or if new line
-        let currentItem = session.lineItems[session.lineItems.length - 1];
-        if (!currentItem || currentItem.productId) {
-          // create new line item
-          currentItem = {
-            id: `line_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-            productName: parsed.productName,
-            matchedName: matchRes.matchedProduct.name,
-            productId: matchRes.matchedProduct.id,
-            qty: parsed.quantity || 0,
-            unitPrice: parsed.unitPrice || parseFloat(matchRes.matchedProduct.salesPrice) || 0,
-            discountPercent: parsed.discountPercent || 0,
-            taxRate: parseFloat(matchRes.matchedProduct.taxRate) || 0,
-            lineTotal: '0.00',
-            isQtyAssumed: parsed.isQtyAssumed,
-            isPriceAssumed: parsed.isPriceAssumed,
-            qtyNeedsReview: parsed.qtyNeedsReview,
-            priceNeedsReview: parsed.priceNeedsReview,
-            discountNeedsReview: parsed.discountNeedsReview,
-            qtySource: slotSources.qty,
-            priceSource: slotSources.unitPrice,
-          };
-          session.lineItems.push(currentItem);
-        } else {
-          // populate existing line item
-          currentItem.productName = parsed.productName;
-          currentItem.matchedName = matchRes.matchedProduct.name;
-          currentItem.productId = matchRes.matchedProduct.id;
-          if (parsed.quantity) {
-            currentItem.qty = parsed.quantity;
-            currentItem.isQtyAssumed = parsed.isQtyAssumed;
-            currentItem.qtyNeedsReview = parsed.qtyNeedsReview;
-            currentItem.qtySource = slotSources.qty;
+        // Check if an item with the SAME productId is already in lineItems
+        const existingSameItem = session.lineItems.find(
+          i => i.productId === matchRes.matchedProduct!.id
+        );
+
+        if (existingSameItem) {
+          if (parsed.quantity && parsed.quantity > 0) {
+            existingSameItem.qty = parsed.quantity;
+            existingSameItem.isQtyAssumed = parsed.isQtyAssumed;
+            existingSameItem.qtyNeedsReview = parsed.qtyNeedsReview;
+            existingSameItem.qtySource = slotSources.qty;
           }
-          if (parsed.unitPrice) {
-            currentItem.unitPrice = parsed.unitPrice;
-            currentItem.isPriceAssumed = parsed.isPriceAssumed;
-            currentItem.priceNeedsReview = parsed.priceNeedsReview;
-            currentItem.priceSource = slotSources.unitPrice;
-          } else if (!currentItem.unitPrice || currentItem.unitPrice === 0) {
-            currentItem.unitPrice = parseFloat(matchRes.matchedProduct.salesPrice) || 0;
+          if (parsed.unitPrice && parsed.unitPrice > 0) {
+            existingSameItem.unitPrice = parsed.unitPrice;
+            existingSameItem.isPriceAssumed = parsed.isPriceAssumed;
+            existingSameItem.priceNeedsReview = parsed.priceNeedsReview;
+            existingSameItem.priceSource = slotSources.unitPrice;
           }
           if (parsed.discountPercent !== undefined) {
-            currentItem.discountPercent = parsed.discountPercent;
-            currentItem.discountNeedsReview = parsed.discountNeedsReview;
+            existingSameItem.discountPercent = parsed.discountPercent;
+            existingSameItem.discountNeedsReview = parsed.discountNeedsReview;
           }
-          currentItem.taxRate = parseFloat(matchRes.matchedProduct.taxRate) || 0;
+        } else {
+          // Check if existing line item can be populated or if new line
+          let currentItem = session.lineItems[session.lineItems.length - 1];
+          if (!currentItem || currentItem.productId) {
+            // create new line item
+            currentItem = {
+              id: `line_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+              productName: parsed.productName,
+              matchedName: matchRes.matchedProduct.name,
+              productId: matchRes.matchedProduct.id,
+              qty: parsed.quantity || 0,
+              unitPrice: parsed.unitPrice || parseFloat(matchRes.matchedProduct.salesPrice) || 0,
+              discountPercent: parsed.discountPercent || 0,
+              taxRate: parseFloat(matchRes.matchedProduct.taxRate) || 0,
+              lineTotal: '0.00',
+              isQtyAssumed: parsed.isQtyAssumed,
+              isPriceAssumed: parsed.isPriceAssumed,
+              qtyNeedsReview: parsed.qtyNeedsReview,
+              priceNeedsReview: parsed.priceNeedsReview,
+              discountNeedsReview: parsed.discountNeedsReview,
+              qtySource: slotSources.qty,
+              priceSource: slotSources.unitPrice,
+            };
+            session.lineItems.push(currentItem);
+          } else {
+            // populate existing line item
+            currentItem.productName = parsed.productName;
+            currentItem.matchedName = matchRes.matchedProduct.name;
+            currentItem.productId = matchRes.matchedProduct.id;
+            if (parsed.quantity) {
+              currentItem.qty = parsed.quantity;
+              currentItem.isQtyAssumed = parsed.isQtyAssumed;
+              currentItem.qtyNeedsReview = parsed.qtyNeedsReview;
+              currentItem.qtySource = slotSources.qty;
+            }
+            if (parsed.unitPrice) {
+              currentItem.unitPrice = parsed.unitPrice;
+              currentItem.isPriceAssumed = parsed.isPriceAssumed;
+              currentItem.priceNeedsReview = parsed.priceNeedsReview;
+              currentItem.priceSource = slotSources.unitPrice;
+            } else if (!currentItem.unitPrice || currentItem.unitPrice === 0) {
+              currentItem.unitPrice = parseFloat(matchRes.matchedProduct.salesPrice) || 0;
+            }
+            if (parsed.discountPercent !== undefined) {
+              currentItem.discountPercent = parsed.discountPercent;
+              currentItem.discountNeedsReview = parsed.discountNeedsReview;
+            }
+            currentItem.taxRate = parseFloat(matchRes.matchedProduct.taxRate) || 0;
+          }
         }
       } else if (matchRes.candidates.length > 0) {
         // Ambiguous match: ask user to clarify from candidates

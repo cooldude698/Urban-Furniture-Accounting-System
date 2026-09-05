@@ -442,7 +442,7 @@ portalRouter.get('/models', async (_req: Request, res: Response) => {
           defaultY,
           sizeBytes: stat.size,
           sizeKB: (stat.size / 1024).toFixed(1),
-          url: `/models/${filename}`,
+          url: `/Models/${filename}`,
         };
       })
       .sort((a, b) => {

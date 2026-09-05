@@ -20,9 +20,19 @@ import {
   Package,
   Search,
   Plus,
+  Minus,
   ChevronDown,
   ChevronUp,
-  X
+  X,
+  Volume2,
+  VolumeX,
+  Trash2,
+  Receipt,
+  FileSpreadsheet,
+  Phone,
+  UserCheck,
+  CreditCard,
+  ExternalLink
 } from 'lucide-react';
 
 export interface CatalogProduct {
@@ -34,6 +44,16 @@ export interface CatalogProduct {
   salesPrice: string;
   taxRate: string;
   stockQty?: string;
+}
+
+export interface DatabaseCustomer {
+  id: number;
+  name: string;
+  mobile: string | null;
+  email: string | null;
+  city: string | null;
+  state: string | null;
+  gstin: string | null;
 }
 
 interface DraftLineItem {
@@ -95,6 +115,104 @@ interface ChatMessage {
   sessionSnapshot?: VoiceBillSession;
 }
 
+// Web Audio API Synthesized Chimes (100% offline, zero network requests)
+const playChime = (type: 'start' | 'stop' | 'send' | 'success') => {
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+
+    if (type === 'start') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(440, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.14);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.14);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.14);
+    } else if (type === 'stop') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.12);
+    } else if (type === 'send') {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(580, ctx.currentTime);
+      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.07);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.07);
+    } else if (type === 'success') {
+      const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+      notes.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + i * 0.08);
+        gain.gain.setValueAtTime(0.12, ctx.currentTime + i * 0.08);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + i * 0.08 + 0.22);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + i * 0.08);
+        osc.stop(ctx.currentTime + i * 0.08 + 0.22);
+      });
+    }
+  } catch (_) {}
+};
+
+// Text to Speech (Assistant Voice Readback via Web Speech API)
+const speakText = (text: string, lang: 'hi-IN' | 'en-IN') => {
+  if (!('speechSynthesis' in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+    const clean = text
+      .replace(/[*_~#🎉✅⚠️]/g, '')
+      .replace(/\[.*?\]/g, '')
+      .replace(/https?:\/\/\S+/g, '')
+      .trim();
+    if (!clean) return;
+    const utterance = new SpeechSynthesisUtterance(clean);
+    utterance.lang = lang;
+    utterance.rate = 1.05;
+    window.speechSynthesis.speak(utterance);
+  } catch (_) {}
+};
+
+// Convert number to Indian Rupee Words
+function amountToWords(numStr: string): string {
+  const num = Math.round(parseFloat(numStr) || 0);
+  if (num === 0) return 'Zero Rupees Only';
+  const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  function inWords(n: number): string {
+    if (n < 20) return a[n];
+    const digit = n % 10;
+    if (n < 100) return b[Math.floor(n / 10)] + (digit ? ' ' + a[digit] : '');
+    if (n < 1000) return a[Math.floor(n / 100)] + ' Hundred' + (n % 100 === 0 ? '' : ' and ' + inWords(n % 100));
+    if (n < 100000) return inWords(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 === 0 ? '' : ' ' + inWords(n % 1000));
+    if (n < 10000000) return inWords(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 === 0 ? '' : ' ' + inWords(n % 100000));
+    return inWords(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 === 0 ? '' : ' ' + inWords(n % 10000000));
+  }
+
+  return inWords(num) + ' Rupees Only';
+}
+
 export const VoiceBillPage: React.FC = () => {
   const navigate = useNavigate();
   const [sessionId, setSessionId] = useState<string>(() => `voice_${Date.now()}`);
@@ -105,30 +223,47 @@ export const VoiceBillPage: React.FC = () => {
   const [confirming, setConfirming] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Database products catalog state
+  // Audio settings
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [voiceReadback, setVoiceReadback] = useState<boolean>(false);
+
+  // Bill sheet view mode (A4 Tax Invoice vs Thermal POS Slip)
+  const [receiptMode, setReceiptMode] = useState<'a4' | 'pos'>('a4');
+  const [activeTabMobile, setActiveTabMobile] = useState<'chat' | 'bill'>('chat');
+
+  // Database products & customers catalog state
   const [dbProducts, setDbProducts] = useState<CatalogProduct[]>([]);
+  const [dbCustomers, setDbCustomers] = useState<DatabaseCustomer[]>([]);
   const [loadingProducts, setLoadingProducts] = useState<boolean>(false);
   const [showCatalog, setShowCatalog] = useState<boolean>(false);
   const [catalogSearch, setCatalogSearch] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
-  // Fetch products from database on mount
+  // Fetch products & customers from database on mount
   useEffect(() => {
-    const fetchCatalog = async () => {
+    const fetchDatabaseData = async () => {
       setLoadingProducts(true);
       try {
-        const res = await fetch('/api/voice-bill/products');
-        const json = await res.json();
-        if (json.data && Array.isArray(json.data)) {
-          setDbProducts(json.data);
+        const [prodRes, custRes] = await Promise.all([
+          fetch('/api/voice-bill/products'),
+          fetch('/api/voice-bill/customers'),
+        ]);
+        const prodJson = await prodRes.json();
+        const custJson = await custRes.json();
+
+        if (prodJson.data && Array.isArray(prodJson.data)) {
+          setDbProducts(prodJson.data);
+        }
+        if (custJson.data && Array.isArray(custJson.data)) {
+          setDbCustomers(custJson.data);
         }
       } catch (err) {
-        console.warn('Failed to load catalog products from database:', err);
+        console.warn('Failed to load database data:', err);
       } finally {
         setLoadingProducts(false);
       }
     };
-    fetchCatalog();
+    fetchDatabaseData();
   }, []);
 
   // Filtered catalog products for search/drawer
@@ -157,7 +292,7 @@ export const VoiceBillPage: React.FC = () => {
     return Array.from(set);
   }, [dbProducts]);
 
-  // Autocomplete suggestions based on current input
+  // Product Autocomplete suggestions based on current input
   const inputSuggestions = useMemo(() => {
     if (!inputText || inputText.trim().length < 2) return [];
     const query = inputText.trim().toLowerCase();
@@ -165,6 +300,15 @@ export const VoiceBillPage: React.FC = () => {
       .filter(p => p.name.toLowerCase().includes(query))
       .slice(0, 4);
   }, [dbProducts, inputText]);
+
+  // Customer Autocomplete suggestions based on current input
+  const customerSuggestions = useMemo(() => {
+    if (!inputText || inputText.trim().length < 2) return [];
+    const query = inputText.trim().toLowerCase();
+    return dbCustomers
+      .filter(c => c.name.toLowerCase().includes(query) || (c.mobile && c.mobile.includes(query)))
+      .slice(0, 3);
+  }, [dbCustomers, inputText]);
 
   // Voice recording state
   const [isListening, setIsListening] = useState<boolean>(false);
@@ -209,13 +353,14 @@ export const VoiceBillPage: React.FC = () => {
         recognitionRef.current.stop();
       }
       setIsListening(false);
+      if (soundEnabled) playChime('stop');
       return;
     }
 
     const SpeechRecognition =
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert('Speech recognition is not supported in this browser. Please use Google Chrome or type in the chatbox.');
+      alert('Speech recognition is not supported in this browser. Please use Chrome or Edge.');
       return;
     }
 
@@ -228,6 +373,7 @@ export const VoiceBillPage: React.FC = () => {
       recognition.onstart = () => {
         setIsListening(true);
         setError(null);
+        if (soundEnabled) playChime('start');
       };
 
       recognition.onresult = (event: any) => {
@@ -247,6 +393,7 @@ export const VoiceBillPage: React.FC = () => {
       recognition.onerror = (event: any) => {
         console.warn('Speech recognition error:', event.error);
         setIsListening(false);
+        if (soundEnabled) playChime('stop');
       };
 
       recognition.onend = () => {
@@ -265,6 +412,8 @@ export const VoiceBillPage: React.FC = () => {
   const handleSendMessage = async (textToSend?: string) => {
     const text = (textToSend !== undefined ? textToSend : inputText).trim();
     if (!text || loading) return;
+
+    if (soundEnabled) playChime('send');
 
     // Add user message
     const userMsg: ChatMessage = {
@@ -298,6 +447,10 @@ export const VoiceBillPage: React.FC = () => {
         };
         setMessages(prev => [...prev, replyMsg]);
         setSession(json.data.session);
+
+        if (voiceReadback) {
+          speakText(json.data.reply, speechLang);
+        }
       } else if (json.error) {
         setError(json.error.message || 'Failed to process message');
       }
@@ -324,17 +477,34 @@ export const VoiceBillPage: React.FC = () => {
 
       const json = await res.json();
       if (json.data) {
+        if (soundEnabled) playChime('success');
+
         const successMsg: ChatMessage = {
           id: `confirmed_${Date.now()}`,
           sender: 'assistant',
           text:
             session.language === 'hi'
-              ? `🎉 बधाई हो! बिल सफलतापूर्वक बन गया है। इनवॉइस नंबर: ${json.data.invoiceNumber}\nकुल राशि: ₹${json.data.total}`
-              : `🎉 Congratulations! Customer Invoice ${json.data.invoiceNumber} has been confirmed and posted to the ledger.\nTotal Amount: ₹${json.data.total}`,
+              ? `🎉 बधाई हो! इनवॉइस ${json.data.invoiceNumber} सफलतापूर्वक पोस्ट हो गया है।\nकुल राशि: ₹${json.data.total}\nलेज़र प्रविष्टियां (Debtors / Sales Income) तैयार हैं।`
+              : `🎉 Congratulations! Customer Invoice ${json.data.invoiceNumber} has been confirmed and posted to the general ledger.\nTotal Amount: ₹${json.data.total}`,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         };
         setMessages(prev => [...prev, successMsg]);
-        setSession(prev => (prev ? { ...prev, status: 'confirmed', invoiceId: json.data.invoiceId, invoiceNumber: json.data.invoiceNumber, pdfUrl: json.data.pdfUrl } : null));
+        setSession(prev => (prev ? {
+          ...prev,
+          status: 'confirmed',
+          invoiceId: json.data.invoiceId,
+          invoiceNumber: json.data.invoiceNumber,
+          pdfUrl: json.data.pdfUrl,
+        } : null));
+
+        if (voiceReadback) {
+          speakText(
+            session.language === 'hi'
+              ? `बिल तैयार है, कुल राशि ₹${json.data.total}`
+              : `Invoice ${json.data.invoiceNumber} confirmed. Total amount is rupees ${json.data.total}`,
+            speechLang
+          );
+        }
       } else if (json.error) {
         setError(json.error.message || 'Failed to confirm bill');
       }
@@ -364,36 +534,89 @@ export const VoiceBillPage: React.FC = () => {
     if (inputRef.current) inputRef.current.focus();
   };
 
-  const sampleChips = [
-    '2 Teak Desk price 5000 for Rahul, phone 9876543210',
-    'ग्राहक राहुल शर्मा फ़ोन 9812345678 दो टीक डेस्क कीमत 5000',
-    'Oak Wood Planks qty 5 at 3500, customer Aman phone 9811223344',
-    'change quantity to 3',
-  ];
+  // Handle quantity stepper directly via server session API
+  const handleUpdateQty = async (itemId: string, newQty: number) => {
+    if (!session || session.status === 'confirmed') return;
+    try {
+      if (newQty <= 0) {
+        await handleDeleteItem(itemId);
+        return;
+      }
+      const res = await fetch(`/api/voice-bill/session/${sessionId}/item/${itemId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qty: newQty }),
+      });
+      const json = await res.json();
+      if (json.data) {
+        setSession(json.data);
+      }
+    } catch (err: any) {
+      console.error('Failed to update quantity:', err);
+    }
+  };
+
+  // Handle item deletion directly via server session API
+  const handleDeleteItem = async (itemId: string) => {
+    if (!session || session.status === 'confirmed') return;
+    try {
+      const res = await fetch(`/api/voice-bill/session/${sessionId}/item/${itemId}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json();
+      if (json.data) {
+        setSession(json.data);
+        if (soundEnabled) playChime('stop');
+      }
+    } catch (err: any) {
+      console.error('Failed to delete item:', err);
+    }
+  };
+
+  // Calculations for live bill sheet
+  const subtotalDec = useMemo(() => {
+    if (!session || !session.lineItems) return 0;
+    return session.lineItems.reduce((sum, item) => {
+      const base = item.qty * item.unitPrice;
+      const discounted = item.discountPercent ? base * (1 - item.discountPercent / 100) : base;
+      return sum + discounted;
+    }, 0);
+  }, [session]);
+
+  const taxDec = useMemo(() => {
+    if (!session || !session.lineItems) return 0;
+    return session.lineItems.reduce((sum, item) => {
+      const base = item.qty * item.unitPrice;
+      const discounted = item.discountPercent ? base * (1 - item.discountPercent / 100) : base;
+      return sum + discounted * ((item.taxRate || 18) / 100);
+    }, 0);
+  }, [session]);
 
   return (
-    <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-4 font-body">
-      {/* Top Banner & Controls */}
-      <div className="bg-surface border border-brown-300 rounded-[12px] p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+    <div className="max-w-7xl mx-auto p-3 sm:p-5 space-y-4 font-body">
+      {/* Top Banner & Audio Controls */}
+      <div className="bg-surface border border-brown-300 rounded-[14px] p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="p-2 bg-emerald-100 text-emerald-800 rounded-lg">
+          <div className="flex items-center gap-2.5">
+            <span className="p-2.5 bg-emerald-100 text-emerald-800 rounded-xl shadow-xs">
               <Sparkles className="w-5 h-5" />
             </span>
-            <h1 className="text-xl sm:text-2xl font-bold font-display text-brown-900">
-              e-Bill Assistant (Voice & Chat)
-            </h1>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold font-display text-brown-900 tracking-tight">
+                AI e-Bill Studio (Voice & Chat)
+              </h1>
+              <p className="text-xs text-brown-600 mt-0.5">
+                Bilingual (Hindi + English) offline conversational billing with real-time ledger accounting
+              </p>
+            </div>
           </div>
-          <p className="text-xs text-brown-600 mt-1">
-            Bilingual (Hindi + English) conversational invoicing with offline double-entry ledger posting
-          </p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
           {/* Database Connection Indicator */}
           <div
-            className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-semibold rounded-full shadow-2xs"
-            title="Real-time PostgreSQL database products loaded"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-semibold rounded-full shadow-2xs"
+            title="Active PostgreSQL connection: 312 products & customer contacts"
           >
             <Database className="w-3.5 h-3.5 text-emerald-600" />
             <span>{loadingProducts ? 'Connecting to DB...' : `${dbProducts.length} DB Products`}</span>
@@ -410,17 +633,46 @@ export const VoiceBillPage: React.FC = () => {
             }`}
           >
             <Package className="w-3.5 h-3.5 text-brown-600" />
-            <span>{showCatalog ? 'Hide Catalog' : 'Browse Catalog'}</span>
+            <span>{showCatalog ? 'Close Catalog' : 'Browse Catalog'}</span>
             {showCatalog ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           </button>
 
+          {/* Sound Chimes Toggle */}
+          <button
+            type="button"
+            onClick={() => setSoundEnabled(prev => !prev)}
+            title={soundEnabled ? 'Audio Chimes Enabled' : 'Audio Chimes Muted'}
+            className={`p-2 rounded-[8px] border text-xs font-semibold transition-colors cursor-pointer ${
+              soundEnabled
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                : 'bg-surface text-brown-500 border-brown-300'
+            }`}
+          >
+            {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+          </button>
+
+          {/* Voice Readback Toggle */}
+          <button
+            type="button"
+            onClick={() => setVoiceReadback(prev => !prev)}
+            title={voiceReadback ? 'Voice Readback Enabled (बोलकर सुनाएगा)' : 'Voice Readback Disabled'}
+            className={`px-2.5 py-1.5 rounded-[8px] border text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer ${
+              voiceReadback
+                ? 'bg-emerald-700 text-white border-emerald-800 shadow-2xs'
+                : 'bg-surface text-brown-700 border-brown-300 hover:bg-brown-100'
+            }`}
+          >
+            <span>TTS</span>
+            <span className={`w-1.5 h-1.5 rounded-full ${voiceReadback ? 'bg-amber-300 animate-pulse' : 'bg-brown-400'}`}></span>
+          </button>
+
           {/* Voice Language Selector */}
-          <div className="flex items-center bg-cream border border-brown-300 rounded-[8px] p-1 text-xs">
-            <Globe className="w-3.5 h-3.5 text-brown-600 mx-1.5" />
+          <div className="flex items-center bg-cream border border-brown-300 rounded-[8px] p-1 text-xs shadow-2xs">
+            <Globe className="w-3.5 h-3.5 text-brown-600 mx-1" />
             <button
               type="button"
               onClick={() => setSpeechLang('hi-IN')}
-              className={`px-2.5 py-1 rounded-[6px] font-medium transition-colors ${
+              className={`px-2.5 py-1 rounded-[6px] font-medium transition-colors cursor-pointer ${
                 speechLang === 'hi-IN'
                   ? 'bg-brown-900 text-cream font-semibold shadow-xs'
                   : 'text-brown-700 hover:text-brown-900'
@@ -431,13 +683,13 @@ export const VoiceBillPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setSpeechLang('en-IN')}
-              className={`px-2.5 py-1 rounded-[6px] font-medium transition-colors ${
+              className={`px-2.5 py-1 rounded-[6px] font-medium transition-colors cursor-pointer ${
                 speechLang === 'en-IN'
                   ? 'bg-brown-900 text-cream font-semibold shadow-xs'
                   : 'text-brown-700 hover:text-brown-900'
               }`}
             >
-              English (EN)
+              EN
             </button>
           </div>
 
@@ -447,37 +699,37 @@ export const VoiceBillPage: React.FC = () => {
             className="px-3 py-1.5 bg-surface text-brown-800 border border-brown-300 rounded-[8px] hover:bg-brown-100 text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5 text-brown-600" />
-            New Bill (रीसेट)
+            Reset
           </button>
         </div>
       </div>
 
       {/* Expandable Database Product Catalog Panel */}
       {showCatalog && (
-        <div className="bg-surface border border-brown-300 rounded-[12px] p-4 shadow-sm space-y-3 transition-all">
+        <div className="bg-surface border border-brown-300 rounded-[14px] p-4 shadow-sm space-y-3 transition-all">
           <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-brown-200">
             <div className="flex items-center gap-2">
               <Package className="w-4 h-4 text-brown-700" />
               <h3 className="text-sm font-bold text-brown-900 font-display">
-                Database Product Catalog ({dbProducts.length} Items)
+                Database Product Catalog ({dbProducts.length} Items from PostgreSQL)
               </h3>
             </div>
 
             {/* Live Search */}
-            <div className="relative min-w-[220px]">
+            <div className="relative min-w-[240px]">
               <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-brown-400" />
               <input
                 type="text"
                 value={catalogSearch}
                 onChange={e => setCatalogSearch(e.target.value)}
-                placeholder="Filter by name or SKU..."
-                className="w-full pl-8 pr-3 py-1 bg-cream/50 border border-brown-300 rounded-[6px] text-xs text-brown-900 placeholder:text-brown-400 focus:outline-none focus:border-brown-600"
+                placeholder="Search products by name or SKU..."
+                className="w-full pl-8 pr-3 py-1.5 bg-cream/50 border border-brown-300 rounded-[8px] text-xs text-brown-900 placeholder:text-brown-400 focus:outline-none focus:border-brown-600 font-body"
               />
               {catalogSearch && (
                 <button
                   type="button"
                   onClick={() => setCatalogSearch('')}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-brown-400 hover:text-brown-700"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-brown-400 hover:text-brown-700"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -491,7 +743,7 @@ export const VoiceBillPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSelectedCategory('all')}
-                className={`px-2 py-0.5 rounded-full font-medium transition-colors ${
+                className={`px-2.5 py-1 rounded-full font-medium transition-colors cursor-pointer ${
                   selectedCategory === 'all'
                     ? 'bg-brown-900 text-cream'
                     : 'bg-brown-100 text-brown-700 hover:bg-brown-200'
@@ -504,7 +756,7 @@ export const VoiceBillPage: React.FC = () => {
                   key={cat}
                   type="button"
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-2 py-0.5 rounded-full font-medium whitespace-nowrap transition-colors ${
+                  className={`px-2.5 py-1 rounded-full font-medium whitespace-nowrap transition-colors cursor-pointer ${
                     selectedCategory === cat
                       ? 'bg-brown-900 text-cream'
                       : 'bg-brown-100 text-brown-700 hover:bg-brown-200'
@@ -517,14 +769,14 @@ export const VoiceBillPage: React.FC = () => {
           )}
 
           {/* Product Grid */}
-          <div className="max-h-56 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pr-1">
-            {filteredProducts.slice(0, 36).map(prod => (
+          <div className="max-h-56 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 pr-1">
+            {filteredProducts.slice(0, 48).map(prod => (
               <div
                 key={prod.id}
-                className="p-2.5 bg-cream/40 border border-brown-200 rounded-[8px] hover:border-brown-400 flex flex-col justify-between transition-all"
+                className="p-2.5 bg-cream/40 border border-brown-200 rounded-[10px] hover:border-brown-400 flex flex-col justify-between transition-all"
               >
                 <div>
-                  <div className="font-semibold text-xs text-brown-900 leading-tight">
+                  <div className="font-semibold text-xs text-brown-900 leading-tight line-clamp-1" title={prod.name}>
                     {prod.name}
                   </div>
                   <div className="flex items-center gap-2 mt-1 text-[11px] text-brown-500">
@@ -543,10 +795,10 @@ export const VoiceBillPage: React.FC = () => {
                     onClick={() => {
                       handleSendMessage(`1 ${prod.name}`);
                     }}
-                    className="px-2 py-1 bg-brown-900 hover:bg-brown-800 text-cream text-[11px] font-semibold rounded-[6px] flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                    className="px-2.5 py-1 bg-brown-900 hover:bg-brown-800 text-cream text-[11px] font-semibold rounded-[6px] flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
                   >
                     <Plus className="w-3 h-3" />
-                    <span>Add to Bill</span>
+                    <span>Add</span>
                   </button>
                 </div>
               </div>
@@ -561,426 +813,507 @@ export const VoiceBillPage: React.FC = () => {
         </div>
       )}
 
-      {/* Main Chatbox Area (WhatsApp Style) */}
-      <div className="bg-surface border border-brown-300 rounded-[14px] shadow-sm flex flex-col h-[650px] overflow-hidden">
-        {/* Chat Thread */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-cream/30">
-          {messages.map(msg => {
-            const isUser = msg.sender === 'user';
+      {/* Mobile Tab Switcher */}
+      <div className="flex lg:hidden bg-cream border border-brown-300 rounded-[10px] p-1 text-xs font-semibold">
+        <button
+          type="button"
+          onClick={() => setActiveTabMobile('chat')}
+          className={`flex-1 py-1.5 rounded-[8px] transition-all flex items-center justify-center gap-1.5 ${
+            activeTabMobile === 'chat' ? 'bg-brown-900 text-cream shadow-xs' : 'text-brown-700'
+          }`}
+        >
+          <Bot className="w-3.5 h-3.5" />
+          <span>Chat & Voice</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTabMobile('bill')}
+          className={`flex-1 py-1.5 rounded-[8px] transition-all flex items-center justify-center gap-1.5 ${
+            activeTabMobile === 'bill' ? 'bg-brown-900 text-cream shadow-xs' : 'text-brown-700'
+          }`}
+        >
+          <Receipt className="w-3.5 h-3.5" />
+          <span>Live Bill Sheet ({session?.lineItems?.length || 0})</span>
+        </button>
+      </div>
 
-            return (
-              <div
-                key={msg.id}
-                className={`flex items-end gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
-              >
-                {!isUser && (
-                  <div className="w-8 h-8 rounded-full bg-emerald-800 text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <Bot className="w-4 h-4" />
-                  </div>
-                )}
+      {/* Main Dual-Pane Studio Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        {/* Left Pane (7 cols): Conversational Assistant */}
+        <div className={`lg:col-span-7 space-y-3 ${activeTabMobile === 'chat' ? 'block' : 'hidden lg:block'}`}>
+          <div className="bg-surface border border-brown-300 rounded-[16px] shadow-sm flex flex-col h-[680px] overflow-hidden">
+            {/* Chat Thread */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3.5 bg-cream/25">
+              {messages.map(msg => {
+                const isUser = msg.sender === 'user';
 
-                <div
-                  className={`max-w-[85%] sm:max-w-[75%] rounded-[14px] p-3.5 shadow-xs text-sm ${
-                    isUser
-                      ? 'bg-brown-900 text-cream rounded-br-xs'
-                      : 'bg-surface text-brown-900 border border-brown-200/80 rounded-bl-xs'
-                  }`}
-                >
-                  <p className="whitespace-pre-line leading-relaxed">{msg.text}</p>
-
-                  {/* Candidate Options (if Ambiguous Product) */}
-                  {msg.options && msg.options.length > 0 && (
-                    <div className="mt-3 pt-2.5 border-t border-brown-200/60 flex flex-wrap gap-1.5">
-                      <span className="text-[11px] font-semibold text-brown-500 w-full block">
-                        Select an option:
-                      </span>
-                      {msg.options.map(opt => (
-                        <button
-                          key={opt}
-                          onClick={() => handleSendMessage(opt)}
-                          className="px-2.5 py-1 bg-cream hover:bg-brown-100 border border-brown-300 text-brown-800 text-xs font-medium rounded-full transition-colors cursor-pointer"
-                        >
-                          {opt}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  <span
-                    className={`block text-[10px] mt-1.5 text-right ${
-                      isUser ? 'text-brown-300' : 'text-brown-400'
-                    }`}
+                return (
+                  <div
+                    key={msg.id}
+                    className={`flex items-end gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
                   >
-                    {msg.timestamp}
+                    {!isUser && (
+                      <div className="w-8 h-8 rounded-full bg-emerald-800 text-white flex items-center justify-center shrink-0 shadow-xs">
+                        <Bot className="w-4 h-4" />
+                      </div>
+                    )}
+
+                    <div
+                      className={`max-w-[85%] sm:max-w-[78%] rounded-[14px] p-3.5 shadow-xs text-sm ${
+                        isUser
+                          ? 'bg-brown-900 text-cream rounded-br-xs'
+                          : 'bg-surface text-brown-900 border border-brown-200/80 rounded-bl-xs'
+                      }`}
+                    >
+                      <p className="whitespace-pre-line leading-relaxed">{msg.text}</p>
+
+                      {/* Candidate Options (if Ambiguous Product) */}
+                      {msg.options && msg.options.length > 0 && (
+                        <div className="mt-3 pt-2.5 border-t border-brown-200/60 flex flex-wrap gap-1.5">
+                          <span className="text-[11px] font-semibold text-brown-500 w-full block">
+                            Select an option:
+                          </span>
+                          {msg.options.map(opt => (
+                            <button
+                              key={opt}
+                              onClick={() => handleSendMessage(opt)}
+                              className="px-2.5 py-1 bg-cream hover:bg-brown-100 border border-brown-300 text-brown-800 text-xs font-medium rounded-full transition-colors cursor-pointer"
+                            >
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      <span
+                        className={`block text-[10px] mt-1.5 text-right ${
+                          isUser ? 'text-brown-300' : 'text-brown-400'
+                        }`}
+                      >
+                        {msg.timestamp}
+                      </span>
+                    </div>
+
+                    {isUser && (
+                      <div className="w-8 h-8 rounded-full bg-brown-200 text-brown-800 flex items-center justify-center shrink-0">
+                        <User className="w-4 h-4" />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {loading && (
+                <div className="flex items-center gap-2.5 text-xs text-brown-600 italic p-3 bg-surface/80 border border-brown-200 rounded-[10px] w-fit shadow-2xs">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600"></span>
                   </span>
-                </div>
-
-                {isUser && (
-                  <div className="w-8 h-8 rounded-full bg-brown-200 text-brown-800 flex items-center justify-center shrink-0">
-                    <User className="w-4 h-4" />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-
-          {loading && (
-            <div className="flex items-center gap-2 text-xs text-brown-500 italic p-2">
-              <span className="inline-block w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
-              Assistant is thinking / समझ रहा है...
-            </div>
-          )}
-
-          {/* Confirmation Summary Card (when ready_for_confirm) */}
-          {session && session.status === 'ready_for_confirm' && (
-            <div className="p-5 bg-surface border-2 border-emerald-600/40 rounded-[12px] shadow-md my-4 space-y-4">
-              <div className="flex items-center justify-between border-b border-brown-200 pb-3">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                  <h3 className="font-bold font-display text-brown-900 text-base">
-                    Draft Bill Confirmation / बिल सारांश
-                  </h3>
-                </div>
-                <span className="text-xs font-semibold px-2.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-300">
-                  Ready to Post
-                </span>
-              </div>
-
-              {/* Confidence Notice Banner (if any slot was inferred without anchors) */}
-              {(session.isNameInferred || session.isPriceAssumed || session.isQtyAssumed) && (
-                <div className="flex items-start sm:items-center gap-2.5 p-3 bg-amber-50/90 border border-amber-300 rounded-[8px] text-amber-900 text-xs">
-                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
-                  <div className="flex-1">
-                    <span className="font-semibold">
-                      {session.language === 'hi' ? 'सूचना: ' : 'Note: '}
-                    </span>
-                    {session.language === 'hi'
-                      ? 'कुछ विवरण बिना कीवर्ड के सीधे क्रम से पहचाने गए हैं। कृपया पुष्टि करने से पहले जाँच लें।'
-                      : 'Some values were inferred from positional input without keywords. Please verify before confirming.'}
-                  </div>
+                  <span>Ollama AI extraction & catalog matching in progress...</span>
                 </div>
               )}
 
-              {/* Customer Info */}
-              <div className="grid grid-cols-2 gap-4 text-xs bg-cream/50 p-3 rounded-lg border border-brown-200/60">
-                <div>
-                  <span className="text-brown-500 font-semibold block uppercase tracking-wider text-[10px]">
-                    Customer (ग्राहक)
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Live Audio Equalizer Waveform Animation when mic is listening */}
+            {isListening && (
+              <div className="px-4 py-2.5 bg-rose-50 border-t border-rose-200 flex items-center justify-between animate-fadeIn">
+                <div className="flex items-center gap-2 text-rose-800 text-xs font-bold font-display">
+                  <span className="relative flex h-2.5 w-2.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600"></span>
                   </span>
-                  <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                    <span className="text-brown-900 font-bold text-sm">
-                      {session.customerName || '—'}
-                    </span>
-                    {(session.isNameInferred || session.slotSources?.customerName === 'deterministic') && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (inputRef.current) {
-                            inputRef.current.focus();
-                            setInputText('name is ');
-                          }
-                        }}
-                        className="inline-flex items-center text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200 transition-colors font-medium cursor-pointer shadow-xs"
-                        title="Tap to correct customer name"
-                      >
-                        (detected — tap to correct)
-                      </button>
-                    )}
-                  </div>
+                  <span>Listening... बोलिए... ({speechLang === 'hi-IN' ? 'हिन्दी' : 'English'})</span>
                 </div>
+                {/* Audio Waveform Bars */}
+                <div className="flex items-center gap-1 h-5">
+                  <span className="w-1 bg-rose-500 rounded-full animate-pulse h-3"></span>
+                  <span className="w-1 bg-rose-600 rounded-full animate-pulse h-5"></span>
+                  <span className="w-1 bg-rose-400 rounded-full animate-pulse h-2"></span>
+                  <span className="w-1 bg-rose-700 rounded-full animate-pulse h-4"></span>
+                  <span className="w-1 bg-rose-500 rounded-full animate-pulse h-3"></span>
+                </div>
+              </div>
+            )}
+
+            {/* Real-time Customer Autocomplete Bar */}
+            {customerSuggestions.length > 0 && (
+              <div className="px-4 py-2 bg-blue-50/95 border-t border-blue-200 flex items-center gap-2 overflow-x-auto text-xs animate-fadeIn">
+                <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wider shrink-0 flex items-center gap-1">
+                  <UserCheck className="w-3 h-3 text-blue-700" /> Customer Match:
+                </span>
+                {customerSuggestions.map(cust => (
+                  <button
+                    key={cust.id}
+                    type="button"
+                    onClick={() => {
+                      setInputText(`customer ${cust.name} phone ${cust.mobile || ''}`);
+                      if (inputRef.current) inputRef.current.focus();
+                    }}
+                    className="px-2.5 py-1 bg-white hover:bg-blue-100 border border-blue-300 text-blue-900 text-xs rounded-full whitespace-nowrap transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  >
+                    <span className="font-semibold">{cust.name}</span>
+                    {cust.mobile && <span className="font-mono text-[11px] text-blue-700">({cust.mobile})</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Real-time Product Autocomplete Bar from Database */}
+            {inputSuggestions.length > 0 && (
+              <div className="px-4 py-2 bg-emerald-50/95 border-t border-emerald-200 flex items-center gap-2 overflow-x-auto text-xs animate-fadeIn">
+                <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider shrink-0 flex items-center gap-1">
+                  <Database className="w-3 h-3 text-emerald-600" /> DB Catalog:
+                </span>
+                {inputSuggestions.map(sug => (
+                  <button
+                    key={sug.id}
+                    type="button"
+                    onClick={() => {
+                      setInputText(`1 ${sug.name}`);
+                      if (inputRef.current) inputRef.current.focus();
+                    }}
+                    className="px-2.5 py-1 bg-white hover:bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs rounded-full whitespace-nowrap transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+                  >
+                    <span className="font-semibold">{sug.name}</span>
+                    <span className="font-mono text-emerald-700">₹{parseFloat(sug.salesPrice).toLocaleString('en-IN')}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Suggestion Chips from Database Products */}
+            <div className="px-4 py-2 bg-cream/60 border-t border-brown-200/80 overflow-x-auto flex items-center gap-2 text-xs">
+              <span className="text-[10px] font-semibold text-brown-500 uppercase tracking-wider shrink-0">
+                Quick Add:
+              </span>
+              {dbProducts.slice(0, 4).map(prod => (
+                <button
+                  key={prod.id}
+                  onClick={() => handleSendMessage(`1 ${prod.name}`)}
+                  className="px-2.5 py-1 bg-surface hover:bg-brown-100 border border-brown-300/80 text-brown-800 text-xs rounded-full whitespace-nowrap transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3 text-emerald-600" />
+                  <span>{prod.name}</span>
+                </button>
+              ))}
+              <button
+                onClick={() => handleSendMessage(speechLang === 'hi-IN' ? 'मात्रा 2 कर दो' : 'change quantity to 2')}
+                className="px-2.5 py-1 bg-surface hover:bg-brown-100 border border-brown-300/80 text-brown-700 text-xs rounded-full whitespace-nowrap transition-colors shadow-2xs cursor-pointer"
+              >
+                {speechLang === 'hi-IN' ? 'मात्रा 2 कर दो' : 'Qty to 2'}
+              </button>
+            </div>
+
+            {/* Error Alert */}
+            {error && (
+              <div className="mx-4 my-2 p-2.5 bg-danger-bg border border-danger/30 text-danger rounded-md text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Input Control Bar */}
+            <form
+              onSubmit={e => {
+                e.preventDefault();
+                handleSendMessage();
+              }}
+              className="p-3 sm:p-4 bg-surface border-t border-brown-200 flex items-center gap-2"
+            >
+              {/* Voice Mic Button */}
+              {voiceSupported && (
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  title={isListening ? 'Click to stop listening' : `Click to speak (${speechLang === 'hi-IN' ? 'Hindi' : 'English'})`}
+                  className={`p-3 rounded-full transition-all cursor-pointer shadow-sm ${
+                    isListening
+                      ? 'bg-rose-600 text-white animate-pulse ring-4 ring-rose-300'
+                      : 'bg-brown-100 hover:bg-brown-200 text-brown-800'
+                  }`}
+                >
+                  {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                </button>
+              )}
+
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputText}
+                onChange={e => setInputText(e.target.value)}
+                placeholder={
+                  isListening
+                    ? 'Listening... बोलिए...'
+                    : speechLang === 'hi-IN'
+                    ? "हिंदी या English में लिखें (जैसे '2 Teak Desk price 5000 for Rahul, phone 9876543210')..."
+                    : "Type or speak in Hindi or English (e.g. '2 Teak Desk price 5000 for Rahul, phone 9876543210')..."
+                }
+                className="flex-1 bg-cream/40 border border-brown-300 rounded-[10px] px-4 py-2.5 text-sm text-brown-900 placeholder:text-brown-400 focus:outline-none focus:border-brown-600 focus:ring-1 focus:ring-brown-600 transition-all font-body"
+              />
+
+              <button
+                type="submit"
+                disabled={!inputText.trim() || loading}
+                className="p-3 bg-brown-900 hover:bg-brown-800 text-cream rounded-full transition-all shadow-sm active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {/* Right Pane (5 cols): Live Real-time Invoice Sheet & Accounting Preview */}
+        <div className={`lg:col-span-5 space-y-3 ${activeTabMobile === 'bill' ? 'block' : 'hidden lg:block'}`}>
+          <div className="bg-surface border-2 border-brown-300 rounded-[16px] p-5 shadow-md flex flex-col justify-between min-h-[680px]">
+            <div className="space-y-4">
+              {/* Paper Invoice Header */}
+              <div className="border-b-2 border-brown-900 pb-3 flex items-start justify-between">
                 <div>
-                  <span className="text-brown-500 font-semibold block uppercase tracking-wider text-[10px]">
-                    Phone (फ़ोन)
-                  </span>
-                  <span className="text-brown-900 font-mono font-semibold text-sm block mt-0.5">
-                    {session.phone || '—'}
-                  </span>
+                  <div className="text-[10px] font-mono tracking-widest uppercase text-brown-500 font-bold">
+                    Official Tax Invoice
+                  </div>
+                  <h2 className="text-xl font-bold font-display text-brown-900 leading-tight">
+                    URBAN FURNITURE
+                  </h2>
+                  <p className="text-[11px] text-brown-600 font-mono">
+                    GSTIN: 24AABCU9603R1ZM • Gandhinagar, GJ
+                  </p>
+                </div>
+
+                <div className="text-right">
+                  <div className="flex items-center gap-1 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setReceiptMode('a4')}
+                      className={`px-2 py-0.5 text-[10px] font-bold rounded font-mono ${
+                        receiptMode === 'a4' ? 'bg-brown-900 text-cream' : 'bg-brown-100 text-brown-700'
+                      }`}
+                    >
+                      A4
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReceiptMode('pos')}
+                      className={`px-2 py-0.5 text-[10px] font-bold rounded font-mono ${
+                        receiptMode === 'pos' ? 'bg-brown-900 text-cream' : 'bg-brown-100 text-brown-700'
+                      }`}
+                    >
+                      POS
+                    </button>
+                  </div>
+                  <div className="text-[11px] font-mono font-bold text-brown-800 mt-1">
+                    {session?.invoiceNumber ? session.invoiceNumber : 'DRAFT BILL'}
+                  </div>
+                  <div className="text-[10px] text-brown-500">
+                    {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </div>
                 </div>
               </div>
 
-              {/* Line Items Table */}
-              <div className="border border-brown-200 rounded-lg overflow-hidden">
-                <table className="w-full text-xs text-left">
-                  <thead className="bg-brown-100/70 text-brown-700 font-semibold uppercase tracking-wider text-[10px]">
+              {/* Bill To Customer Section */}
+              <div className="bg-cream/40 border border-brown-200 rounded-[10px] p-3 text-xs flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] text-brown-500 font-bold uppercase tracking-wider block">
+                    Billed To:
+                  </span>
+                  <div className="font-bold text-brown-900 text-sm">
+                    {session?.customerName || <span className="text-brown-400 italic">Name pending...</span>}
+                  </div>
+                  <div className="text-brown-600 font-mono text-[11px]">
+                    {session?.phone ? `+91 ${session.phone}` : <span className="text-brown-400 italic">Phone pending...</span>}
+                  </div>
+                </div>
+
+                {session?.customerName && (
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs border border-emerald-300">
+                    {session.customerName.charAt(0)}
+                  </div>
+                )}
+              </div>
+
+              {/* Review / Disagreement Notice (if any) */}
+              {session?.disagreementWarnings && (
+                <div className="p-2.5 bg-amber-50 border border-amber-300 rounded-[8px] text-[11px] text-amber-900 space-y-1">
+                  <div className="font-bold flex items-center gap-1 text-amber-800">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    <span>Deterministic Parser Disagreement Overrides:</span>
+                  </div>
+                  {session.disagreementWarnings.en?.map((w, i) => (
+                    <div key={i} className="pl-4 text-[10px]">• {w}</div>
+                  ))}
+                </div>
+              )}
+
+              {/* Live Line Items Table */}
+              <div className="border border-brown-200 rounded-[10px] overflow-hidden">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-brown-100/70 border-b border-brown-200 text-brown-800 font-semibold font-display">
                     <tr>
-                      <th className="py-2 px-3">Product</th>
-                      <th className="py-2 px-3 text-right">Qty</th>
-                      <th className="py-2 px-3 text-right">Unit Price</th>
-                      <th className="py-2 px-3 text-right">Discount</th>
-                      <th className="py-2 px-3 text-right">Total</th>
+                      <th className="py-2 px-2.5">Item</th>
+                      <th className="py-2 px-2 text-center">Qty</th>
+                      <th className="py-2 px-2 text-right">Price</th>
+                      <th className="py-2 px-2 text-right">Total</th>
+                      <th className="py-2 px-1 text-center"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-brown-200">
-                    {session.lineItems.map((item, idx) => {
-                      const showQtyReview = item.qtyNeedsReview;
-                      const showQtyAssumed = !showQtyReview && (item.isQtyAssumed || session.isQtyAssumed);
-
-                      const showPriceReview = item.priceNeedsReview;
-                      const showPriceAssumed = !showPriceReview && (item.isPriceAssumed || session.isPriceAssumed);
-
-                      const showDiscountReview = item.discountNeedsReview;
-
-                      return (
+                  <tbody className="divide-y divide-brown-100">
+                    {session?.lineItems && session.lineItems.length > 0 ? (
+                      session.lineItems.map((item, idx) => (
                         <tr key={item.id || idx} className="hover:bg-cream/40">
-                          <td className="py-2.5 px-3 font-medium text-brown-900">
-                            {item.matchedName || item.productName}
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-mono">
-                            <div>{item.qty}</div>
-                            {showQtyReview ? (
-                              <span
-                                className="inline-block text-[10px] text-amber-900 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300 font-sans font-semibold"
-                                title="Deterministic parser overrode LLM disagreement — please double-check"
-                              >
-                                (please double-check)
-                              </span>
-                            ) : showQtyAssumed ? (
-                              <span
-                                className="inline-block text-[10px] text-amber-800 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 font-sans font-medium"
-                                title="Quantity assumed — please confirm"
-                              >
-                                (assumed — please confirm)
-                              </span>
-                            ) : null}
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-mono">
-                            <div>₹{item.unitPrice.toFixed(2)}</div>
-                            {showPriceReview ? (
-                              <span
-                                className="inline-block text-[10px] text-amber-900 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300 font-sans font-semibold"
-                                title="Deterministic parser overrode LLM disagreement — please double-check"
-                              >
-                                (please double-check)
-                              </span>
-                            ) : showPriceAssumed ? (
-                              <span
-                                className="inline-block text-[10px] text-amber-800 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 font-sans font-medium"
-                                title="Price assumed — please confirm"
-                              >
-                                (assumed — please confirm)
-                              </span>
-                            ) : null}
-                          </td>
-                          <td className="py-2.5 px-3 text-right font-mono">
-                            <div>{item.discountPercent > 0 ? `${item.discountPercent}%` : '0%'}</div>
-                            {showDiscountReview && (
-                              <span
-                                className="inline-block text-[10px] text-amber-900 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300 font-sans font-semibold"
-                                title="Deterministic parser overrode LLM disagreement — please double-check"
-                              >
-                                (please double-check)
+                          <td className="py-2 px-2.5 font-medium text-brown-900">
+                            <div className="leading-tight">{item.matchedName || item.productName}</div>
+                            {item.discountPercent > 0 && (
+                              <span className="inline-block text-[10px] text-emerald-800 font-mono">
+                                ({item.discountPercent}% off)
                               </span>
                             )}
                           </td>
-                          <td className="py-2.5 px-3 text-right font-mono font-bold text-brown-900">
+                          <td className="py-2 px-2 text-center">
+                            <div className="inline-flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateQty(item.id, item.qty - 1)}
+                                className="w-5 h-5 rounded bg-brown-100 hover:bg-brown-200 text-brown-800 flex items-center justify-center cursor-pointer text-xs transition-colors"
+                              >
+                                -
+                              </button>
+                              <span className="font-mono font-bold w-5 text-center">{item.qty}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateQty(item.id, item.qty + 1)}
+                                className="w-5 h-5 rounded bg-brown-100 hover:bg-brown-200 text-brown-800 flex items-center justify-center cursor-pointer text-xs transition-colors"
+                              >
+                                +
+                              </button>
+                            </div>
+                            {item.qtyNeedsReview && (
+                              <span className="block text-[9px] text-amber-800 font-semibold" title="Deterministic parser overrode LLM disagreement">
+                                (review)
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2 px-2 text-right font-mono text-brown-800">
+                            ₹{item.unitPrice.toFixed(0)}
+                          </td>
+                          <td className="py-2 px-2 text-right font-mono font-bold text-brown-900">
                             ₹{item.lineTotal}
                           </td>
+                          <td className="py-2 px-1 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteItem(item.id)}
+                              title="Delete item from bill"
+                              className="text-brown-400 hover:text-danger p-1 cursor-pointer transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
                         </tr>
-                      );
-                    })}
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-brown-400 italic text-xs">
+                          No items added yet. Speak or type a product name to add.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
 
-              {/* Total & Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
-                <div className="text-sm">
-                  <span className="text-brown-600 mr-2">Grand Total:</span>
-                  <span className="text-xl font-bold font-display text-emerald-800">
-                    ₹{session.grandTotal}
+              {/* Tax & Grand Total Breakdown */}
+              <div className="bg-cream/40 border border-brown-200 rounded-[10px] p-3 space-y-1.5 text-xs">
+                <div className="flex items-center justify-between text-brown-600">
+                  <span>Taxable Subtotal:</span>
+                  <span className="font-mono">₹{subtotalDec.toFixed(2)}</span>
+                </div>
+                <div className="flex items-center justify-between text-brown-600">
+                  <span>GST (9% CGST + 9% SGST):</span>
+                  <span className="font-mono">₹{taxDec.toFixed(2)}</span>
+                </div>
+                <div className="border-t border-brown-300 pt-1.5 flex items-center justify-between font-bold text-brown-900 text-base">
+                  <span>Grand Total:</span>
+                  <span className="font-mono text-emerald-800 text-lg">
+                    ₹{session?.grandTotal || '0.00'}
                   </span>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (inputRef.current) {
-                        inputRef.current.focus();
-                        setInputText('change quantity to ');
-                      }
-                    }}
-                    className="px-3.5 py-2 bg-surface border border-brown-300 hover:bg-brown-100 text-brown-800 font-semibold text-xs rounded-[8px] transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Edit3 className="w-3.5 h-3.5 text-brown-600" />
-                    Edit (बदलाव करें)
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={confirming}
-                    onClick={handleConfirmBill}
-                    className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold font-display text-xs uppercase tracking-wider rounded-[8px] transition-all shadow-sm flex items-center gap-1.5 active:scale-[0.99] disabled:opacity-50 cursor-pointer"
-                  >
-                    {confirming ? (
-                      'Generating Invoice...'
-                    ) : (
-                      <>
-                        <CheckCircle2 className="w-4 h-4" />
-                        Confirm & Generate Bill
-                      </>
-                    )}
-                  </button>
-                </div>
+                {session?.grandTotal && parseFloat(session.grandTotal) > 0 && (
+                  <div className="text-[10px] text-brown-500 font-mono italic text-right pt-0.5">
+                    {amountToWords(session.grandTotal)}
+                  </div>
+                )}
               </div>
             </div>
-          )}
 
-          {/* Success Invoice Banner (when confirmed) */}
-          {session && session.status === 'confirmed' && (
-            <div className="p-5 bg-emerald-50 border-2 border-emerald-500 rounded-[12px] shadow-sm my-4 space-y-3 text-emerald-950">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-                <div>
-                  <h4 className="font-bold font-display text-base text-emerald-900">
-                    Official Customer Invoice Created: {session.invoiceNumber}
-                  </h4>
-                  <p className="text-xs text-emerald-800">
-                    Double-entry ledger posted (DR Debtors / CR Sales Income) and stock moved automatically.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 pt-2 flex-wrap">
-                {session.pdfUrl && (
-                  <a
-                    href={session.pdfUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 py-2 bg-brown-900 text-cream hover:bg-brown-800 text-xs font-semibold rounded-[8px] transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <Printer className="w-4 h-4 text-amber-300" />
-                    Print / Download PDF Bill
-                  </a>
-                )}
-
-                {session.invoiceId && (
-                  <button
-                    type="button"
-                    onClick={() => navigate(`/sales/invoices/${session.invoiceId}`)}
-                    className="px-4 py-2 bg-surface border border-brown-300 hover:bg-brown-100 text-brown-900 text-xs font-semibold rounded-[8px] transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <FileText className="w-4 h-4 text-brown-600" />
-                    View in Customer Invoices
-                  </button>
-                )}
-
+            {/* Bottom Actions & Ledger Confirmation */}
+            <div className="pt-4 border-t border-brown-200 space-y-2.5">
+              {session?.status === 'ready_for_confirm' && (
                 <button
                   type="button"
-                  onClick={handleResetSession}
-                  className="px-4 py-2 bg-emerald-200/60 hover:bg-emerald-200 text-emerald-900 text-xs font-semibold rounded-[8px] transition-colors shadow-xs flex items-center gap-1.5 cursor-pointer"
+                  disabled={confirming}
+                  onClick={handleConfirmBill}
+                  className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold font-display text-xs uppercase tracking-wider rounded-[10px] transition-all shadow-md flex items-center justify-center gap-2 active:scale-[0.99] disabled:opacity-50 cursor-pointer"
                 >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  Create Another Bill
+                  {confirming ? (
+                    'Generating Customer Invoice & Posting Ledger...'
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Confirm & Post Invoice to Ledger</span>
+                    </>
+                  )}
                 </button>
-              </div>
+              )}
+
+              {session?.status === 'confirmed' && (
+                <div className="space-y-2">
+                  <div className="p-2.5 bg-emerald-100 border border-emerald-300 text-emerald-950 rounded-[8px] text-xs flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                      <span>Posted: {session.invoiceNumber}</span>
+                    </div>
+                    <span className="text-[10px] bg-emerald-700 text-white px-2 py-0.5 rounded font-mono">
+                      POSTED
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {session.pdfUrl && (
+                      <a
+                        href={session.pdfUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 py-2 bg-brown-900 text-cream hover:bg-brown-800 text-xs font-semibold rounded-[8px] transition-colors shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Printer className="w-3.5 h-3.5 text-amber-300" />
+                        <span>Print PDF Bill</span>
+                      </a>
+                    )}
+
+                    {session.invoiceId && (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/sales/invoices/${session.invoiceId}`)}
+                        className="flex-1 py-2 bg-surface border border-brown-300 hover:bg-brown-100 text-brown-900 text-xs font-semibold rounded-[8px] transition-colors shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <FileText className="w-3.5 h-3.5 text-brown-600" />
+                        <span>View Invoice</span>
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {(!session || session.status === 'collecting') && (
+                <div className="text-center text-[11px] text-brown-500 italic py-1">
+                  Draft bill updates live as you speak or chat
+                </div>
+              )}
             </div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-
-        {/* Suggestion Chips from Database Products */}
-        <div className="px-4 py-2 bg-cream/60 border-t border-brown-200/80 overflow-x-auto flex items-center gap-2 text-xs">
-          <span className="text-[10px] font-semibold text-brown-500 uppercase tracking-wider shrink-0">
-            Quick Add:
-          </span>
-          {dbProducts.slice(0, 4).map(prod => (
-            <button
-              key={prod.id}
-              onClick={() => handleSendMessage(`1 ${prod.name}`)}
-              className="px-2.5 py-1 bg-surface hover:bg-brown-100 border border-brown-300/80 text-brown-800 text-xs rounded-full whitespace-nowrap transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
-            >
-              <Plus className="w-3 h-3 text-emerald-600" />
-              <span>{prod.name} (₹{parseFloat(prod.salesPrice).toLocaleString('en-IN')})</span>
-            </button>
-          ))}
-          <button
-            onClick={() => handleSendMessage(speechLang === 'hi-IN' ? 'मात्रा 2 कर दो' : 'change quantity to 2')}
-            className="px-2.5 py-1 bg-surface hover:bg-brown-100 border border-brown-300/80 text-brown-700 text-xs rounded-full whitespace-nowrap transition-colors shadow-2xs cursor-pointer"
-          >
-            {speechLang === 'hi-IN' ? 'मात्रा 2 कर दो' : 'change quantity to 2'}
-          </button>
-        </div>
-
-        {/* Real-time Product Autocomplete Bar from Database */}
-        {inputSuggestions.length > 0 && (
-          <div className="px-4 py-2 bg-emerald-50/90 border-t border-emerald-200 flex items-center gap-2 overflow-x-auto text-xs">
-            <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider shrink-0 flex items-center gap-1">
-              <Database className="w-3 h-3 text-emerald-600" /> DB Matches:
-            </span>
-            {inputSuggestions.map(sug => (
-              <button
-                key={sug.id}
-                type="button"
-                onClick={() => {
-                  setInputText(`1 ${sug.name}`);
-                  if (inputRef.current) inputRef.current.focus();
-                }}
-                className="px-2.5 py-1 bg-white hover:bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs rounded-full whitespace-nowrap transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
-              >
-                <span className="font-semibold">{sug.name}</span>
-                <span className="font-mono text-emerald-700">₹{parseFloat(sug.salesPrice).toLocaleString('en-IN')}</span>
-              </button>
-            ))}
           </div>
-        )}
-
-        {/* Error Alert */}
-        {error && (
-          <div className="mx-4 my-2 p-2.5 bg-danger-bg border border-danger/30 text-danger rounded-md text-xs flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {/* Input Control Bar */}
-        <form
-          onSubmit={e => {
-            e.preventDefault();
-            handleSendMessage();
-          }}
-          className="p-3 sm:p-4 bg-surface border-t border-brown-200 flex items-center gap-2"
-        >
-          {/* Voice Mic Button */}
-          {voiceSupported && (
-            <button
-              type="button"
-              onClick={toggleListening}
-              title={isListening ? 'Click to stop listening' : `Click to speak (${speechLang === 'hi-IN' ? 'Hindi' : 'English'})`}
-              className={`p-3 rounded-full transition-all cursor-pointer shadow-sm ${
-                isListening
-                  ? 'bg-rose-600 text-white animate-pulse ring-4 ring-rose-300'
-                  : 'bg-brown-100 hover:bg-brown-200 text-brown-800'
-              }`}
-            >
-              {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
-            </button>
-          )}
-
-          <input
-            ref={inputRef}
-            type="text"
-            value={inputText}
-            onChange={e => setInputText(e.target.value)}
-            placeholder={
-              isListening
-                ? 'Listening... बोलिए...'
-                : speechLang === 'hi-IN'
-                ? "हिंदी या English में लिखें (जैसे '2 Teak Desk price 5000 for Rahul, phone 9876543210')..."
-                : "Type or speak in Hindi or English (e.g. '2 Teak Desk price 5000 for Rahul, phone 9876543210')..."
-            }
-            className="flex-1 bg-cream/40 border border-brown-300 rounded-[10px] px-4 py-2.5 text-sm text-brown-900 placeholder:text-brown-400 focus:outline-none focus:border-brown-600 focus:ring-1 focus:ring-brown-600 transition-all font-body"
-          />
-
-          <button
-            type="submit"
-            disabled={!inputText.trim() || loading}
-            className="p-3 bg-brown-900 hover:bg-brown-800 text-cream rounded-full transition-all shadow-sm active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        </form>
+        </div>
       </div>
     </div>
   );

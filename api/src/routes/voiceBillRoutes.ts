@@ -69,6 +69,46 @@ voiceBillRouter.get('/products', async (_req: Request, res: Response) => {
   }
 });
 
+// 5. GET /api/voice-bill/customers - Fetch customer contacts directly from database
+voiceBillRouter.get('/customers', async (_req: Request, res: Response) => {
+  try {
+    const customers = await VoiceBillService.getCustomers();
+    return sendSuccess(res, customers);
+  } catch (err: any) {
+    console.error('Error fetching voice bill customers:', err);
+    return sendError(res, 'FETCH_FAILED', err.message || 'Failed to fetch customers', 500);
+  }
+});
+
+// 6. DELETE /api/voice-bill/session/:sessionId/item/:itemId - Delete item from session
+voiceBillRouter.delete('/session/:sessionId/item/:itemId', (req: Request, res: Response) => {
+  try {
+    const sessionId = String(req.params.sessionId);
+    const itemId = String(req.params.itemId);
+    const session = VoiceBillService.deleteLineItem(sessionId, itemId);
+    return sendSuccess(res, session);
+  } catch (err: any) {
+    return sendError(res, 'DELETE_ITEM_FAILED', err.message || 'Failed to delete item', 500);
+  }
+});
+
+// 7. PATCH /api/voice-bill/session/:sessionId/item/:itemId - Update item qty/price/discount
+voiceBillRouter.patch('/session/:sessionId/item/:itemId', (req: Request, res: Response) => {
+  try {
+    const sessionId = String(req.params.sessionId);
+    const itemId = String(req.params.itemId);
+    const { qty, unitPrice, discountPercent } = req.body;
+    const session = VoiceBillService.updateLineItem(sessionId, itemId, {
+      qty: qty !== undefined ? Number(qty) : undefined,
+      unitPrice: unitPrice !== undefined ? Number(unitPrice) : undefined,
+      discountPercent: discountPercent !== undefined ? Number(discountPercent) : undefined,
+    });
+    return sendSuccess(res, session);
+  } catch (err: any) {
+    return sendError(res, 'UPDATE_ITEM_FAILED', err.message || 'Failed to update item', 500);
+  }
+});
+
 // 4. POST /api/voice-bill/transcribe - Transcribe voice audio via local whisper binary if present
 voiceBillRouter.post('/transcribe', async (req: Request, res: Response) => {
   try {
