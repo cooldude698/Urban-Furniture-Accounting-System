@@ -64,11 +64,12 @@ export class AuthService {
   }
 
   static async login(input: LoginInput): Promise<AuthResult> {
-    const effectiveLoginId = input.login_id === 'admin' ? 'adminuf' : (input.login_id === 'client' ? 'clientuf' : input.login_id);
+    const raw = (input.login_id || '').trim();
+    const effectiveLoginId = raw === 'admin' ? 'adminuf' : (raw === 'client' ? 'clientuf' : raw);
     const result = await pool.query(
       `SELECT id, login_id, email, full_name, password_hash, role, contact_id
        FROM users
-       WHERE login_id = $1`,
+       WHERE LOWER(login_id) = LOWER($1) OR LOWER(email) = LOWER($1)`,
       [effectiveLoginId]
     );
 

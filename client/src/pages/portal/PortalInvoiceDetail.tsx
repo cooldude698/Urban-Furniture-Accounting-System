@@ -4,6 +4,7 @@ import Decimal from 'decimal.js';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { formatINR } from '../../lib/money';
 import { loadRazorpayScript } from '../../lib/razorpay';
+import api from '../../lib/axios';
 
 /* ─── types ──────────────────────────────────────────────────────────── */
 interface InvoiceLine {
@@ -124,17 +125,16 @@ export const PortalInvoiceDetail: React.FC = () => {
 
   const fetchInvoice = () => {
     setLoading(true);
-    fetch(`/api/portal/invoices/${invoiceId}`)
-      .then(r => r.json())
-      .then(json => {
-        if (json.data) {
-          setInvoice(json.data);
-          setPayAmount(json.data.amountDue || '0.00');
-        } else if (json.error) {
-          setError(json.error.message);
+    api.get(`/api/portal/invoices/${invoiceId}`)
+      .then(res => {
+        if (res.data?.data) {
+          setInvoice(res.data.data);
+          setPayAmount(res.data.data.amountDue || '0.00');
+        } else if (res.data?.error) {
+          setError(res.data.error.message);
         }
       })
-      .catch(err => setError(err.message))
+      .catch(err => setError(err?.response?.data?.error?.message || err.message))
       .finally(() => setLoading(false));
   };
 
@@ -177,15 +177,12 @@ export const PortalInvoiceDetail: React.FC = () => {
         const scriptLoaded = await loadRazorpayScript();
         if (!scriptLoaded) throw new Error('Could not load Razorpay SDK');
 
-        const orderRes = await fetch(`/api/portal/invoices/${invoiceId}/razorpay/create-order`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: new Decimal(payAmount).toFixed(2) }),
+        const orderRes = await api.post(`/api/portal/invoices/${invoiceId}/razorpay/create-order`, {
+          amount: new Decimal(payAmount).toFixed(2),
         });
-        const orderJson = await orderRes.json();
-        if (!orderRes.ok || orderJson.error) throw new Error(orderJson.error?.message || 'Failed to create Razorpay order');
+        const order = orderRes.data?.data;
+        if (!order) throw new Error(orderRes.data?.error?.message || 'Failed to create Razorpay order');
 
-        const order = orderJson.data;
         const rzpKey = (window as any).__VITE_RAZORPAY_KEY_ID__ || (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || 'rzp_test_TYL9FJAZxMYoFc';
 
         const rzp = new (window as any).Razorpay({
@@ -201,24 +198,19 @@ export const PortalInvoiceDetail: React.FC = () => {
           theme: { color: '#77574A' },
           handler: async (response: any) => {
             try {
-              const verifyRes = await fetch(`/api/portal/invoices/${invoiceId}/razorpay/verify-payment`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_signature: response.razorpay_signature,
-                  amount: new Decimal(payAmount).toFixed(2),
-                }),
+              const verifyRes = await api.post(`/api/portal/invoices/${invoiceId}/razorpay/verify-payment`, {
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                amount: new Decimal(payAmount).toFixed(2),
               });
-              const verifyJson = await verifyRes.json();
-              if (!verifyRes.ok || verifyJson.error) throw new Error(verifyJson.error?.message || 'Verification failed');
+              if (verifyRes.data?.error) throw new Error(verifyRes.data.error.message || 'Verification failed');
 
               setPaySuccessMsg(`Payment ${response.razorpay_payment_id} verified & posted to General Ledger! PDF receipt emailed.`);
               setPayStep('success');
               setTimeout(() => { closePanel(); fetchInvoice(); }, 1800);
             } catch (vErr: any) {
-              setPayError(vErr.message || 'Signature verification failed');
+              setPayError(vErr?.response?.data?.error?.message || vErr.message || 'Signature verification failed');
               setPayStep('form');
             }
           },
@@ -231,7 +223,7 @@ export const PortalInvoiceDetail: React.FC = () => {
         rzp.open();
         return;
       } catch (err: any) {
-        setPayError(err.message || 'Razorpay initiation failed');
+        setPayError(err?.response?.data?.error?.message || err.message || 'Razorpay initiation failed');
         setPayStep('form');
         setPaySubmitting(false);
         return;
@@ -239,19 +231,17 @@ export const PortalInvoiceDetail: React.FC = () => {
     }
 
     try {
-      const res = await fetch(`/api/portal/invoices/${invoiceId}/pay`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: new Decimal(payAmount).toFixed(2), method: payMethod }),
+      const res = await api.post(`/api/portal/invoices/${invoiceId}/pay`, {
+        amount: new Decimal(payAmount).toFixed(2),
+        method: payMethod,
       });
-      const json = await res.json();
-      if (!res.ok || json.error) throw new Error(json.error?.message || 'Payment failed');
+      if (res.data?.error) throw new Error(res.data.error.message || 'Payment failed');
       setPaySuccessMsg(`${formatINR(new Decimal(payAmount).toFixed(2))} via ${payMethod === 'bank' ? 'Bank Transfer' : 'Cash'} recorded successfully.`);
       setPayStep('success');
       setTimeout(() => { closePanel(); fetchInvoice(); }, 1800);
 
     } catch (err: any) {
-      setPayError(err.message || 'Payment submission failed');
+      setPayError(err?.response?.data?.error?.message || err.message || 'Payment submission failed');
       setPayStep('form');
     } finally {
       setPaySubmitting(false);

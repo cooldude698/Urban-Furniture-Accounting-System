@@ -5,6 +5,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { ArrowLeft, Box, RotateCcw, AlertCircle, FileText, CheckCircle, Clock, LogIn } from 'lucide-react';
 import { formatINR } from '../../lib/money';
+import api from '../../lib/axios';
 
 interface InvoiceLineItem {
   id: number;
@@ -60,31 +61,30 @@ export const PortalProductViewerPage: React.FC = () => {
 
       try {
         // 1. Check current auth status
-        const meRes = await fetch('/api/portal/me');
-        const meJson = await meRes.json();
-        const isAuthed = Boolean(meJson.data?.user);
+        let isAuthed = false;
+        try {
+          const meRes = await api.get('/api/portal/me');
+          isAuthed = Boolean(meRes.data?.data?.user);
+        } catch {
+          isAuthed = false;
+        }
         if (isMounted) setIsAuthenticated(isAuthed);
 
         // 2. Fetch catalogue item detail
         if (isAuthed) {
           // Fetch authenticated scoped endpoint
-          const res = await fetch(`/api/portal/catalogue/${id}`);
-          if (res.status === 404) {
-            throw new Error('Product not found in catalogue');
-          }
-          const json = await res.json();
-          if (json.data) {
+          const res = await api.get(`/api/portal/catalogue/${id}`);
+          if (res.data?.data) {
             if (isMounted) {
-              setProduct(json.data.product || json.data);
-              setInvoices(json.data.invoices || []);
+              setProduct(res.data.data.product || res.data.data);
+              setInvoices(res.data.data.invoices || []);
             }
           }
         } else {
           // Public visitor fallback: fetch from public catalogue
-          const res = await fetch('/api/portal/catalogue');
-          const json = await res.json();
-          if (json.data) {
-            const found = json.data.find((p: ProductDetail) => String(p.id) === String(id));
+          const res = await api.get('/api/portal/catalogue');
+          if (res.data?.data) {
+            const found = res.data.data.find((p: ProductDetail) => String(p.id) === String(id));
             if (found) {
               if (isMounted) setProduct(found);
             } else {

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ChairIcon } from '../../components/ui/BrandLogo';
+import api from '../../lib/axios';
 
 export const PortalInviteAccept: React.FC = () => {
   const navigate = useNavigate();
@@ -41,15 +42,9 @@ export const PortalInviteAccept: React.FC = () => {
 
     setLoading(true);
     try {
-      const res = await fetch('/api/portal/accept-invite', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, password }),
-      });
-
-      const json = await res.json();
-      if (!res.ok || json.error) {
-        throw new Error(json.error?.message || 'Failed to accept invitation');
+      const res = await api.post('/api/portal/accept-invite', { token, password });
+      if (res.data?.error) {
+        throw new Error(res.data.error.message || 'Failed to accept invitation');
       }
 
       setSuccess('Password set successfully! Redirecting to login…');
@@ -57,7 +52,7 @@ export const PortalInviteAccept: React.FC = () => {
         navigate('/portal/login', { replace: true });
       }, 1200);
     } catch (err: any) {
-      setError(err.message || 'Invitation acceptance failed');
+      setError(err?.response?.data?.error?.message || err.message || 'Invitation acceptance failed');
     } finally {
       setLoading(false);
     }

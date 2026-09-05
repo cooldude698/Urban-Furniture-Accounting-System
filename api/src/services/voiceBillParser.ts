@@ -15,6 +15,9 @@ export interface ParsedSlots {
   isNameInferred?: boolean;
   isPriceAssumed?: boolean;
   isQtyAssumed?: boolean;
+  qtyNeedsReview?: boolean;
+  priceNeedsReview?: boolean;
+  discountNeedsReview?: boolean;
   confidenceNotes?: { en: string[]; hi: string[] };
 }
 

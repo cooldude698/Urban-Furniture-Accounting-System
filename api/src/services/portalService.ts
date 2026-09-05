@@ -151,7 +151,8 @@ export class PortalService {
    * Portal login: contact users ONLY.
    */
   static async portalLogin(loginId: string, password: string) {
-    const effectiveLoginId = loginId === 'client' ? 'clientuf' : loginId;
+    const raw = (loginId || '').trim();
+    const effectiveLoginId = raw === 'client' ? 'clientuf' : raw;
     const userRes = await pool.query<{
       id: number;
       login_id: string;
@@ -163,7 +164,7 @@ export class PortalService {
     }>(
       `SELECT id, login_id, email, full_name, password_hash, role, contact_id
        FROM users
-       WHERE login_id = $1`,
+       WHERE LOWER(login_id) = LOWER($1) OR LOWER(email) = LOWER($1)`,
       [effectiveLoginId]
     );
 

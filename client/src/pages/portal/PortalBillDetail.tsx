@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Decimal from 'decimal.js';
+import api from '../../lib/axios';
 
 interface BillLine {
   lineNo: number;
@@ -55,17 +56,16 @@ export const PortalBillDetail: React.FC = () => {
 
   const fetchBill = () => {
     setLoading(true);
-    fetch(`/api/portal/bills/${billId}`)
-      .then(res => res.json())
-      .then(json => {
-        if (json.data) {
-          setBill(json.data);
-          setPayAmount(json.data.amountDue || '0.00');
-        } else if (json.error) {
-          setError(json.error.message);
+    api.get(`/api/portal/bills/${billId}`)
+      .then(res => {
+        if (res.data?.data) {
+          setBill(res.data.data);
+          setPayAmount(res.data.data.amountDue || '0.00');
+        } else if (res.data?.error) {
+          setError(res.data.error.message);
         }
       })
-      .catch(err => setError(err.message))
+      .catch(err => setError(err?.response?.data?.error?.message || err.message))
       .finally(() => setLoading(false));
   };
 
@@ -93,18 +93,13 @@ export const PortalBillDetail: React.FC = () => {
 
     setPaySubmitting(true);
     try {
-      const res = await fetch(`/api/portal/bills/${billId}/pay`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: amt.toFixed(2),
-          method: payMethod,
-        }),
+      const res = await api.post(`/api/portal/bills/${billId}/pay`, {
+        amount: amt.toFixed(2),
+        method: payMethod,
       });
 
-      const json = await res.json();
-      if (!res.ok || json.error) {
-        throw new Error(json.error?.message || 'Payment processing failed');
+      if (res.data?.error) {
+        throw new Error(res.data.error.message || 'Payment processing failed');
       }
 
       setPaySuccess(

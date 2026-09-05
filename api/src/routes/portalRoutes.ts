@@ -24,9 +24,15 @@ const AcceptInviteSchema = z.object({
 });
 
 const PortalLoginSchema = z.object({
-  login_id: z.string().min(1, 'Login ID is required'),
+  login_id: z.string().optional(),
+  loginId: z.string().optional(),
   password: z.string().min(1, 'Password is required'),
-});
+}).refine(d => (d.login_id && d.login_id.trim().length > 0) || (d.loginId && d.loginId.trim().length > 0), {
+  message: 'Login ID or Email is required',
+}).transform(d => ({
+  login_id: (d.login_id || d.loginId)!.trim(),
+  password: d.password,
+}));
 
 const RecordPaymentSchema = z.object({
   method: z.enum(['cash', 'bank']),
@@ -80,7 +86,7 @@ portalRouter.post('/login', async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    return sendSuccess(res, { user: result.user });
+    return sendSuccess(res, { user: result.user, token: result.token });
   } catch (err: any) {
     const status = err.message.includes('restricted') ? 403 : 401;
     return sendError(res, 'AUTH_ERROR', err.message || 'Invalid Login Id or Password', status);

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, createContext, useContext } from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
+import api from '../../lib/axios';
 
 export interface PortalUser {
   id: number;
@@ -25,29 +26,42 @@ export function usePortalAuth(): PortalAuthContextValue {
 }
 
 export const PortalAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<PortalUser | null>(null);
+  const [user, setUser] = useState<PortalUser | null>(() => {
+    try {
+      const saved = localStorage.getItem('urban_portal_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    fetch('/api/portal/me')
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.data?.user) {
-          setUser(json.data.user);
+    api.get('/api/portal/me')
+      .then((res) => {
+        if (res.data?.data?.user) {
+          setUser(res.data.data.user);
+          localStorage.setItem('urban_portal_user', JSON.stringify(res.data.data.user));
         } else {
           setUser(null);
+          localStorage.removeItem('urban_portal_user');
         }
       })
-      .catch(() => setUser(null))
+      .catch(() => {
+        setUser(null);
+        localStorage.removeItem('urban_portal_user');
+      })
       .finally(() => setChecking(false));
   }, []);
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      await api.post('/api/auth/logout');
     } catch {
       // best effort
     }
+    localStorage.removeItem('urban_portal_user');
+    localStorage.removeItem('urban_portal_token');
     setUser(null);
   };
 

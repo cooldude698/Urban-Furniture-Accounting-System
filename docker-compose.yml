@@ -31,6 +31,8 @@ services:
       RAZORPAY_KEY_SECRET: "98JCu3v5NpfezNpgqCOCjFbH"
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       PUPPETEER_EXECUTABLE_PATH: "/usr/bin/chromium"
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
     ports:
       - "5000:5000"
       - "5002:5000"
@@ -62,20 +64,19 @@ services:
     depends_on:
       - api
 
-  ner:
-    build:
-      context: ./ner
-      dockerfile: Dockerfile
+  ollama:
+    image: ollama/ollama
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "11434:11434"
     volumes:
-      - ./ner:/app
+      - ollama_models:/root/.ollama
     environment:
-      - PORT=8000
+      - OLLAMA_KEEP_ALIVE=24h
 
 volumes:
   db_data:
   api_node_modules:
   client_node_modules:
+  ollama_models:
 

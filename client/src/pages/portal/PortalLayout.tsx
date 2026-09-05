@@ -184,6 +184,47 @@ export const PortalLayout: React.FC = () => {
           zIndex: 35,
         }}
       >
+        {/* Dashboard — public & customer portal landing overview */}
+        <NavLink
+          to="/portal"
+          end
+          style={({ isActive }) => ({
+            padding: '13px 4px',
+            fontSize: 13,
+            fontFamily: 'var(--font-display)',
+            fontWeight: isActive ? 700 : 500,
+            color: isActive ? 'var(--brown-900)' : 'var(--brown-700)',
+            textDecoration: 'none',
+            borderBottom: isActive ? '2px solid var(--brown-900)' : '2px solid transparent',
+            transition: 'all 120ms ease-out',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+          })}
+        >
+          Dashboard
+        </NavLink>
+
+        {/* Furniture Catalogue — visible when logged in AND when logged out (public browseable) */}
+        <NavLink
+          to="/portal/catalogue"
+          style={({ isActive }) => ({
+            padding: '13px 4px',
+            fontSize: 13,
+            fontFamily: 'var(--font-display)',
+            fontWeight: isActive ? 700 : 500,
+            color: isActive ? 'var(--brown-900)' : 'var(--brown-700)',
+            textDecoration: 'none',
+            borderBottom: isActive ? '2px solid var(--brown-900)' : '2px solid transparent',
+            transition: 'all 120ms ease-out',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+          })}
+        >
+          Furniture Catalogue
+        </NavLink>
+
         {/* My Invoices — visible ONLY when logged in */}
         {user && (
           <NavLink
@@ -205,26 +246,6 @@ export const PortalLayout: React.FC = () => {
             My Invoices
           </NavLink>
         )}
-
-        {/* Furniture Catalogue — visible when logged in AND when logged out (public browseable) */}
-        <NavLink
-          to="/portal/catalogue"
-          style={({ isActive }) => ({
-            padding: '13px 4px',
-            fontSize: 13,
-            fontFamily: 'var(--font-display)',
-            fontWeight: isActive ? 700 : 500,
-            color: isActive ? 'var(--brown-900)' : 'var(--brown-700)',
-            textDecoration: 'none',
-            borderBottom: isActive ? '2px solid var(--brown-900)' : '2px solid transparent',
-            transition: 'all 120ms ease-out',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-          })}
-        >
-          Furniture Catalogue
-        </NavLink>
       </nav>
 
       {/* ── Main content — cream background ── */}
