@@ -211,6 +211,16 @@ export const CustomerInvoiceForm: React.FC<CustomerInvoiceFormProps> = ({
             </button>
           )}
 
+          {invoice?.id && (
+            <button
+              type="button"
+              onClick={() => window.open(`/api/invoices/${invoice.id}/pdf`, '_blank')}
+              className="px-3 py-1.5 text-sm font-medium bg-surface text-brown-800 border border-brown-300 rounded-[6px] hover:bg-brown-100 shadow-sm"
+            >
+              📄 Export PDF
+            </button>
+          )}
+
           <button
             type="button"
             onClick={onBack}
@@ -262,6 +272,12 @@ export const CustomerInvoiceForm: React.FC<CustomerInvoiceFormProps> = ({
             </div>
 
             <div className="flex items-center space-x-2">
+              {invoice && invoice.dueDate && new Date(invoice.dueDate) < new Date() && Number(invoice.amountDue) > 0 && (
+                <span className="px-2.5 py-1 text-xs font-bold uppercase rounded-full bg-rose-100 text-rose-800 border border-rose-300">
+                  ⚠️ Overdue
+                </span>
+              )}
+              {invoice && <StatusBadge status={invoice.status} />}
               <StatusBadge status={invoice?.paymentStatus || 'Not Paid'} />
             </div>
           </div>

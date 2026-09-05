@@ -11,6 +11,7 @@ import { receivablesRouter } from './routes/receivablesRoutes';
 import { portalRouter } from './routes/portalRoutes';
 import { contactRouter } from './routes/contactRoutes';
 import { reportRouter } from './routes/reportRoutes';
+import { agingRouter } from './routes/agingRoutes';
 import { sendError } from './utils/response';
 
 dotenv.config();
@@ -42,6 +43,7 @@ app.use('/api/sales-orders', salesOrderRouter);
 app.use('/api/invoices', invoiceRouter);
 app.use('/api/payments', paymentRouter);
 app.use('/api/receivables', receivablesRouter);
+app.use('/api/aging', agingRouter);
 app.use('/api/contacts', contactRouter);
 app.use('/api/reports', reportRouter);
 
