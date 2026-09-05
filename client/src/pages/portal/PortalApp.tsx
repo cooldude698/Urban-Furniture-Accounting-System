@@ -12,14 +12,16 @@ import { PortalBillDetail } from './PortalBillDetail';
 import { PortalPaymentList } from './PortalPaymentList';
 import { PortalCataloguePage } from './PortalCataloguePage';
 import { PortalProductViewerPage } from './PortalProductViewerPage';
+import { PortalDashboardPage } from './PortalDashboardPage';
 
 /**
  * Portal route tree.
  *
  * Public Standalone – /portal/login, /portal/accept-invite
  * Portal Surface (wrapped by PortalLayout with sub-header navigation)
- *   - Public browseable: /portal/catalogue, /portal/catalogue/:id
- *   - Authenticated (behind PortalAuthGuard):
+ *   - Overview Dashboard: /portal, /portal/dashboard
+ *   - Public browseable catalogue: /portal/catalogue, /portal/catalogue/:id
+ *   - Authenticated customer & vendor (behind PortalAuthGuard):
  *       /portal/invoices, /portal/invoices/:id,
  *       /portal/payments,
  *       /portal/bills, /portal/bills/:id
@@ -34,13 +36,16 @@ export const PortalApp: React.FC = () => {
 
         {/* ── All portal pages inside PortalLayout (Top Header + Nav Bar + Footer) ── */}
         <Route element={<PortalLayout />}>
+          {/* Customer Studio Dashboard */}
+          <Route index element={<PortalDashboardPage />} />
+          <Route path="dashboard" element={<PortalDashboardPage />} />
+
           {/* Public catalogue routes */}
           <Route path="catalogue" element={<PortalCataloguePage />} />
           <Route path="catalogue/:id" element={<PortalProductViewerPage />} />
 
           {/* Authenticated customer & vendor routes */}
           <Route element={<PortalAuthGuard />}>
-            <Route index element={<Navigate to="invoices" replace />} />
             <Route path="invoices" element={<PortalInvoiceList />} />
             <Route path="invoices/:id" element={<PortalInvoiceDetail />} />
             <Route path="payments" element={<PortalPaymentList />} />
