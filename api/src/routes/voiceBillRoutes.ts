@@ -45,12 +45,12 @@ voiceBillRouter.get('/session/:id', (req: Request, res: Response) => {
 // 3. POST /api/voice-bill/confirm - Finalize and create Customer Invoice
 voiceBillRouter.post('/confirm', async (req: Request, res: Response) => {
   try {
-    const { sessionId } = req.body;
+    const { sessionId, paymentMethod } = req.body;
     if (!sessionId) {
       return sendError(res, 'INVALID_SESSION', 'sessionId is required to confirm bill', 400);
     }
 
-    const invoiceResult = await VoiceBillService.confirmBill(sessionId);
+    const invoiceResult = await VoiceBillService.confirmBill(sessionId, { paymentMethod });
     return sendSuccess(res, invoiceResult, 201);
   } catch (err: any) {
     console.error('Error confirming voice bill:', err);

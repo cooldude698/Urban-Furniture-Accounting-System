@@ -1,15 +1,24 @@
 import React from 'react';
-import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom';
 import { usePortalAuth } from './PortalAuthGuard';
 import { BrandLogo } from '../../components/ui/BrandLogo';
+import {
+  LayoutDashboard,
+  Layers,
+  Sparkles,
+  Receipt,
+  LogOut,
+  LogIn,
+  ArrowUpRight,
+  ShieldCheck,
+  Compass,
+} from 'lucide-react';
 
 export const PortalLayout: React.FC = () => {
   const { user, logout } = usePortalAuth();
   const navigate = useNavigate();
 
-  /* True when an internal staff member has also authenticated on the main app.
-     This is a UI-only hint — the portal API remains independently scoped.
-     Pure portal contacts never have this flag set. */
+  /* True when internal staff member has authenticated on the main app */
   const isInternalStaff = localStorage.getItem('urban_logged_in') === 'true';
 
   const handleLogout = async () => {
@@ -17,285 +26,423 @@ export const PortalLayout: React.FC = () => {
     navigate('/login?portal=customer', { replace: true });
   };
 
+  const initials = user?.full_name
+    ? user.full_name
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
+    : 'CU';
+
   return (
     <div
       style={{
         minHeight: '100vh',
-        background: 'var(--cream)',
+        background: 'linear-gradient(180deg, #FBF8F2 0%, #F5EFE6 100%)',
         color: 'var(--brown-900)',
         display: 'flex',
         flexDirection: 'column',
         fontFamily: 'var(--font-body)',
       }}
     >
-      {/* ── Portal Header — brown-900 bg, cream text ── */}
+      {/* ── Unified Premium Header Navigation Bar ── */}
       <header
         style={{
-          backgroundColor: 'var(--brown-900)',
-          color: 'var(--cream)',
-          borderBottom: '1px solid rgba(74, 58, 52, 0.35)',
-          boxShadow: 'var(--shadow-sm)',
-          padding: '0 32px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
           position: 'sticky',
           top: 0,
-          zIndex: 40,
-          height: 56,
+          zIndex: 50,
+          backgroundColor: 'rgba(255, 255, 255, 0.92)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderBottom: '1px solid rgba(208, 174, 146, 0.35)',
+          boxShadow: '0 4px 20px rgba(74, 58, 52, 0.05)',
+          transition: 'all 200ms ease',
         }}
       >
-        {/* Brand mark */}
-        <BrandLogo
-          size={32}
-          variant="light"
-          badge={true}
-          subtitle="Customer Portal Surface"
-        />
-
-        {/* Right side: back-to-ERP (staff only) + user info + sign out / in */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          {/* ← Back to Internal App — only visible to internal staff */}
-          {isInternalStaff && (
-            <a
-              href="/dashboard"
-              style={{
-                fontSize: 11,
-                fontWeight: 600,
-                fontFamily: 'var(--font-body)',
-                color: 'var(--brown-300)',
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                padding: '4px 0',
-                borderBottom: '1px solid transparent',
-                transition: 'color 120ms ease, border-color 120ms ease',
-                whiteSpace: 'nowrap',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.color = 'var(--cream)';
-                e.currentTarget.style.borderBottomColor = 'var(--cream)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.color = 'var(--brown-300)';
-                e.currentTarget.style.borderBottomColor = 'transparent';
-              }}
-              title="Return to the Internal ERP"
-            >
-              <span style={{ fontSize: 10, opacity: 0.8 }}>←</span>
-              <span>Internal App</span>
-            </a>
-          )}
-
-          {user ? (
-            <>
-              {/* User name + email */}
-              <div style={{ textAlign: 'right' }}>
+        <div
+          style={{
+            maxWidth: '92rem',
+            margin: '0 auto',
+            padding: '0 28px',
+            height: 64,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 20,
+          }}
+        >
+          {/* Left: Brand Identity */}
+          <Link
+            to="/portal"
+            style={{
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              cursor: 'pointer',
+            }}
+          >
+            <BrandLogo size={34} variant="dark" badge={false} />
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span
                   style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: 'var(--cream)',
-                    display: 'block',
-                    fontFamily: 'var(--font-body)',
+                    fontFamily: 'var(--font-display)',
+                    fontSize: 16,
+                    fontWeight: 800,
+                    letterSpacing: '-0.02em',
+                    color: 'var(--brown-900)',
                   }}
                 >
-                  {user.full_name}
+                  URBAN FURNITURE
                 </span>
                 <span
                   style={{
-                    fontSize: 11,
-                    fontFamily: 'var(--font-mono)',
-                    color: 'var(--brown-300)',
-                    display: 'block',
+                    fontSize: 9,
+                    fontFamily: 'var(--font-display)',
+                    fontWeight: 800,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    backgroundColor: 'var(--brown-900)',
+                    color: 'var(--cream)',
+                    padding: '2px 6px',
+                    borderRadius: 4,
                   }}
                 >
-                  {user.email}
+                  PORTAL
                 </span>
               </div>
-
-              {/* Sign out */}
-              <button
-                onClick={handleLogout}
+              <div
                 style={{
-                  padding: '6px 14px',
-                  fontSize: 12,
-                  fontFamily: 'var(--font-body)',
-                  fontWeight: 600,
-                  color: 'var(--cream)',
-                  background: 'transparent',
-                  border: '1px solid rgba(255,255,255,0.20)',
-                  borderRadius: 'var(--radius-sm)',
-                  cursor: 'pointer',
-                  transition: 'background 120ms ease-out',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.10)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'transparent';
+                  fontSize: 10,
+                  fontFamily: 'var(--font-mono)',
+                  color: 'var(--brown-500)',
+                  letterSpacing: '0.04em',
                 }}
               >
-                Sign Out
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={() => navigate('/login?portal=customer')}
-              style={{
-                padding: '6px 14px',
-                fontSize: 12,
+                Showroom &amp; Client Ledger
+              </div>
+            </div>
+          </Link>
+
+          {/* Center: Refined Segmented Pill Navigation */}
+          <nav
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              backgroundColor: 'rgba(235, 215, 190, 0.3)',
+              padding: '4px',
+              borderRadius: 999,
+              border: '1px solid rgba(208, 174, 146, 0.4)',
+              boxShadow: 'inset 0 1px 3px rgba(74, 58, 52, 0.04)',
+            }}
+          >
+            {/* Dashboard */}
+            <NavLink
+              to="/portal"
+              end
+              style={({ isActive }) => ({
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 7,
+                padding: '7px 16px',
+                borderRadius: 999,
+                fontSize: 13,
                 fontFamily: 'var(--font-display)',
-                fontWeight: 600,
-                color: 'var(--cream)',
-                backgroundColor: 'rgba(255,255,255,0.12)',
-                border: '1px solid rgba(255,255,255,0.22)',
-                borderRadius: 'var(--radius-sm)',
-                cursor: 'pointer',
-                transition: 'background 120ms ease-out',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.20)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.12)';
-              }}
+                fontWeight: isActive ? 700 : 500,
+                color: isActive ? '#FFFFFF' : 'var(--brown-900)',
+                backgroundColor: isActive ? 'var(--brown-900)' : 'transparent',
+                textDecoration: 'none',
+                boxShadow: isActive ? '0 2px 8px rgba(74, 58, 52, 0.25)' : 'none',
+                transition: 'all 160ms cubic-bezier(0.4, 0, 0.2, 1)',
+              })}
             >
-              Sign In
-            </button>
-          )}
+              <LayoutDashboard size={14} />
+              <span>Dashboard</span>
+            </NavLink>
+
+            {/* Furniture Catalogue */}
+            <NavLink
+              to="/portal/catalogue"
+              style={({ isActive }) => ({
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 7,
+                padding: '7px 16px',
+                borderRadius: 999,
+                fontSize: 13,
+                fontFamily: 'var(--font-display)',
+                fontWeight: isActive ? 700 : 500,
+                color: isActive ? '#FFFFFF' : 'var(--brown-900)',
+                backgroundColor: isActive ? 'var(--brown-900)' : 'transparent',
+                textDecoration: 'none',
+                boxShadow: isActive ? '0 2px 8px rgba(74, 58, 52, 0.25)' : 'none',
+                transition: 'all 160ms cubic-bezier(0.4, 0, 0.2, 1)',
+              })}
+            >
+              <Layers size={14} />
+              <span>Furniture Catalogue</span>
+            </NavLink>
+
+            {/* 3D Studio Planner */}
+            <NavLink
+              to="/portal/studio"
+              style={({ isActive }) => ({
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 7,
+                padding: '7px 16px',
+                borderRadius: 999,
+                fontSize: 13,
+                fontFamily: 'var(--font-display)',
+                fontWeight: isActive ? 700 : 500,
+                color: isActive ? '#FFFFFF' : 'var(--brown-900)',
+                backgroundColor: isActive ? 'var(--brown-900)' : 'transparent',
+                textDecoration: 'none',
+                boxShadow: isActive ? '0 2px 8px rgba(74, 58, 52, 0.25)' : 'none',
+                transition: 'all 160ms cubic-bezier(0.4, 0, 0.2, 1)',
+              })}
+            >
+              <Sparkles size={14} />
+              <span>3D Studio</span>
+            </NavLink>
+
+            {/* Invoices (when authenticated) */}
+            {user && (
+              <NavLink
+                to="/portal/invoices"
+                style={({ isActive }) => ({
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 7,
+                  padding: '7px 16px',
+                  borderRadius: 999,
+                  fontSize: 13,
+                  fontFamily: 'var(--font-display)',
+                  fontWeight: isActive ? 700 : 500,
+                  color: isActive ? '#FFFFFF' : 'var(--brown-900)',
+                  backgroundColor: isActive ? 'var(--brown-900)' : 'transparent',
+                  textDecoration: 'none',
+                  boxShadow: isActive ? '0 2px 8px rgba(74, 58, 52, 0.25)' : 'none',
+                  transition: 'all 160ms cubic-bezier(0.4, 0, 0.2, 1)',
+                })}
+              >
+                <Receipt size={14} />
+                <span>My Invoices</span>
+              </NavLink>
+            )}
+          </nav>
+
+          {/* Right: User Profile Capsule & Actions */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {/* Back to ERP — for staff */}
+            {isInternalStaff && (
+              <a
+                href="/dashboard"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '6px 12px',
+                  borderRadius: 999,
+                  fontSize: 11,
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-display)',
+                  color: 'var(--brown-700)',
+                  backgroundColor: 'rgba(235, 215, 190, 0.4)',
+                  border: '1px solid rgba(208, 174, 146, 0.5)',
+                  textDecoration: 'none',
+                  transition: 'all 140ms ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--brown-900)';
+                  e.currentTarget.style.color = 'var(--cream)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(235, 215, 190, 0.4)';
+                  e.currentTarget.style.color = 'var(--brown-700)';
+                }}
+                title="Switch to Internal Accounting ERP"
+              >
+                <span>Internal ERP</span>
+                <ArrowUpRight size={12} />
+              </a>
+            )}
+
+            {user ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {/* Profile Pill */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 9,
+                    padding: '4px 12px 4px 4px',
+                    borderRadius: 999,
+                    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+                    border: '1px solid rgba(208, 174, 146, 0.45)',
+                    boxShadow: '0 1px 3px rgba(74, 58, 52, 0.05)',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      backgroundColor: 'var(--brown-900)',
+                      color: 'var(--cream)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      fontFamily: 'var(--font-display)',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    {initials}
+                  </div>
+                  <div style={{ lineHeight: 1.1 }}>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: 'var(--brown-900)',
+                        fontFamily: 'var(--font-display)',
+                      }}
+                    >
+                      {user.full_name}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 10,
+                        color: 'var(--brown-600)',
+                        fontFamily: 'var(--font-mono)',
+                      }}
+                    >
+                      Verified Client
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sign Out Button */}
+                <button
+                  onClick={handleLogout}
+                  title="Sign out of customer portal"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 34,
+                    height: 34,
+                    borderRadius: '50%',
+                    backgroundColor: 'transparent',
+                    border: '1px solid rgba(208, 174, 146, 0.4)',
+                    color: 'var(--brown-700)',
+                    cursor: 'pointer',
+                    transition: 'all 140ms ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--danger-bg)';
+                    e.currentTarget.style.color = 'var(--danger)';
+                    e.currentTarget.style.borderColor = 'var(--danger)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.color = 'var(--brown-700)';
+                    e.currentTarget.style.borderColor = 'rgba(208, 174, 146, 0.4)';
+                  }}
+                >
+                  <LogOut size={14} />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => navigate('/login?portal=customer')}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '8px 18px',
+                  borderRadius: 999,
+                  backgroundColor: 'var(--brown-900)',
+                  color: 'var(--cream)',
+                  border: 'none',
+                  fontSize: 12,
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-display)',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(74, 58, 52, 0.2)',
+                  transition: 'all 140ms ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(74, 58, 52, 0.25)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.boxShadow = '0 2px 6px rgba(74, 58, 52, 0.2)';
+                }}
+              >
+                <LogIn size={13} />
+                <span>Client Sign In</span>
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
-      {/* ── Sub-header Navigation Bar ── */}
-      <nav
-        style={{
-          backgroundColor: 'var(--surface)',
-          borderBottom: '1px solid rgba(208, 174, 146, 0.35)',
-          padding: '0 32px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 28,
-          height: 48,
-          boxShadow: 'var(--shadow-sm)',
-          position: 'sticky',
-          top: 56,
-          zIndex: 35,
-        }}
-      >
-        {/* Dashboard — public & customer portal landing overview */}
-        <NavLink
-          to="/portal"
-          end
-          style={({ isActive }) => ({
-            padding: '13px 4px',
-            fontSize: 13,
-            fontFamily: 'var(--font-display)',
-            fontWeight: isActive ? 700 : 500,
-            color: isActive ? 'var(--brown-900)' : 'var(--brown-700)',
-            textDecoration: 'none',
-            borderBottom: isActive ? '2px solid var(--brown-900)' : '2px solid transparent',
-            transition: 'all 120ms ease-out',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-          })}
-        >
-          Dashboard
-        </NavLink>
-
-        {/* Furniture Catalogue — visible when logged in AND when logged out (public browseable) */}
-        <NavLink
-          to="/portal/catalogue"
-          style={({ isActive }) => ({
-            padding: '13px 4px',
-            fontSize: 13,
-            fontFamily: 'var(--font-display)',
-            fontWeight: isActive ? 700 : 500,
-            color: isActive ? 'var(--brown-900)' : 'var(--brown-700)',
-            textDecoration: 'none',
-            borderBottom: isActive ? '2px solid var(--brown-900)' : '2px solid transparent',
-            transition: 'all 120ms ease-out',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-          })}
-        >
-          Furniture Catalogue
-        </NavLink>
-
-        {/* 3D Studio Planner — Interactive Japandi Room Customizer */}
-        <NavLink
-          to="/portal/studio"
-          style={({ isActive }) => ({
-            padding: '13px 4px',
-            fontSize: 13,
-            fontFamily: 'var(--font-display)',
-            fontWeight: isActive ? 700 : 500,
-            color: isActive ? 'var(--brown-900)' : 'var(--brown-700)',
-            textDecoration: 'none',
-            borderBottom: isActive ? '2px solid var(--brown-900)' : '2px solid transparent',
-            transition: 'all 120ms ease-out',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-          })}
-        >
-          3D Studio Planner
-        </NavLink>
-
-        {/* My Invoices — visible ONLY when logged in */}
-        {user && (
-          <NavLink
-            to="/portal/invoices"
-            style={({ isActive }) => ({
-              padding: '13px 4px',
-              fontSize: 13,
-              fontFamily: 'var(--font-display)',
-              fontWeight: isActive ? 700 : 500,
-              color: isActive ? 'var(--brown-900)' : 'var(--brown-700)',
-              textDecoration: 'none',
-              borderBottom: isActive ? '2px solid var(--brown-900)' : '2px solid transparent',
-              transition: 'all 120ms ease-out',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-            })}
-          >
-            My Invoices
-          </NavLink>
-        )}
-      </nav>
-
-      {/* ── Main content — cream background ── */}
+      {/* ── Main Content Viewport ── */}
       <main
         style={{
           flex: 1,
-          maxWidth: '85rem',
+          maxWidth: '92rem',
           width: '100%',
           margin: '0 auto',
-          padding: '24px 24px 64px',
+          padding: '32px 28px 72px',
           fontFamily: 'var(--font-body)',
         }}
       >
         <Outlet />
       </main>
 
-      {/* ── Footer ── */}
+      {/* ── Architectural Studio Footer ── */}
       <footer
         style={{
-          padding: '20px 0',
-          textAlign: 'center',
-          fontSize: 12,
-          fontFamily: 'var(--font-body)',
-          fontWeight: 500,
-          borderTop: '1px solid rgba(74, 58, 52, 0.18)',
-          color: 'var(--brown-500)',
-          backgroundColor: 'var(--cream)',
+          padding: '24px 28px',
+          borderTop: '1px solid rgba(208, 174, 146, 0.25)',
+          backgroundColor: 'rgba(249, 242, 228, 0.8)',
+          backdropFilter: 'blur(10px)',
         }}
       >
-        Urban Furniture Customer Portal &bull; Secure Restricted Surface &bull; Offline Double-Entry Ledger
+        <div
+          style={{
+            maxWidth: '92rem',
+            margin: '0 auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 16,
+            fontSize: 12,
+            color: 'var(--brown-600)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <span style={{ fontWeight: 600, color: 'var(--brown-900)' }}>Urban Furniture Showroom</span>
+            <span>&bull;</span>
+            <span>Handcrafted Solid Wood &amp; Architectural Interiors</span>
+            <span>&bull;</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--posted)' }}>
+              <ShieldCheck size={13} /> Secure Verified Portal Surface
+            </span>
+          </div>
+
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--brown-500)' }}>
+            Double-Entry Ledger &bull; Razorpay Instant Gateway &bull; 2026 Edition
+          </div>
+        </div>
       </footer>
     </div>
   );
