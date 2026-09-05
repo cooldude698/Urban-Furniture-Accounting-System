@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { Eye, EyeOff, Lock, User as UserIcon } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 import api from '../lib/axios';
 
 export default function Login() {
@@ -9,13 +9,13 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [btnHover, setBtnHover] = useState(false);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      // Send both login_id and loginId to satisfy any schema variant
       await api.post('/api/auth/login', {
         login_id: loginId.trim(),
         loginId: loginId.trim(),
@@ -23,7 +23,7 @@ export default function Login() {
       });
       window.location.href = '/';
     } catch {
-      // Exact error text from the spec/mockup — do not change this string
+      // Exact error text from the spec/mockup
       setError('Invalid Login Id or Password');
     } finally {
       setLoading(false);
@@ -32,26 +32,26 @@ export default function Login() {
 
   return (
     <div style={styles.page}>
-      <div style={{ width: '100%', maxWidth: 420 }}>
+      <div style={{ width: '100%', maxWidth: 480 }}>
         <h2 style={styles.pageTitle}>Login Page</h2>
 
         <div style={styles.card}>
-          {/* App Logo Banner — matches wireframe */}
-          <div style={styles.logoContainer}>
-            <div style={styles.logoBadge}>
-              <span style={styles.logoBadgeText}>UF</span>
-            </div>
-            <div>
-              <span style={styles.logoTitle}>Urban Furniture</span>
-              <span style={styles.logoSubtitle}>Double-Entry Accounting System</span>
+          {/* App LoGo container — exact wireframe box */}
+          <div style={styles.appLogoBox}>
+            <div style={styles.logoBadge}>UF</div>
+            <div style={styles.logoTextCol}>
+              <span style={styles.appLogoText}>App LoGo</span>
+              <span style={styles.appLogoSub}>Urban Furniture</span>
             </div>
           </div>
 
           <form onSubmit={handleSubmit} style={styles.form} noValidate>
-            <div style={styles.field}>
-              <label htmlFor="loginId" style={styles.label}>Login Id -</label>
-              <div style={styles.inputWrapper}>
-                <UserIcon size={16} style={styles.inputIcon} />
+            {/* Login Id - */}
+            <div style={styles.row}>
+              <label htmlFor="loginId" style={styles.rowLabel}>
+                Login Id -
+              </label>
+              <div style={styles.inputContainer}>
                 <input
                   id="loginId"
                   type="text"
@@ -61,17 +61,17 @@ export default function Login() {
                   required
                   minLength={6}
                   maxLength={12}
-                  style={styles.input}
-                  placeholder="Enter Login Id"
+                  style={styles.lineInput}
                 />
               </div>
-              <span style={styles.fieldHint}>Must be 6–12 characters</span>
             </div>
 
-            <div style={styles.field}>
-              <label htmlFor="password" style={styles.label}>Password -</label>
-              <div style={styles.inputWrapper}>
-                <Lock size={16} style={styles.inputIcon} />
+            {/* Password - */}
+            <div style={styles.row}>
+              <label htmlFor="password" style={styles.rowLabel}>
+                Password -
+              </label>
+              <div style={styles.inputContainer}>
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
@@ -79,17 +79,16 @@ export default function Login() {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
-                  style={styles.input}
-                  placeholder="Enter Password"
+                  style={styles.lineInput}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  style={styles.passwordToggle}
+                  style={styles.toggleBtn}
                   tabIndex={-1}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
                 </button>
               </div>
             </div>
@@ -100,19 +99,26 @@ export default function Login() {
               </div>
             )}
 
-            <button
-              type="submit"
-              disabled={loading || !loginId || !password}
-              style={{
-                ...styles.btn,
-                opacity: loading || !loginId || !password ? 0.6 : 1,
-                cursor: loading || !loginId || !password ? 'not-allowed' : 'pointer',
-              }}
-            >
-              {loading ? 'SIGNING IN…' : 'SIGN IN'}
-            </button>
+            {/* Wireframe Centered Button: SIGN IN */}
+            <div style={styles.btnWrapper}>
+              <button
+                type="submit"
+                disabled={loading || !loginId || !password}
+                onMouseEnter={() => setBtnHover(true)}
+                onMouseLeave={() => setBtnHover(false)}
+                style={{
+                  ...styles.wireframeBtn,
+                  background: btnHover ? 'var(--brown-900, #4A3A34)' : 'transparent',
+                  color: btnHover ? 'var(--cream, #F9F2E4)' : 'var(--brown-900, #4A3A34)',
+                  opacity: loading || !loginId || !password ? 0.6 : 1,
+                  cursor: loading || !loginId || !password ? 'not-allowed' : 'pointer',
+                }}
+              >
+                {loading ? 'SIGNING IN…' : 'SIGN IN'}
+              </button>
+            </div>
 
-            {/* Forgot Password | Sign Up row matching wireframe */}
+            {/* Forgot Password | Sign Up footer */}
             <div style={styles.linksRow}>
               <Link to="/forgot-password" style={styles.link}>Forgot Password</Link>
               <span style={styles.linkDivider}>|</span>
@@ -137,114 +143,109 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     background: 'var(--cream, #F9F2E4)',
-    padding: 24,
+    padding: '32px 20px',
     fontFamily: 'var(--font-body, "DM Sans", sans-serif)',
   } as React.CSSProperties,
   pageTitle: {
     fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
     fontWeight: 700,
-    fontSize: 24,
+    fontSize: 22,
     color: 'var(--brown-900, #4A3A34)',
     textAlign: 'center' as const,
     marginBottom: 16,
   } as React.CSSProperties,
   card: {
     background: 'var(--surface, #FFFFFF)',
-    borderRadius: 'var(--radius-md, 10px)',
-    boxShadow: 'var(--shadow-md, 0 4px 12px rgba(74, 58, 52, 0.08))',
-    border: '1px solid rgba(208, 174, 146, 0.4)',
-    padding: '36px 36px 32px 36px',
+    borderRadius: 22,
+    border: '1.5px solid var(--brown-400, #B8977E)',
+    boxShadow: '0 8px 28px rgba(74, 58, 52, 0.08)',
+    padding: '36px 40px 32px 40px',
     width: '100%',
-    maxWidth: 420,
+    maxWidth: 480,
   } as React.CSSProperties,
-  logoContainer: {
+  appLogoBox: {
+    width: 175,
+    height: 56,
+    margin: '0 auto 36px auto',
+    border: '1.5px solid var(--brown-700, #77574A)',
+    borderRadius: 14,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 12,
-    background: 'rgba(235, 215, 190, 0.35)',
-    border: '1px solid var(--brown-300, #D0AE92)',
-    borderRadius: 'var(--radius-sm, 6px)',
-    padding: '10px 16px',
-    marginBottom: 24,
+    gap: 10,
+    background: 'rgba(235, 215, 190, 0.3)',
   } as React.CSSProperties,
   logoBadge: {
-    width: 34,
-    height: 34,
+    width: 30,
+    height: 30,
     borderRadius: 6,
     background: 'var(--brown-900, #4A3A34)',
+    color: 'var(--cream, #F9F2E4)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 1px 3px rgba(74, 58, 52, 0.2)',
-  } as React.CSSProperties,
-  logoBadgeText: {
     fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
     fontWeight: 700,
-    fontSize: 16,
-    color: 'var(--cream, #F9F2E4)',
-    letterSpacing: '-0.02em',
+    fontSize: 14,
   } as React.CSSProperties,
-  logoTitle: {
-    display: 'block',
+  logoTextCol: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+  },
+  appLogoText: {
     fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
     fontWeight: 700,
-    fontSize: 15,
+    fontSize: 14,
     color: 'var(--brown-900, #4A3A34)',
-    letterSpacing: '-0.01em',
-    lineHeight: 1.2,
+    lineHeight: 1.1,
   } as React.CSSProperties,
-  logoSubtitle: {
-    display: 'block',
-    fontSize: 11,
-    color: 'var(--brown-700, #77574A)',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.04em',
+  appLogoSub: {
+    fontSize: 10,
+    color: 'var(--brown-600, #8C6A58)',
     fontWeight: 500,
-  } as React.CSSProperties,
-  title: {
-    fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
-    fontWeight: 700,
-    fontSize: 22,
-    color: 'var(--brown-900, #4A3A34)',
-    marginBottom: 4,
-  } as React.CSSProperties,
-  subtitle: {
-    fontFamily: 'var(--font-body, "DM Sans", sans-serif)',
-    fontSize: 13,
-    color: 'var(--brown-500, #A8836C)',
-    marginBottom: 20,
+    letterSpacing: '0.02em',
   } as React.CSSProperties,
   form: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: 16,
+    gap: 22,
   },
-  field: {
+  row: {
     display: 'flex',
-    flexDirection: 'column' as const,
-    gap: 5,
-  },
-  label: {
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+  } as React.CSSProperties,
+  rowLabel: {
     fontFamily: 'var(--font-body, "DM Sans", sans-serif)',
     fontWeight: 600,
-    fontSize: 13,
-    color: 'var(--brown-700, #77574A)',
+    fontSize: 14,
+    color: 'var(--brown-900, #4A3A34)',
+    whiteSpace: 'nowrap' as const,
+    minWidth: 155,
   } as React.CSSProperties,
-  inputWrapper: {
+  inputContainer: {
+    flex: 1,
     position: 'relative' as const,
     display: 'flex',
     alignItems: 'center',
   },
-  inputIcon: {
+  lineInput: {
+    width: '100%',
+    border: 'none',
+    borderBottom: '1.5px solid var(--brown-700, #77574A)',
+    borderRadius: 0,
+    background: 'transparent',
+    padding: '6px 24px 6px 4px',
+    fontFamily: 'var(--font-body, "DM Sans", sans-serif)',
+    fontSize: 14,
+    color: 'var(--brown-900, #4A3A34)',
+    outline: 'none',
+    transition: 'border-color 150ms ease',
+  } as React.CSSProperties,
+  toggleBtn: {
     position: 'absolute' as const,
-    left: 12,
-    color: 'var(--brown-500, #A8836C)',
-    pointerEvents: 'none' as const,
-  },
-  passwordToggle: {
-    position: 'absolute' as const,
-    right: 12,
+    right: 2,
     background: 'none',
     border: 'none',
     color: 'var(--brown-500, #A8836C)',
@@ -254,78 +255,55 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  input: {
-    width: '100%',
-    fontFamily: 'var(--font-body, "DM Sans", sans-serif)',
-    fontSize: 14,
-    padding: '9px 36px 9px 36px',
-    border: '1px solid var(--brown-300, #D0AE92)',
-    borderRadius: 'var(--radius-sm, 6px)',
-    background: 'var(--cream, #F9F2E4)',
-    color: 'var(--brown-900, #4A3A34)',
-    outline: 'none',
-    transition: 'border-color 150ms ease, box-shadow 150ms ease',
-  } as React.CSSProperties,
-  fieldHint: {
-    fontSize: 11,
-    color: 'var(--brown-500, #A8836C)',
-    marginTop: 2,
-  } as React.CSSProperties,
   errorBox: {
     background: 'var(--danger-bg, #F8EAE6)',
     border: '1px solid var(--danger, #9E4A38)',
-    borderRadius: 'var(--radius-sm, 6px)',
-    padding: '9px 12px',
+    borderRadius: 8,
+    padding: '8px 12px',
+    marginTop: -4,
   } as React.CSSProperties,
   errorText: {
     fontFamily: 'var(--font-body, "DM Sans", sans-serif)',
-    fontSize: 13,
+    fontSize: 12,
     color: 'var(--danger, #9E4A38)',
     margin: 0,
     fontWeight: 500,
   } as React.CSSProperties,
-  btn: {
-    fontFamily: 'var(--font-body, "DM Sans", sans-serif)',
-    fontWeight: 600,
-    fontSize: 14,
-    padding: '11px 16px',
-    background: 'var(--brown-900, #4A3A34)',
-    color: 'var(--cream, #F9F2E4)',
-    border: 'none',
-    borderRadius: 'var(--radius-sm, 6px)',
-    cursor: 'pointer',
-    marginTop: 4,
-    transition: 'background-color 150ms ease, transform 100ms ease',
-    boxShadow: 'var(--shadow-sm, 0 1px 2px rgba(74,58,52,.06))',
+  btnWrapper: {
+    display: 'flex',
+    justifyContent: 'center',
+    marginTop: 8,
+  } as React.CSSProperties,
+  wireframeBtn: {
+    minWidth: 150,
+    padding: '9px 24px',
+    border: '1.5px solid var(--brown-900, #4A3A34)',
+    borderRadius: 12,
+    fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
+    fontWeight: 700,
+    fontSize: 13,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase' as const,
+    transition: 'all 150ms ease',
   } as React.CSSProperties,
   linksRow: {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     gap: 12,
-    marginTop: 18,
+    marginTop: 6,
     fontSize: 13,
+  } as React.CSSProperties,
+  link: {
+    color: 'var(--brown-700, #77574A)',
+    textDecoration: 'none',
+    fontWeight: 500,
+    fontSize: 13,
+    transition: 'color 150ms ease',
   } as React.CSSProperties,
   linkDivider: {
     color: 'var(--brown-300, #D0AE92)',
     fontWeight: 300,
-  } as React.CSSProperties,
-  links: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 20,
-    fontSize: 13,
-  } as React.CSSProperties,
-  link: {
-    color: 'var(--brown-500, #A8836C)',
-    textDecoration: 'none',
-    transition: 'color 150ms ease',
-  } as React.CSSProperties,
-  linkBold: {
-    color: 'var(--brown-900, #4A3A34)',
-    fontWeight: 600,
-    textDecoration: 'none',
   } as React.CSSProperties,
   portalDivider: {
     marginTop: 24,
@@ -335,16 +313,15 @@ const styles = {
     flexDirection: 'column' as const,
     alignItems: 'center',
     gap: 4,
-  },
+  } as React.CSSProperties,
   portalText: {
     fontSize: 11,
     color: 'var(--brown-500, #A8836C)',
-  },
+  } as React.CSSProperties,
   portalLink: {
     fontSize: 12,
     fontWeight: 600,
     color: 'var(--brown-700, #77574A)',
     textDecoration: 'none',
-  },
+  } as React.CSSProperties,
 };
-
