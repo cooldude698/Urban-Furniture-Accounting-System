@@ -26,6 +26,7 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
   const [costPrice, setCostPrice] = useState('50.00');
   const [imageUrl, setImageUrl] = useState('');
   const [modelUrl, setModelUrl] = useState('');
+  const [sku, setSku] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Category Many2one dropdown state
@@ -45,6 +46,15 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const categoryRef = useRef<HTMLDivElement>(null);
+
+  const handleGenerateSku = async () => {
+    try {
+      const res = await ProductsApi.generateSku(category || 'GEN', name || 'ITEM', '26');
+      setSku(res.sku);
+    } catch (err: any) {
+      setError(err.message || 'Failed to generate SKU');
+    }
+  };
 
   // Load existing categories & product data if editing
   useEffect(() => {
@@ -72,6 +82,7 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
           setType(p.type);
           setCategory(p.category || '');
           setCategoryQuery(p.category || '');
+          setSku(p.sku || '');
           setSalesPrice(p.sales_price || '0.00');
           setCostPrice(p.cost_price || '0.00');
           setImageUrl(p.image_url || '');
@@ -84,6 +95,7 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
       setType('goods');
       setCategory('');
       setCategoryQuery('');
+      setSku('');
       setSalesPrice('100.00');
       setCostPrice('50.00');
       setImageUrl('');
@@ -130,10 +142,11 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
       const cleanSales = parseFloat(salesPrice || '0').toFixed(2);
       const cleanCost = parseFloat(costPrice || '0').toFixed(2);
 
-      const generatedSku = `${finalCategory.slice(0, 3).toUpperCase()}-${name
-        .replace(/[^a-zA-Z0-9]/g, '')
-        .slice(0, 4)
-        .toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      let finalSku = sku.trim();
+      if (!finalSku) {
+        const skuRes = await ProductsApi.generateSku(finalCategory, name.trim(), '26');
+        finalSku = skuRes.sku;
+      }
 
       const payload: CreateProductInput = {
         name: name.trim(),
@@ -142,7 +155,7 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
         sales_price: cleanSales,
         cost_price: cleanCost,
         mrp: cleanSales,
-        sku: generatedSku,
+        sku: finalSku,
         tax_rate: '18.00',
         min_stock_threshold: 5,
         image_url: imageUrl.trim() || null,
@@ -264,6 +277,39 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
                   placeholder="e.g. Air Conditioner"
                   style={styles.underlineInput}
                 />
+              </div>
+            </div>
+
+            {/* Field 1.5: SKU / Deterministic Reference */}
+            <div style={styles.fieldRow}>
+              <label style={styles.fieldLabel}>SKU / Code</label>
+              <div style={{ ...styles.inputUnderlineWrapper, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <input
+                  type="text"
+                  value={sku}
+                  onChange={e => setSku(e.target.value)}
+                  placeholder="e.g. SOF-TEAK-26-0001 (auto-generated on save)"
+                  style={{ ...styles.underlineInput, flex: 1 }}
+                />
+                <button
+                  type="button"
+                  onClick={handleGenerateSku}
+                  style={{
+                    padding: '5px 12px',
+                    backgroundColor: 'var(--brown-900)',
+                    color: 'var(--cream)',
+                    borderRadius: 6,
+                    border: 'none',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-display)',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                  }}
+                  title="Generate deterministic CAT-MAT-YEAR-SEQ SKU"
+                >
+                  ✨ Auto SKU
+                </button>
               </div>
             </div>
 

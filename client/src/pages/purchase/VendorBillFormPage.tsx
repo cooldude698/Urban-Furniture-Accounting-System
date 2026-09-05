@@ -14,8 +14,10 @@ import { SmartButton } from '../../components/SmartButton';
 import { NonBlockingWarning } from '../../components/NonBlockingWarning';
 import { RegisterPaymentModal } from '../../components/purchase/RegisterPaymentModal';
 import { JournalEntryModal } from '../../components/purchase/JournalEntryModal';
+import { BillScannerModal } from '../../components/purchase/BillScannerModal';
+import { VoiceBillModal } from '../../components/purchase/VoiceBillModal';
 import { Money } from '../../components/Money';
-import { CheckCircle2, DollarSign, ShoppingCart, PieChart, Ban, Trash2, Plus, BookOpen, Clock } from 'lucide-react';
+import { CheckCircle2, DollarSign, ShoppingCart, PieChart, Ban, Trash2, Plus, BookOpen, Clock, Mic, Sparkles } from 'lucide-react';
 import Decimal from 'decimal.js';
 
 interface VendorBillFormPageProps {
@@ -53,7 +55,34 @@ export const VendorBillFormPage: React.FC<VendorBillFormPageProps> = ({
   const [payments, setPayments] = useState<any[]>([]);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState<boolean>(false);
   const [isJournalModalOpen, setIsJournalModalOpen] = useState<boolean>(false);
+  const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
+  const [isVoiceModalOpen, setIsVoiceModalOpen] = useState<boolean>(false);
 
+  const handleApplyScannedOrVoiceData = (data: {
+    vendorId: number | null;
+    billReference: string;
+    billDate: string;
+    dueDate: string;
+    lines: Array<{
+      product_id: number;
+      account_id: number;
+      analytic_account_id: number | null;
+      qty: number;
+      unit_price: string;
+      tax_rate: string;
+      subtotal: string;
+      tax_amount: string;
+      total: string;
+    }>;
+  }) => {
+    if (data.vendorId) setVendorId(data.vendorId);
+    if (data.billReference) setBillReference(data.billReference);
+    if (data.billDate) setBillDate(data.billDate);
+    if (data.dueDate) setDueDate(data.dueDate);
+    if (data.lines && data.lines.length > 0) {
+      setLines(data.lines.map((l, idx) => ({ ...l, sr_no: idx + 1 })));
+    }
+  };
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -312,6 +341,30 @@ export const VendorBillFormPage: React.FC<VendorBillFormPageProps> = ({
       error={error}
       extraButtons={
         <div className="flex items-center gap-2">
+          {/* Offline Voice Dictation & Scanner buttons when creating a new bill */}
+          {isNew && (
+            <>
+              <button
+                type="button"
+                onClick={() => setIsVoiceModalOpen(true)}
+                className="inline-flex items-center gap-1.5 bg-cream border border-brown-300 hover:bg-brown-100 text-brown-900 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors shadow-xs cursor-pointer"
+                title="Dictate vendor bill using browser voice recognition"
+              >
+                <Mic className="w-3.5 h-3.5 text-rose-600" />
+                <span>Voice Entry</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsScannerOpen(true)}
+                className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 text-emerald-900 px-3 py-1.5 rounded-lg font-medium text-xs transition-colors shadow-xs cursor-pointer"
+                title="Upload or paste invoice receipt for instant local regex field extraction"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Scan Bill / Receipt</span>
+              </button>
+            </>
+          )}
+
           {/* Source PO Smart button — Only show if bill created from PO. Hide if fresh bill without PO */}
           <SmartButton
             label={bill?.po_id ? `PO #${bill.po_id}` : 'PO'}
@@ -767,6 +820,20 @@ export const VendorBillFormPage: React.FC<VendorBillFormPageProps> = ({
           sourceDocNumber={bill.number}
         />
       )}
+
+      {/* Local Receipt / Bill Scanner Modal */}
+      <BillScannerModal
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onApply={handleApplyScannedOrVoiceData}
+      />
+
+      {/* Offline Voice Dictation Modal */}
+      <VoiceBillModal
+        isOpen={isVoiceModalOpen}
+        onClose={() => setIsVoiceModalOpen(false)}
+        onApply={handleApplyScannedOrVoiceData}
+      />
     </FormView>
   );
 };

@@ -1,9 +1,38 @@
 import { Router, Request, Response } from 'express';
 import { VendorBillService } from '../services/vendorBillService';
 import { PaymentService } from '../services/paymentService';
+import { BillScannerService } from '../services/billScannerService';
 import { sendSuccess, sendError } from '../utils/response';
 
 export const billRouter = Router();
+
+// POST /api/bills/parse-receipt - Local receipt/bill text scanner & field extractor
+billRouter.post('/parse-receipt', async (req: Request, res: Response) => {
+  try {
+    const { text } = req.body;
+    if (!text || typeof text !== 'string') {
+      return sendError(res, 'INVALID_INPUT', 'Receipt text is required');
+    }
+    const parsed = await BillScannerService.parseReceiptText(text);
+    return sendSuccess(res, parsed);
+  } catch (err: any) {
+    return sendError(res, 'SCAN_FAILED', err.message);
+  }
+});
+
+// POST /api/bills/parse-voice - Local offline voice dictation parser for vendor bills
+billRouter.post('/parse-voice', async (req: Request, res: Response) => {
+  try {
+    const { text } = req.body;
+    if (!text || typeof text !== 'string') {
+      return sendError(res, 'INVALID_INPUT', 'Voice dictation text is required');
+    }
+    const parsed = await BillScannerService.parseVoiceVendorBill(text);
+    return sendSuccess(res, parsed);
+  } catch (err: any) {
+    return sendError(res, 'VOICE_PARSE_FAILED', err.message);
+  }
+});
 
 // GET /api/bills
 billRouter.get('/', async (_req: Request, res: Response) => {

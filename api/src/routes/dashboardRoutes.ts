@@ -1,8 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { DashboardService } from '../services/dashboardService';
+import { optionalAuth, AuthenticatedRequest } from '../middleware/auth';
 import { sendSuccess, sendError } from '../utils/response';
 
 export const dashboardRouter = Router();
+
+dashboardRouter.use(optionalAuth);
 
 /**
  * GET /api/dashboard/stats
@@ -21,10 +24,11 @@ dashboardRouter.get('/stats', async (_req: Request, res: Response) => {
 /**
  * GET /api/dashboard/kpi
  * Real-time financial balances: Cash, Bank, Receivable, Payable, Net Income
+ * Scoped by user role: Redacted for managers, full visibility for owners/accountants
  */
-dashboardRouter.get('/kpi', async (_req: Request, res: Response) => {
+dashboardRouter.get('/kpi', async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const kpi = await DashboardService.getKPI();
+    const kpi = await DashboardService.getKPI(req.user);
     return sendSuccess(res, kpi);
   } catch (err: any) {
     console.error('Error in /api/dashboard/kpi:', err);

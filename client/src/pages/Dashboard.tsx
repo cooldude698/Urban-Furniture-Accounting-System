@@ -31,6 +31,8 @@ import {
   CreditCard,
   Building2,
   Calendar,
+  Lock,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -44,6 +46,12 @@ import {
 } from 'recharts';
 
 export default function Dashboard() {
+  let currentUser: { full_name?: string; login_id?: string; role?: string } | null = null;
+  try {
+    const raw = localStorage.getItem('urban_user');
+    if (raw) currentUser = JSON.parse(raw);
+  } catch {}
+
   // 1. KPI Query
   const {
     data: kpiData,
@@ -54,6 +62,8 @@ export default function Dashboard() {
     queryFn: DashboardApi.getKPI,
     staleTime: 15_000,
   });
+
+  const isManager = currentUser?.role === 'manager' || kpiData?.isRedacted;
 
   // 2. Stats Query
   const {
@@ -324,6 +334,52 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* ── Manager Operational Scoping Banner ── */}
+      {isManager && (
+        <div
+          style={{
+            background: 'rgba(235, 215, 190, 0.40)',
+            border: '1px solid rgba(208, 174, 146, 0.50)',
+            borderRadius: 14,
+            padding: '12px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 16,
+            marginBottom: 16,
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <ShieldCheck size={18} style={{ color: '#b45309', flexShrink: 0 }} />
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-display)', color: 'var(--brown-900)' }}>
+                Manager Scoped Access Active
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--brown-700)', fontFamily: 'var(--font-body)' }}>
+                Double-entry ledger balances and net profit margins are redacted at the data layer (`scopeFor`). Operational volume is enabled.
+              </div>
+            </div>
+          </div>
+          {kpiData?.operational && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontFamily: 'var(--font-mono)', fontSize: 12 }}>
+              <div style={{ padding: '4px 10px', background: 'var(--surface)', borderRadius: 8, border: '1px solid rgba(208, 174, 146, 0.4)' }}>
+                <span style={{ color: 'var(--brown-600)' }}>Stock Units: </span>
+                <span style={{ fontWeight: 700, color: 'var(--brown-900)' }}>{kpiData.operational.stockUnits}</span>
+              </div>
+              <div style={{ padding: '4px 10px', background: 'var(--surface)', borderRadius: 8, border: '1px solid rgba(208, 174, 146, 0.4)' }}>
+                <span style={{ color: 'var(--brown-600)' }}>Catalog Items: </span>
+                <span style={{ fontWeight: 700, color: 'var(--brown-900)' }}>{kpiData.operational.activeProducts}</span>
+              </div>
+              <div style={{ padding: '4px 10px', background: 'var(--surface)', borderRadius: 8, border: '1px solid rgba(208, 174, 146, 0.4)' }}>
+                <span style={{ color: 'var(--brown-600)' }}>Draft Orders: </span>
+                <span style={{ fontWeight: 700, color: 'var(--brown-900)' }}>{kpiData.operational.pendingOrders}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Refined KPI Strip (Clean, Smaller Figures & Smooth Corners) ── */}
       <div
         style={{
@@ -355,14 +411,14 @@ export default function Dashboard() {
                 width: 28,
                 height: 28,
                 borderRadius: 8,
-                background: 'rgba(235, 215, 190, 0.4)',
+                background: isManager ? 'rgba(180, 83, 9, 0.12)' : 'rgba(235, 215, 190, 0.4)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'var(--brown-900)',
+                color: isManager ? '#b45309' : 'var(--brown-900)',
               }}
             >
-              <Wallet size={14} />
+              {isManager ? <Lock size={14} /> : <Wallet size={14} />}
             </div>
           </div>
           <div>
@@ -372,13 +428,13 @@ export default function Dashboard() {
                 fontWeight: 600,
                 fontSize: 19,
                 letterSpacing: '-0.02em',
-                color: 'var(--brown-900)',
+                color: isManager ? 'var(--brown-500)' : 'var(--brown-900)',
               }}
             >
-              {isKpiLoading ? '...' : <Money value={kpiData?.cash || '0.00'} />}
+              {isKpiLoading ? '...' : isManager ? '🔒 Restricted' : <Money value={kpiData?.cash || '0.00'} />}
             </div>
-            <div style={{ fontSize: 11, color: 'rgba(119, 87, 74, 0.8)', fontFamily: 'var(--font-body)', marginTop: 2 }}>
-              Petty cash register
+            <div style={{ fontSize: 11, color: isManager ? '#b45309' : 'rgba(119, 87, 74, 0.8)', fontFamily: 'var(--font-body)', marginTop: 2 }}>
+              {isManager ? 'Finance & Owner Only' : 'Petty cash register'}
             </div>
           </div>
         </div>
@@ -406,14 +462,14 @@ export default function Dashboard() {
                 width: 28,
                 height: 28,
                 borderRadius: 8,
-                background: 'rgba(235, 215, 190, 0.4)',
+                background: isManager ? 'rgba(180, 83, 9, 0.12)' : 'rgba(235, 215, 190, 0.4)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'var(--brown-900)',
+                color: isManager ? '#b45309' : 'var(--brown-900)',
               }}
             >
-              <Landmark size={14} />
+              {isManager ? <Lock size={14} /> : <Landmark size={14} />}
             </div>
           </div>
           <div>
@@ -423,13 +479,13 @@ export default function Dashboard() {
                 fontWeight: 600,
                 fontSize: 19,
                 letterSpacing: '-0.02em',
-                color: 'var(--brown-900)',
+                color: isManager ? 'var(--brown-500)' : 'var(--brown-900)',
               }}
             >
-              {isKpiLoading ? '...' : <Money value={kpiData?.bank || '0.00'} />}
+              {isKpiLoading ? '...' : isManager ? '🔒 Restricted' : <Money value={kpiData?.bank || '0.00'} />}
             </div>
-            <div style={{ fontSize: 11, color: 'rgba(119, 87, 74, 0.8)', fontFamily: 'var(--font-body)', marginTop: 2 }}>
-              HDFC & SBI Accounts
+            <div style={{ fontSize: 11, color: isManager ? '#b45309' : 'rgba(119, 87, 74, 0.8)', fontFamily: 'var(--font-body)', marginTop: 2 }}>
+              {isManager ? 'Finance & Owner Only' : 'HDFC & SBI Accounts'}
             </div>
           </div>
         </div>
@@ -559,14 +615,14 @@ export default function Dashboard() {
                 width: 28,
                 height: 28,
                 borderRadius: 8,
-                background: 'rgba(237, 241, 232, 0.8)',
+                background: isManager ? 'rgba(180, 83, 9, 0.12)' : 'rgba(237, 241, 232, 0.8)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: 'var(--posted)',
+                color: isManager ? '#b45309' : 'var(--posted)',
               }}
             >
-              <TrendingUp size={14} />
+              {isManager ? <Lock size={14} /> : <TrendingUp size={14} />}
             </div>
           </div>
           <div>
@@ -576,13 +632,13 @@ export default function Dashboard() {
                 fontWeight: 600,
                 fontSize: 19,
                 letterSpacing: '-0.02em',
-                color: 'var(--brown-900)',
+                color: isManager ? 'var(--brown-500)' : 'var(--brown-900)',
               }}
             >
-              {isKpiLoading ? '...' : <Money value={kpiData?.netIncomeThisMonth || '0.00'} />}
+              {isKpiLoading ? '...' : isManager ? '🔒 Restricted' : <Money value={kpiData?.netIncomeThisMonth || '0.00'} />}
             </div>
-            <div style={{ fontSize: 11, color: 'var(--posted)', fontFamily: 'var(--font-body)', marginTop: 2, fontWeight: 600 }}>
-              +18.4% margin (active)
+            <div style={{ fontSize: 11, color: isManager ? '#b45309' : 'var(--posted)', fontFamily: 'var(--font-body)', marginTop: 2, fontWeight: 600 }}>
+              {isManager ? 'Owner / Finance Only' : '+18.4% margin (active)'}
             </div>
           </div>
         </div>

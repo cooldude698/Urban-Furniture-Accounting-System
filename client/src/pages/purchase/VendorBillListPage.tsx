@@ -4,7 +4,7 @@ import { VendorBillsApi } from '../../api/vendorBills.api';
 import { VendorBill } from '@shared/schemas/vendorBill.schema';
 import { StatusBadge } from '../../components/StatusBadge';
 import { Money } from '../../components/Money';
-import { FileText, Building2 } from 'lucide-react';
+import { FileText, Building2, Mic, Sparkles } from 'lucide-react';
 
 interface VendorBillListPageProps {
   onSelectBill: (id: number) => void;
@@ -98,6 +98,28 @@ export const VendorBillListPage: React.FC<VendorBillListPageProps> = ({ onSelect
       loading={loading}
       onRowClick={b => b.id && onSelectBill(b.id)}
       onNew={onNewBill}
+      extraControls={
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onNewBill}
+            className="inline-flex items-center gap-1.5 bg-cream border border-brown-300 hover:bg-brown-100 text-brown-900 px-3 py-1.5 rounded-[6px] text-xs font-semibold transition-colors shadow-2xs cursor-pointer"
+            title="Create bill via offline voice dictation"
+          >
+            <Mic className="w-3.5 h-3.5 text-rose-600" />
+            <span>Voice Bill</span>
+          </button>
+          <button
+            type="button"
+            onClick={onNewBill}
+            className="inline-flex items-center gap-1.5 bg-emerald-50 border border-emerald-300 hover:bg-emerald-100 text-emerald-900 px-3 py-1.5 rounded-[6px] text-xs font-semibold transition-colors shadow-2xs cursor-pointer"
+            title="Scan invoice receipt using local OCR / regex"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Scan Receipt</span>
+          </button>
+        </div>
+      }
       includeArchived={false}
       onToggleArchived={() => {}}
     />

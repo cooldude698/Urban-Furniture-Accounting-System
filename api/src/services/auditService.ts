@@ -38,7 +38,11 @@ export class AuditService {
   /**
    * Retrieves audit trail for a specific table or record.
    */
-  static async getAuditLogs(tableName?: string, recordId?: number, limit = 100, offset = 0) {
+  static async getAuditLogs(tableName?: string, recordId?: number, limit = 100, offset = 0, scope?: Record<string, any>) {
+    if (scope && scope.allowed === false) {
+      return [];
+    }
+
     const query = `
       SELECT 
         al.id,
