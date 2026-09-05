@@ -1,25 +1,28 @@
 import React, { useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
-interface PortalInviteAcceptProps {
-  onBackToLogin: () => void;
-  onPasswordSetSuccess: () => void;
-}
+export const PortalInviteAccept: React.FC = () => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-export const PortalInviteAccept: React.FC<PortalInviteAcceptProps> = ({
-  onBackToLogin,
-  onPasswordSetSuccess,
-}) => {
-  const [token, setToken] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return new URLSearchParams(window.location.search).get('token') || '';
-    }
-    return '';
-  });
+  const [token, setToken] = useState(() => searchParams.get('token') ?? '');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  /* focus-ring helpers — same pattern as PortalLogin */
+  const onFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.currentTarget.style.borderColor = 'var(--brown-700)';
+    e.currentTarget.style.boxShadow = '0 0 0 3px rgba(74, 58, 52, 0.18)';
+    e.currentTarget.style.background = 'var(--surface)';
+  };
+  const onBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.currentTarget.style.borderColor = 'var(--brown-300)';
+    e.currentTarget.style.boxShadow = 'none';
+    e.currentTarget.style.background = 'var(--cream)';
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,7 +33,6 @@ export const PortalInviteAccept: React.FC<PortalInviteAcceptProps> = ({
       setError('Passwords do not match');
       return;
     }
-
     if (password.length < 8) {
       setError('Password must be at least 8 characters long');
       return;
@@ -49,9 +51,9 @@ export const PortalInviteAccept: React.FC<PortalInviteAcceptProps> = ({
         throw new Error(json.error?.message || 'Failed to accept invitation');
       }
 
-      setSuccess('Password set successfully! You can now log in with your credentials.');
+      setSuccess('Password set successfully! Redirecting to login…');
       setTimeout(() => {
-        onPasswordSetSuccess();
+        navigate('/portal/login', { replace: true });
       }, 1200);
     } catch (err: any) {
       setError(err.message || 'Invitation acceptance failed');
@@ -60,92 +62,233 @@ export const PortalInviteAccept: React.FC<PortalInviteAcceptProps> = ({
     }
   };
 
+  /* ─── shared input style ─────────────────────────────────────────── */
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    boxSizing: 'border-box',
+    background: 'var(--cream)',
+    border: '1px solid var(--brown-300)',
+    borderRadius: 'var(--radius-sm)',
+    padding: '9px 13px',
+    fontSize: 14,
+    fontFamily: 'var(--font-body)',
+    color: 'var(--brown-900)',
+    outline: 'none',
+    transition: 'border-color 120ms ease-out, box-shadow 120ms ease-out, background 120ms ease-out',
+  };
+
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    fontSize: 11,
+    fontFamily: 'var(--font-body)',
+    fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.07em',
+    color: 'var(--brown-700)',
+    marginBottom: 6,
+  };
+
   return (
-    <div className="max-w-md mx-auto py-12 font-body">
-      <div className="bg-surface border border-brown-300 rounded-[18px] p-8 shadow-md">
-        <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-brown-900 text-cream rounded-[10px] flex items-center justify-center font-bold font-display text-lg mx-auto mb-3 shadow-xs">
-            UF
-          </div>
-          <h1 className="text-2xl font-bold font-display text-brown-900">
-            Activate Contact Portal
-          </h1>
-          <p className="text-xs text-brown-600 mt-1 font-body">
-            Enter the invite token sent by the Urban Furniture team
-          </p>
-        </div>
-
-        {error && (
-          <div className="p-3 bg-danger-bg border border-danger text-danger text-xs rounded-md mb-6 font-medium font-body">
-            {error}
-          </div>
-        )}
-
-        {success && (
-          <div className="p-3 bg-posted-bg border border-posted text-posted text-xs rounded-md mb-6 font-medium font-body">
-            {success}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-brown-700 mb-1.5 font-body">
-              Invitation Token *
-            </label>
-            <input
-              type="text"
-              required
-              value={token}
-              onChange={e => setToken(e.target.value)}
-              placeholder="Paste invitation token..."
-              className="w-full bg-cream/30 border border-brown-300 rounded-[8px] px-3.5 py-2 text-sm text-brown-900 font-mono placeholder:text-brown-400 focus:bg-surface focus:border-brown-700 focus:ring-1 focus:ring-brown-700 outline-none transition-colors"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-brown-700 mb-1.5 font-body">
-              New Password *
-            </label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="At least 8 characters"
-              className="w-full bg-cream/30 border border-brown-300 rounded-[8px] px-3.5 py-2 text-sm text-brown-900 placeholder:text-brown-400 focus:bg-surface focus:border-brown-700 focus:ring-1 focus:ring-brown-700 outline-none transition-colors"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-brown-700 mb-1.5 font-body">
-              Confirm Password *
-            </label>
-            <input
-              type="password"
-              required
-              value={confirmPassword}
-              onChange={e => setConfirmPassword(e.target.value)}
-              placeholder="Repeat your password"
-              className="w-full bg-cream/30 border border-brown-300 rounded-[8px] px-3.5 py-2 text-sm text-brown-900 placeholder:text-brown-400 focus:bg-surface focus:border-brown-700 focus:ring-1 focus:ring-brown-700 outline-none transition-colors"
-            />
+    <div
+      style={{
+        minHeight: '100vh',
+        background: 'var(--cream)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: 'var(--font-body)',
+        padding: '24px 16px',
+      }}
+    >
+      <div style={{ width: '100%', maxWidth: 440 }}>
+        {/* Card */}
+        <div
+          style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--brown-300)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '36px 32px',
+            boxShadow: 'var(--shadow-md)',
+          }}
+        >
+          {/* Brand mark */}
+          <div style={{ textAlign: 'center', marginBottom: 28 }}>
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                background: 'var(--brown-900)',
+                color: 'var(--cream)',
+                borderRadius: 10,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontFamily: 'var(--font-display)',
+                fontWeight: 700,
+                fontSize: 16,
+                marginBottom: 12,
+                boxShadow: 'var(--shadow-sm)',
+              }}
+            >
+              UF
+            </div>
+            <h1
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontWeight: 700,
+                fontSize: 22,
+                color: 'var(--brown-900)',
+                margin: '0 0 6px',
+              }}
+            >
+              Activate Portal Account
+            </h1>
+            <p
+              style={{
+                fontSize: 12,
+                fontFamily: 'var(--font-body)',
+                color: 'var(--brown-600)',
+                margin: 0,
+              }}
+            >
+              Set your password to access the Urban Furniture Customer Portal
+            </p>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2.5 px-4 bg-brown-900 hover:bg-brown-800 text-cream font-bold font-display rounded-[10px] shadow-sm text-xs uppercase tracking-wider transition-colors active:scale-[0.99] disabled:opacity-60 cursor-pointer"
-          >
-            {loading ? 'SETTING PASSWORD…' : 'ACTIVATE PORTAL ACCOUNT'}
-          </button>
-        </form>
+          {/* Error banner */}
+          {error && (
+            <div
+              style={{
+                padding: '10px 13px',
+                background: 'var(--danger-bg)',
+                border: '1px solid var(--danger)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--danger)',
+                fontSize: 12,
+                fontFamily: 'var(--font-body)',
+                fontWeight: 500,
+                marginBottom: 18,
+              }}
+            >
+              {error}
+            </div>
+          )}
 
-        <div className="mt-6 text-center">
-          <button
-            onClick={onBackToLogin}
-            className="text-xs font-semibold text-brown-700 hover:text-brown-900 underline font-body cursor-pointer"
-          >
-            ← Back to Portal Login
-          </button>
+          {/* Success banner */}
+          {success && (
+            <div
+              style={{
+                padding: '10px 13px',
+                background: 'var(--posted-bg)',
+                border: '1px solid var(--posted)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--posted)',
+                fontSize: 12,
+                fontFamily: 'var(--font-body)',
+                fontWeight: 500,
+                marginBottom: 18,
+              }}
+            >
+              ✓ {success}
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+            {/* Token field */}
+            <div>
+              <label style={labelStyle}>Invitation Token *</label>
+              <input
+                type="text"
+                required
+                value={token}
+                onChange={e => setToken(e.target.value)}
+                placeholder="Paste invitation token…"
+                style={{ ...inputStyle, fontFamily: 'var(--font-mono)', fontSize: 13 }}
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+            </div>
+
+            {/* New password */}
+            <div>
+              <label style={labelStyle}>New Password *</label>
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="At least 8 characters"
+                style={inputStyle}
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+            </div>
+
+            {/* Confirm password */}
+            <div>
+              <label style={labelStyle}>Confirm Password *</label>
+              <input
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                placeholder="Repeat your password"
+                style={inputStyle}
+                onFocus={onFocus}
+                onBlur={onBlur}
+              />
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                marginTop: 4,
+                width: '100%',
+                padding: '10px 0',
+                background: loading ? 'var(--brown-700)' : 'var(--brown-900)',
+                color: 'var(--cream)',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                fontFamily: 'var(--font-display)',
+                fontWeight: 700,
+                fontSize: 12,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                cursor: loading ? 'wait' : 'pointer',
+                opacity: loading ? 0.72 : 1,
+                boxShadow: 'var(--shadow-sm)',
+                transition: 'background 120ms ease-out, opacity 120ms ease-out',
+              }}
+              onMouseEnter={e => { if (!loading) e.currentTarget.style.background = 'var(--brown-700)'; }}
+              onMouseLeave={e => { if (!loading) e.currentTarget.style.background = 'var(--brown-900)'; }}
+            >
+              {loading ? 'Setting Password…' : 'Activate Portal Account'}
+            </button>
+          </form>
+
+          {/* Back to login */}
+          <div style={{ marginTop: 22, textAlign: 'center' }}>
+            <button
+              onClick={() => navigate('/portal/login')}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                cursor: 'pointer',
+                fontSize: 12,
+                fontFamily: 'var(--font-body)',
+                fontWeight: 600,
+                color: 'var(--brown-700)',
+                textDecoration: 'underline',
+              }}
+            >
+              ← Back to Portal Login
+            </button>
+          </div>
         </div>
       </div>
     </div>
