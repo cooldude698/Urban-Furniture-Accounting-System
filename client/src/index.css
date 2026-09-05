@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brown-900: #2E2218;
+  --brown-700: #5A4535;
+  --brown-500: #8B6D53;
+  --brown-100: #F5EFEA;
+  --cream: #FAF7F2;
+  --surface: #FFFFFF;
+  --success: #2E7D32;
+  --success-bg: #E8F5E9;
+  --warning: #ED6C02;
+  --warning-bg: #FFF4E5;
+  --danger: #D32F2F;
+  --danger-bg: #FFEBEE;
+}
+
+body {
+  background-color: var(--cream);
+  color: var(--brown-900);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
