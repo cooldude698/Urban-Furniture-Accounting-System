@@ -29,6 +29,11 @@ app.use(
 app.use(cookieParser());
 app.use(express.json());
 
+// Health check (public)
+app.get('/api/health', (req: Request, res: Response) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Routes
 app.use('/api/auth', authRouter);
 app.use('/api/portal', portalRouter);
@@ -40,11 +45,6 @@ app.use('/api/receivables', receivablesRouter);
 app.use('/api/contacts', contactRouter);
 app.use('/api/reports', reportRouter);
 
-
-// Health check
-app.get('/api/health', (req: Request, res: Response) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
 
 // 404 handler
 app.use((req: Request, res: Response) => {
