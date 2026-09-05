@@ -47,6 +47,22 @@ export const TemplateLibraryPage: React.FC = () => {
   const [customizeSavedItem, setCustomizeSavedItem] = useState<UserTemplateItem | null>(null);
   const [isCustomizeOpen, setIsCustomizeOpen] = useState<boolean>(false);
 
+  // Synchronize background scroll locking with modal open state
+  useEffect(() => {
+    if (isPreviewOpen || isCustomizeOpen) {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    }
+
+    return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
+  }, [isPreviewOpen, isCustomizeOpen]);
+
   // Load Categories & Templates
   useEffect(() => {
     setLoading(true);

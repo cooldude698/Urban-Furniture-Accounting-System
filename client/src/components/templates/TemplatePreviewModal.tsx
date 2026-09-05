@@ -20,31 +20,19 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
 
   const previewCardRef = React.useRef<HTMLDivElement>(null);
 
-  // Lock background scroll when preview modal is open
+  // Lock background scroll when preview modal is open, restore when closed
   React.useEffect(() => {
-    if (!isOpen) return;
-
-    const prevBodyOverflow = document.body.style.overflow;
-    const prevHtmlOverflow = document.documentElement.style.overflow;
-
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-
-    const preventBackgroundScroll = (e: WheelEvent | TouchEvent) => {
-      if (previewCardRef.current && previewCardRef.current.contains(e.target as Node)) {
-        return;
-      }
-      e.preventDefault();
-    };
-
-    window.addEventListener('wheel', preventBackgroundScroll, { passive: false });
-    window.addEventListener('touchmove', preventBackgroundScroll, { passive: false });
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    }
 
     return () => {
-      document.body.style.overflow = prevBodyOverflow;
-      document.documentElement.style.overflow = prevHtmlOverflow;
-      window.removeEventListener('wheel', preventBackgroundScroll);
-      window.removeEventListener('touchmove', preventBackgroundScroll);
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
     };
   }, [isOpen]);
 

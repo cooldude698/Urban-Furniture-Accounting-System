@@ -32,13 +32,11 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
   onClose,
   onSavedSuccess,
 }) => {
-  if (!isOpen || !template) return null;
-
-  const cols = template.structure?.columns || [];
+  const cols = template?.structure?.columns || [];
 
   // Configuration State
   const [templateName, setTemplateName] = useState<string>(
-    savedItem?.name || template.name
+    savedItem?.name || template?.name || ''
   );
   const [businessName, setBusinessName] = useState<string>(
     savedItem?.configuration?.businessName || 'Urban Furniture Studio'
@@ -50,7 +48,7 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
     savedItem?.configuration?.currency || '₹'
   );
   const [openingBalance, setOpeningBalance] = useState<string>(
-    savedItem?.configuration?.openingBalance || template.previewData?.openingBalance || '0.00'
+    savedItem?.configuration?.openingBalance || template?.previewData?.openingBalance || '0.00'
   );
   const [notes, setNotes] = useState<string>(
     savedItem?.configuration?.notes || ''
@@ -61,7 +59,7 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
 
   // Table Data State
   const [rows, setRows] = useState<Array<Record<string, any>>>(
-    savedItem?.customData?.rows || template.previewData?.rows || []
+    savedItem?.customData?.rows || template?.previewData?.rows || []
   );
 
   const [loadingErp, setLoadingErp] = useState<boolean>(false);
@@ -71,31 +69,19 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
 
   const modalCardRef = React.useRef<HTMLDivElement>(null);
 
-  // Lock background scroll when modal is open
+  // Lock background scroll when modal is open, restore when closed
   useEffect(() => {
-    if (!isOpen) return;
-
-    const prevBodyOverflow = document.body.style.overflow;
-    const prevHtmlOverflow = document.documentElement.style.overflow;
-
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-
-    const preventBackgroundScroll = (e: WheelEvent | TouchEvent) => {
-      if (modalCardRef.current && modalCardRef.current.contains(e.target as Node)) {
-        return;
-      }
-      e.preventDefault();
-    };
-
-    window.addEventListener('wheel', preventBackgroundScroll, { passive: false });
-    window.addEventListener('touchmove', preventBackgroundScroll, { passive: false });
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    }
 
     return () => {
-      document.body.style.overflow = prevBodyOverflow;
-      document.documentElement.style.overflow = prevHtmlOverflow;
-      window.removeEventListener('wheel', preventBackgroundScroll);
-      window.removeEventListener('touchmove', preventBackgroundScroll);
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
     };
   }, [isOpen]);
 
@@ -361,6 +347,8 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
       setSaving(false);
     }
   };
+
+  if (!isOpen || !template) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
