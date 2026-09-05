@@ -3,6 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "dev": "docker compose up -d",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "dev:api": "npm run dev --prefix api",
+    "dev:web": "npm run dev --prefix web"
+  },
   "dependencies": {
     "decimal.js": "^10.6.0",
     "zod": "^4.5.4"
