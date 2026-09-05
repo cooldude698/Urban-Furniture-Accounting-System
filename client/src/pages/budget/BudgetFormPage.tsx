@@ -9,18 +9,13 @@ import {
   BudgetDocumentItem,
 } from '../../api/budget.api';
 import { AnalyticsApi } from '../../api/analytics.api';
-import FormView, { btnSecondary, btnDestructive } from '../../components/ui/FormView';
-import Money from '../../components/ui/Money';
-import StatusBadge from '../../components/ui/StatusBadge';
 import {
-  GitBranch,
   ExternalLink,
   Plus,
   Trash2,
   X,
-  FileText,
-  AlertTriangle,
-  Info,
+  AlertCircle,
+  ChevronDown,
 } from 'lucide-react';
 
 export default function BudgetFormPage() {
@@ -31,11 +26,26 @@ export default function BudgetFormPage() {
   const budgetId = isNew ? 0 : parseInt(id, 10);
 
   // Form State
-  const [name, setName] = useState('');
-  const [periodStart, setPeriodStart] = useState('2026-01-01');
-  const [periodEnd, setPeriodEnd] = useState('2026-12-31');
+  const [name, setName] = useState('January 2026');
+  const [periodStart, setPeriodStart] = useState('01/01/2026');
+  const [periodEnd, setPeriodEnd] = useState('31/01/2026');
+  const [revisedWith, setRevisedWith] = useState('Revised Budget');
   const [responsibleName, setResponsibleName] = useState('Administrator');
-  const [lines, setLines] = useState<BudgetLine[]>([]);
+  const [lines, setLines] = useState<BudgetLine[]>([
+    {
+      analytic_account_id: 1,
+      analytic_account_name: 'Furniture',
+      analytic_type: 'expense',
+      committed_amount: '200000',
+      achieved_amount: '10000',
+      achieved_pct: 5,
+      amount_to_achieve: '190000',
+    },
+  ]);
+
+  // UI state
+  const [hoveredBtn, setHoveredBtn] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // Achieved drill-down modal state
   const [activeDocLine, setActiveDocLine] = useState<BudgetLine | null>(null);
@@ -43,7 +53,7 @@ export default function BudgetFormPage() {
   const [isDocsLoading, setIsDocsLoading] = useState(false);
 
   // Fetch Budget Details
-  const { data: budget, isLoading } = useQuery<Budget | null>({
+  const { data: budget } = useQuery<Budget | null>({
     queryKey: ['budget', budgetId],
     queryFn: () => BudgetApi.getById(budgetId),
     enabled: !isNew && !isNaN(budgetId),
@@ -55,28 +65,54 @@ export default function BudgetFormPage() {
     queryFn: () => AnalyticsApi.getAll(false),
   });
 
+  // Helper date formatters
+  const toDisplayDate = (val?: string) => {
+    if (!val) return '';
+    if (val.includes('/')) return val;
+    const parts = val.split('T')[0].split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return val;
+  };
+
+  const toIsoDate = (val?: string) => {
+    if (!val) return '2026-01-01';
+    if (val.includes('/')) {
+      const parts = val.split('/');
+      if (parts.length === 3) {
+        return `${parts[2]}-${parts[1]}-${parts[0]}`;
+      }
+    }
+    return val;
+  };
+
   // Sync loaded budget to local form state
   useEffect(() => {
     if (budget && !isNew) {
       setName(budget.name);
-      setPeriodStart(budget.period_start);
-      setPeriodEnd(budget.period_end);
+      setPeriodStart(toDisplayDate(budget.period_start));
+      setPeriodEnd(toDisplayDate(budget.period_end));
       setResponsibleName(budget.responsible_name || 'Administrator');
-      setLines(budget.lines || []);
+      setRevisedWith(budget.revised_by_name || 'Revised Budget');
+      if (budget.lines && budget.lines.length > 0) {
+        setLines(budget.lines);
+      }
     } else if (isNew) {
-      setName('');
-      setPeriodStart('2026-01-01');
-      setPeriodEnd('2026-12-31');
+      setName('January 2026');
+      setPeriodStart('01/01/2026');
+      setPeriodEnd('31/01/2026');
+      setRevisedWith('Revised Budget');
       setResponsibleName('Administrator');
       setLines([
         {
           analytic_account_id: 1,
-          analytic_account_name: 'Showroom Operations',
+          analytic_account_name: 'Furniture',
           analytic_type: 'expense',
-          committed_amount: '100000.00',
-          achieved_amount: '0.00',
-          achieved_pct: 0,
-          amount_to_achieve: '100000.00',
+          committed_amount: '200000',
+          achieved_amount: '10000',
+          achieved_pct: 5,
+          amount_to_achieve: '190000',
         },
       ]);
     }
@@ -89,6 +125,9 @@ export default function BudgetFormPage() {
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       navigate(`/account/budgets/${created.id}`);
     },
+    onError: (err: any) => {
+      setError(err.message || 'Failed to create budget');
+    },
   });
 
   const confirmMutation = useMutation({
@@ -96,6 +135,9 @@ export default function BudgetFormPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['budget', budgetId] });
+    },
+    onError: (err: any) => {
+      setError(err.message || 'Failed to confirm budget');
     },
   });
 
@@ -105,6 +147,9 @@ export default function BudgetFormPage() {
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['budget', budgetId] });
     },
+    onError: (err: any) => {
+      setError(err.message || 'Failed to cancel budget');
+    },
   });
 
   const reviseMutation = useMutation({
@@ -113,55 +158,72 @@ export default function BudgetFormPage() {
       queryClient.invalidateQueries({ queryKey: ['budgets'] });
       queryClient.invalidateQueries({ queryKey: ['budget', budgetId] });
       queryClient.invalidateQueries({ queryKey: ['budget', revised.id] });
-      // Navigate to the revised copy
       navigate(`/account/budgets/${revised.id}`);
     },
+    onError: (err: any) => {
+      setError(err.message || 'Failed to revise budget');
+    },
   });
+
+  // Current status
+  const currentStatus = isNew ? 'draft' : budget?.status || 'draft';
+  const isConfirmed = currentStatus === 'confirmed';
+  const isDraft = isNew || currentStatus === 'draft';
+  const isRevised = currentStatus === 'revised';
+  const isCancelled = currentStatus === 'cancelled';
 
   // Line calculations using Decimal.js
   const handleCommittedChange = (index: number, val: string) => {
     const updated = [...lines];
-    const item = updated[index];
+    const item = { ...updated[index] };
     item.committed_amount = val;
 
     try {
       const comm = new Decimal(val || '0');
       const ach = new Decimal(item.achieved_amount || '0');
       item.achieved_pct = comm.isZero() ? 0 : Math.round(ach.dividedBy(comm).toNumber() * 10000) / 100;
-      item.amount_to_achieve = comm.minus(ach).toFixed(2);
+      item.amount_to_achieve = comm.minus(ach).toFixed(0);
     } catch {
-      // ignore parse err
+      // ignore
     }
+    updated[index] = item;
     setLines(updated);
   };
 
   const handleAnalyticChange = (index: number, analyticId: number) => {
     const updated = [...lines];
+    const item = { ...updated[index] };
     const selected = analytics.find((a: any) => a.id === analyticId);
-    updated[index].analytic_account_id = analyticId;
+    item.analytic_account_id = analyticId;
     if (selected) {
-      updated[index].analytic_account_name = selected.name;
-      updated[index].analytic_type = selected.type as 'income' | 'expense';
+      item.analytic_account_name = selected.name;
+      item.analytic_type = selected.type as 'income' | 'expense';
     }
+    updated[index] = item;
     setLines(updated);
   };
 
   const handleAddLine = () => {
+    const fallbackId = analytics[0]?.id || 1;
+    const fallbackName = analytics[0]?.name || 'Furniture';
+    const fallbackType = (analytics[0]?.type as any) || 'expense';
+
     setLines([
       ...lines,
       {
-        analytic_account_id: analytics[0]?.id || 1,
-        analytic_account_name: analytics[0]?.name || 'Showroom Operations',
-        analytic_type: (analytics[0]?.type as any) || 'expense',
-        committed_amount: '50000.00',
-        achieved_amount: '0.00',
+        analytic_account_id: fallbackId,
+        analytic_account_name: fallbackName,
+        analytic_type: fallbackType,
+        committed_amount: '100000',
+        achieved_amount: '0',
         achieved_pct: 0,
-        amount_to_achieve: '50000.00',
+        amount_to_achieve: '100000',
       },
     ]);
   };
 
   const handleRemoveLine = (index: number) => {
+    if (lines.length <= 1) return;
     setLines(lines.filter((_, i) => i !== index));
   };
 
@@ -179,461 +241,364 @@ export default function BudgetFormPage() {
     }
   };
 
-  const handleSave = () => {
+  const handleConfirm = () => {
+    setError(null);
     if (!name.trim()) {
-      alert('Please provide a budget name.');
+      setError('Please provide a budget name');
       return;
     }
-    createMutation.mutate({
-      name,
-      period_start: periodStart,
-      period_end: periodEnd,
-      responsible_name: responsibleName,
-      lines: lines.map((l) => ({
-        analytic_account_id: l.analytic_account_id,
-        analytic_account_name: l.analytic_account_name,
-        analytic_type: l.analytic_type,
-        committed_amount: l.committed_amount,
-      })),
-    });
+
+    if (isNew) {
+      createMutation.mutate({
+        name: name.trim(),
+        period_start: toIsoDate(periodStart),
+        period_end: toIsoDate(periodEnd),
+        responsible_name: responsibleName,
+        lines: lines.map((l) => ({
+          analytic_account_id: l.analytic_account_id,
+          analytic_account_name: l.analytic_account_name,
+          analytic_type: l.analytic_type,
+          committed_amount: l.committed_amount,
+        })),
+      });
+    } else if (isDraft) {
+      confirmMutation.mutate();
+    }
   };
 
-  const isConfirmed = budget?.status === 'confirmed';
-  const isDraft = isNew || budget?.status === 'draft';
-  const isRevised = budget?.status === 'revised';
-  const isCancelled = budget?.status === 'cancelled';
+  const handleRevise = () => {
+    setError(null);
+    if (isConfirmed) {
+      reviseMutation.mutate();
+    } else {
+      setError('Only confirmed budgets can be revised.');
+    }
+  };
 
-  // Calculate overall totals
-  const totalCommitted = lines
-    .reduce((acc, l) => acc.plus(new Decimal(l.committed_amount || '0')), new Decimal(0))
-    .toFixed(2);
-  const totalAchieved = lines
-    .reduce((acc, l) => acc.plus(new Decimal(l.achieved_amount || '0')), new Decimal(0))
-    .toFixed(2);
-  const totalAmountToAchieve = lines
-    .reduce((acc, l) => acc.plus(new Decimal(l.amount_to_achieve || '0')), new Decimal(0))
-    .toFixed(2);
+  const handleCancel = () => {
+    setError(null);
+    if (!isNew && (isDraft || isConfirmed)) {
+      if (window.confirm('Are you sure you want to cancel this budget?')) {
+        cancelMutation.mutate();
+      }
+    } else if (isNew) {
+      navigate('/account/budgets');
+    }
+  };
+
+  const handleNew = () => {
+    navigate('/account/budgets/new');
+  };
+
+  // Pipeline chevron steps
+  const steps = [
+    { key: 'draft', label: 'Draft' },
+    { key: 'confirmed', label: 'Confirm' },
+    { key: 'revised', label: 'Revised' },
+    { key: 'cancelled', label: 'Cancelled' },
+  ];
 
   return (
-    <div>
-      <FormView
-        title={isNew ? 'New Analytical Budget' : budget?.name || 'Budget'}
-        onNew={() => navigate('/account/budgets/new')}
-        onConfirm={isDraft ? (isNew ? handleSave : () => confirmMutation.mutate()) : undefined}
-        onBack={() => navigate('/account/budgets')}
-        onHome={() => navigate('/dashboard')}
-        extraButtons={
-          <>
-            {/* Revise Button: Visible ONLY when status is confirmed */}
-            {isConfirmed && (
-              <button
-                type="button"
-                style={{
-                  ...btnSecondary,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  borderColor: 'var(--brown-700)',
-                  fontWeight: 600,
-                }}
-                onClick={() => reviseMutation.mutate()}
-                disabled={reviseMutation.isPending}
-              >
-                <GitBranch size={14} />
-                <span>{reviseMutation.isPending ? 'Revising...' : 'Revise'}</span>
-              </button>
-            )}
+    <div style={styles.page}>
+      <div style={styles.container}>
+        {/* Wireframe Header Title: Budget (Form View of Original Budget) */}
+        <div style={styles.titleContainer}>
+          <h1 style={styles.headingTitle}>
+            Budget <span style={styles.headingSubtitle}>(Form View of Original Budget)</span>
+          </h1>
+        </div>
 
-            {/* Cancel Button */}
-            {(isDraft || isConfirmed) && !isNew && (
+        {/* Outer Card with Rounded Border */}
+        <div style={styles.card}>
+          {/* Top Bar: [New] [Confirm] [Revise] [Cancel] ... [Draft > Confirm > Revised > Cancelled] */}
+          <div style={styles.topBar}>
+            {/* Action Buttons Left */}
+            <div style={styles.leftBtnGroup}>
               <button
                 type="button"
-                style={btnDestructive}
-                onClick={() => {
-                  if (confirm('Are you sure you want to cancel this budget?')) {
-                    cancelMutation.mutate();
-                  }
+                onClick={handleNew}
+                onMouseEnter={() => setHoveredBtn('new')}
+                onMouseLeave={() => setHoveredBtn(null)}
+                style={{
+                  ...styles.wireframeBtn,
+                  ...(hoveredBtn === 'new' ? styles.wireframeBtnHover : {}),
+                }}
+              >
+                New
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={createMutation.isPending || confirmMutation.isPending}
+                onMouseEnter={() => setHoveredBtn('confirm')}
+                onMouseLeave={() => setHoveredBtn(null)}
+                style={{
+                  ...styles.confirmBtn,
+                  ...(hoveredBtn === 'confirm' ? styles.confirmBtnHover : {}),
+                  opacity: createMutation.isPending || confirmMutation.isPending ? 0.7 : 1,
+                }}
+              >
+                {createMutation.isPending || confirmMutation.isPending ? 'Confirming...' : 'Confirm'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleRevise}
+                disabled={reviseMutation.isPending}
+                onMouseEnter={() => setHoveredBtn('revise')}
+                onMouseLeave={() => setHoveredBtn(null)}
+                style={{
+                  ...styles.wireframeBtn,
+                  ...(hoveredBtn === 'revise' ? styles.wireframeBtnHover : {}),
+                  opacity: reviseMutation.isPending ? 0.7 : 1,
+                }}
+              >
+                {reviseMutation.isPending ? 'Revising...' : 'Revise'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={cancelMutation.isPending}
+                onMouseEnter={() => setHoveredBtn('cancel')}
+                onMouseLeave={() => setHoveredBtn(null)}
+                style={{
+                  ...styles.wireframeBtn,
+                  ...(hoveredBtn === 'cancel' ? styles.wireframeBtnHover : {}),
                 }}
               >
                 Cancel
               </button>
-            )}
-          </>
-        }
-        smartButtons={
-          !isNew && budget ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <StatusBadge status={budget.status} />
-            </div>
-          ) : undefined
-        }
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-6)' }}>
-          {/* ── Two-Way Revision Lineage Banners ── */}
-          {budget?.revised_of_id && (
-            <div
-              style={{
-                background: 'var(--posted-bg)',
-                border: '1px solid var(--posted)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '12px 16px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Info size={18} style={{ color: 'var(--posted)' }} />
-                <span style={{ fontSize: 13, fontFamily: 'var(--font-body)', color: 'var(--brown-900)' }}>
-                  This budget is a <strong>revision</strong> of an approved parent budget.
-                </span>
-              </div>
-              <Link
-                to={`/account/budgets/${budget.revised_of_id}`}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  fontFamily: 'var(--font-body)',
-                  color: 'var(--posted)',
-                  textDecoration: 'none',
-                }}
-              >
-                <span>View Original: {budget.revised_of_name || `Budget #${budget.revised_of_id}`}</span>
-                <ExternalLink size={13} />
-              </Link>
-            </div>
-          )}
-
-          {budget?.revised_by_id && (
-            <div
-              style={{
-                background: 'var(--warning-bg)',
-                border: '1px dashed var(--warning)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '12px 16px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <AlertTriangle size={18} style={{ color: 'var(--warning)' }} />
-                <span style={{ fontSize: 13, fontFamily: 'var(--font-body)', color: 'var(--brown-900)' }}>
-                  This budget has been superseded and <strong>revised</strong> by a new record.
-                </span>
-              </div>
-              <Link
-                to={`/account/budgets/${budget.revised_by_id}`}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  fontFamily: 'var(--font-body)',
-                  color: 'var(--brown-900)',
-                  textDecoration: 'none',
-                }}
-              >
-                <span>View Revision: {budget.revised_by_name || `Budget #${budget.revised_by_id}`}</span>
-                <ExternalLink size={13} />
-              </Link>
-            </div>
-          )}
-
-          {/* ── Form Fields (Header) ── */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-              gap: 'var(--space-4)',
-              background: 'var(--cream)',
-              padding: 'var(--space-4)',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid rgba(208, 174, 146, 0.3)',
-            }}
-          >
-            {/* Name */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--brown-700)', fontFamily: 'var(--font-body)' }}>
-                Budget Name *
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                disabled={!isDraft}
-                placeholder="e.g. FY2026 Showroom Budget"
-                style={{
-                  fontFamily: 'var(--font-body)',
-                  fontSize: 14,
-                  padding: '8px 12px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--brown-300)',
-                  background: isDraft ? 'var(--surface)' : 'rgba(235, 215, 190, 0.4)',
-                  color: 'var(--brown-900)',
-                  outline: 'none',
-                }}
-              />
             </div>
 
-            {/* Responsible User */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--brown-700)', fontFamily: 'var(--font-body)' }}>
-                Responsible
-              </label>
-              <input
-                type="text"
-                value={responsibleName}
-                onChange={(e) => setResponsibleName(e.target.value)}
-                disabled={!isDraft}
-                style={{
-                  fontFamily: 'var(--font-body)',
-                  fontSize: 14,
-                  padding: '8px 12px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--brown-300)',
-                  background: isDraft ? 'var(--surface)' : 'rgba(235, 215, 190, 0.4)',
-                  color: 'var(--brown-900)',
-                  outline: 'none',
-                }}
-              />
-            </div>
+            {/* Status Chevron Pipeline Right */}
+            <div style={styles.chevronRibbon}>
+              {steps.map((step, idx) => {
+                const isActive =
+                  currentStatus === step.key ||
+                  (step.key === 'confirmed' && currentStatus === 'confirmed');
 
-            {/* Period Start */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--brown-700)', fontFamily: 'var(--font-body)' }}>
-                Period Start *
-              </label>
-              <input
-                type="date"
-                value={periodStart}
-                onChange={(e) => setPeriodStart(e.target.value)}
-                disabled={!isDraft}
-                style={{
-                  fontFamily: 'var(--font-body)',
-                  fontSize: 14,
-                  padding: '8px 12px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--brown-300)',
-                  background: isDraft ? 'var(--surface)' : 'rgba(235, 215, 190, 0.4)',
-                  color: 'var(--brown-900)',
-                  outline: 'none',
-                }}
-              />
-            </div>
-
-            {/* Period End */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--brown-700)', fontFamily: 'var(--font-body)' }}>
-                Period End *
-              </label>
-              <input
-                type="date"
-                value={periodEnd}
-                onChange={(e) => setPeriodEnd(e.target.value)}
-                disabled={!isDraft}
-                style={{
-                  fontFamily: 'var(--font-body)',
-                  fontSize: 14,
-                  padding: '8px 12px',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--brown-300)',
-                  background: isDraft ? 'var(--surface)' : 'rgba(235, 215, 190, 0.4)',
-                  color: 'var(--brown-900)',
-                  outline: 'none',
-                }}
-              />
+                return (
+                  <div
+                    key={step.key}
+                    style={{
+                      ...styles.chevronItem,
+                      ...(isActive ? styles.chevronItemActive : {}),
+                      ...(idx === 0 ? styles.chevronFirst : {}),
+                      ...(idx === steps.length - 1 ? styles.chevronLast : {}),
+                    }}
+                  >
+                    <span style={styles.chevronText}>{step.label}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
-          {/* ── Budget Line Grid ── */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: 'var(--brown-900)', margin: 0 }}>
-                Budget Lines & Progress
-              </h3>
-              {isDraft && (
-                <button
-                  type="button"
-                  onClick={handleAddLine}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    fontSize: 12,
-                    fontFamily: 'var(--font-body)',
-                    fontWeight: 600,
-                    color: 'var(--brown-900)',
-                    background: 'var(--surface)',
-                    border: '1px solid var(--brown-300)',
-                    padding: '4px 10px',
-                    borderRadius: 'var(--radius-sm)',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <Plus size={13} />
-                  <span>Add Line</span>
-                </button>
-              )}
+          {/* Error Banner */}
+          {error && (
+            <div style={styles.errorAlert}>
+              <AlertCircle size={16} />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* Form Fields: Two Columns */}
+          <div style={styles.formGrid}>
+            {/* Left Column */}
+            <div style={styles.col}>
+              {/* Budget Name */}
+              <div style={styles.fieldRow}>
+                <label style={styles.fieldLabel}>Budget Name</label>
+                <div style={styles.inputWrapper}>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    disabled={!isDraft}
+                    placeholder="January 2026"
+                    style={styles.underlineInput}
+                  />
+                </div>
+              </div>
+
+              {/* Budget Period */}
+              <div style={styles.fieldRow}>
+                <label style={styles.fieldLabel}>Budget Period</label>
+                <div style={styles.periodInputsWrapper}>
+                  <input
+                    type="text"
+                    value={periodStart}
+                    onChange={(e) => setPeriodStart(e.target.value)}
+                    disabled={!isDraft}
+                    placeholder="Start Date"
+                    style={styles.periodUnderlineInput}
+                  />
+                  <span style={styles.periodToText}>To</span>
+                  <input
+                    type="text"
+                    value={periodEnd}
+                    onChange={(e) => setPeriodEnd(e.target.value)}
+                    disabled={!isDraft}
+                    placeholder="End Date"
+                    style={styles.periodUnderlineInput}
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* Table */}
-            <div style={{ overflowX: 'auto', border: '1px solid rgba(208, 174, 146, 0.4)', borderRadius: 'var(--radius-sm)' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            {/* Right Column */}
+            <div style={styles.col}>
+              {/* Revised With */}
+              <div style={styles.fieldRow}>
+                <label style={styles.fieldLabel}>Revised With</label>
+                <div style={styles.inputWrapper}>
+                  {budget?.revised_by_id ? (
+                    <Link
+                      to={`/account/budgets/${budget.revised_by_id}`}
+                      style={{
+                        ...styles.underlineInput,
+                        display: 'block',
+                        textDecoration: 'none',
+                        color: '#9B2C2C',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {budget.revised_by_name || 'Revised Budget'}
+                    </Link>
+                  ) : (
+                    <input
+                      type="text"
+                      value={revisedWith}
+                      onChange={(e) => setRevisedWith(e.target.value)}
+                      disabled={!isDraft}
+                      placeholder="Revised Budget"
+                      style={styles.underlineInput}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Responsible */}
+              <div style={styles.fieldRow}>
+                <label style={styles.fieldLabel}>Responsible</label>
+                <div style={styles.inputWrapper}>
+                  <input
+                    type="text"
+                    value={responsibleName}
+                    onChange={(e) => setResponsibleName(e.target.value)}
+                    disabled={!isDraft}
+                    placeholder="Responsible Person"
+                    style={styles.underlineInput}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Table Section */}
+          <div style={styles.tableSection}>
+            <div style={styles.tableWrapper}>
+              <table style={styles.table}>
                 <thead>
-                  <tr style={{ background: 'var(--brown-100)', height: 38, borderBottom: '1px solid var(--brown-300)' }}>
-                    <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', fontFamily: 'var(--font-body)', textTransform: 'uppercase' }}>
-                      Analytic
-                    </th>
-                    <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', width: 90 }}>
-                      Type
-                    </th>
-                    <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', textAlign: 'right', width: 140 }}>
-                      Committed
-                    </th>
-                    <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', textAlign: 'right', width: 140 }}>
-                      Achieved
-                    </th>
-                    <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', textAlign: 'right', width: 110 }}>
-                      Achieved %
-                    </th>
-                    <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', fontFamily: 'var(--font-body)', textTransform: 'uppercase', textAlign: 'right', width: 150 }}>
-                      Amount to Achieve
-                    </th>
-                    {isDraft && <th style={{ width: 44 }} />}
+                  <tr style={styles.headerRow}>
+                    <th style={{ ...styles.th, width: '22%' }}>Analytic</th>
+                    <th style={{ ...styles.th, width: '15%' }}>Type</th>
+                    <th style={{ ...styles.th, width: '18%', textAlign: 'right' }}>Committed Amount</th>
+                    <th style={{ ...styles.th, width: '15%', textAlign: 'right' }}>Achieved Amount</th>
+                    <th style={{ ...styles.th, width: '14%', textAlign: 'right' }}>Achieved %</th>
+                    <th style={{ ...styles.th, width: '16%', textAlign: 'right' }}>Amount To Achieve</th>
+                    {isDraft && <th style={{ width: 40 }} />}
                   </tr>
                 </thead>
                 <tbody>
                   {lines.map((line, idx) => (
-                    <tr
-                      key={idx}
-                      style={{
-                        height: 44,
-                        borderBottom: '1px solid rgba(208, 174, 146, 0.25)',
-                        background: idx % 2 === 1 ? 'rgba(249, 242, 228, 0.3)' : 'var(--surface)',
-                      }}
-                    >
+                    <tr key={idx} style={styles.bodyRow}>
                       {/* Analytic */}
-                      <td style={{ padding: '0 12px' }}>
+                      <td style={styles.td}>
                         {isDraft ? (
-                          <select
-                            value={line.analytic_account_id}
-                            onChange={(e) => handleAnalyticChange(idx, parseInt(e.target.value, 10))}
-                            style={{
-                              fontFamily: 'var(--font-body)',
-                              fontSize: 13,
-                              padding: '5px 8px',
-                              border: '1px solid var(--brown-300)',
-                              borderRadius: 'var(--radius-sm)',
-                              background: 'var(--surface)',
-                              color: 'var(--brown-900)',
-                              width: '100%',
-                            }}
-                          >
-                            {analytics.length > 0 ? (
-                              analytics.map((a: any) => (
-                                <option key={a.id} value={a.id}>
-                                  {a.name} ({a.type})
-                                </option>
-                              ))
-                            ) : (
-                              <>
-                                <option value={1}>Showroom Operations (expense)</option>
-                                <option value={2}>Online Sales Marketing (income)</option>
-                                <option value={3}>Warehouse & Logistics (expense)</option>
-                                <option value={4}>Custom Interior Projects (income)</option>
-                              </>
-                            )}
-                          </select>
+                          <div style={styles.inlineSelectWrapper}>
+                            <select
+                              value={line.analytic_account_id}
+                              onChange={(e) => handleAnalyticChange(idx, parseInt(e.target.value, 10))}
+                              style={styles.inlineSelect}
+                            >
+                              {analytics.length > 0 ? (
+                                analytics.map((a: any) => (
+                                  <option key={a.id} value={a.id}>
+                                    {a.name}
+                                  </option>
+                                ))
+                              ) : (
+                                <>
+                                  <option value={1}>Furniture</option>
+                                  <option value={2}>Online Sales Marketing</option>
+                                  <option value={3}>Warehouse & Logistics</option>
+                                </>
+                              )}
+                            </select>
+                            <ChevronDown size={14} style={styles.inlineSelectArrow} />
+                          </div>
                         ) : (
-                          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--brown-900)', fontFamily: 'var(--font-body)' }}>
-                            {line.analytic_account_name || `Analytic #${line.analytic_account_id}`}
-                          </span>
+                          <span>{line.analytic_account_name || 'Furniture'}</span>
                         )}
                       </td>
 
                       {/* Type */}
-                      <td style={{ padding: '0 12px', fontSize: 12, color: 'var(--brown-700)', textTransform: 'capitalize' }}>
-                        {line.analytic_type}
+                      <td style={styles.td}>
+                        <span style={styles.typeText}>{line.analytic_type || 'Expense'}</span>
                       </td>
 
                       {/* Committed Amount */}
-                      <td style={{ padding: '0 12px', textAlign: 'right' }}>
+                      <td style={{ ...styles.td, textAlign: 'right' }}>
                         {isDraft ? (
                           <input
                             type="text"
                             value={line.committed_amount}
                             onChange={(e) => handleCommittedChange(idx, e.target.value)}
-                            style={{
-                              fontFamily: 'var(--font-mono)',
-                              fontSize: 13,
-                              textAlign: 'right',
-                              padding: '4px 8px',
-                              border: '1px solid var(--brown-300)',
-                              borderRadius: 'var(--radius-sm)',
-                              width: '100%',
-                              background: 'var(--surface)',
-                              color: 'var(--brown-900)',
-                            }}
+                            style={styles.inlineAmountInput}
                           />
                         ) : (
-                          <Money value={line.committed_amount} />
+                          <span>{line.committed_amount}</span>
                         )}
                       </td>
 
-                      {/* Achieved Amount: BUTTON that opens documents list */}
-                      <td style={{ padding: '0 12px', textAlign: 'right' }}>
+                      {/* Achieved Amount */}
+                      <td style={{ ...styles.td, textAlign: 'right' }}>
                         <button
                           type="button"
                           onClick={() => handleOpenDocuments(line)}
-                          title="Click to view related invoices and bills in period"
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 4,
-                            background: 'rgba(95, 112, 82, 0.1)',
-                            border: '1px solid var(--posted)',
-                            color: 'var(--posted)',
-                            padding: '3px 8px',
-                            borderRadius: 'var(--radius-sm)',
-                            cursor: 'pointer',
-                            fontSize: 12,
-                            fontWeight: 600,
-                            transition: 'background 150ms ease-out',
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'var(--posted-bg)';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'rgba(95, 112, 82, 0.1)';
-                          }}
+                          title="Click to view related invoices and bills"
+                          style={styles.achievedBtn}
                         >
-                          <Money value={line.achieved_amount} />
-                          <ExternalLink size={11} />
+                          <span>{line.achieved_amount}</span>
+                          <ExternalLink size={11} style={{ opacity: 0.6 }} />
                         </button>
                       </td>
 
                       {/* Achieved % */}
-                      <td style={{ padding: '0 12px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--brown-900)' }}>
-                        {line.achieved_pct.toFixed(2)}%
+                      <td style={{ ...styles.td, textAlign: 'right' }}>
+                        <span>
+                          {typeof line.achieved_pct === 'number'
+                            ? `${Math.round(line.achieved_pct)}%`
+                            : `${line.achieved_pct}%`}
+                        </span>
                       </td>
 
-                      {/* Amount to Achieve */}
-                      <td style={{ padding: '0 12px', textAlign: 'right' }}>
-                        <Money value={line.amount_to_achieve} />
+                      {/* Amount To Achieve */}
+                      <td style={{ ...styles.td, textAlign: 'right' }}>
+                        <span>{line.amount_to_achieve}</span>
                       </td>
 
-                      {/* Remove Row */}
+                      {/* Remove Line */}
                       {isDraft && (
-                        <td style={{ padding: '0 8px', textAlign: 'center' }}>
+                        <td style={{ ...styles.td, textAlign: 'center' }}>
                           <button
                             type="button"
                             onClick={() => handleRemoveLine(idx)}
-                            style={{ background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: 4 }}
+                            style={styles.removeRowBtn}
+                            title="Remove row"
                           >
                             <Trash2 size={14} />
                           </button>
@@ -642,88 +607,40 @@ export default function BudgetFormPage() {
                     </tr>
                   ))}
                 </tbody>
-
-                {/* Totals Footer */}
-                <tfoot>
-                  <tr style={{ background: 'var(--brown-100)', height: 42, fontWeight: 700, borderTop: '2px solid var(--brown-300)' }}>
-                    <td colSpan={2} style={{ padding: '0 12px', fontSize: 12, color: 'var(--brown-900)', fontFamily: 'var(--font-body)', textTransform: 'uppercase' }}>
-                      Total
-                    </td>
-                    <td style={{ padding: '0 12px', textAlign: 'right' }}>
-                      <Money value={totalCommitted} />
-                    </td>
-                    <td style={{ padding: '0 12px', textAlign: 'right' }}>
-                      <Money value={totalAchieved} />
-                    </td>
-                    <td style={{ padding: '0 12px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13 }}>
-                      {new Decimal(totalCommitted).isZero()
-                        ? '0.00%'
-                        : `${new Decimal(totalAchieved).dividedBy(new Decimal(totalCommitted)).times(100).toFixed(2)}%`}
-                    </td>
-                    <td style={{ padding: '0 12px', textAlign: 'right' }}>
-                      <Money value={totalAmountToAchieve} />
-                    </td>
-                    {isDraft && <td />}
-                  </tr>
-                </tfoot>
               </table>
             </div>
+
+            {/* Add Line if draft */}
+            {isDraft && (
+              <div style={styles.addLineContainer}>
+                <button
+                  type="button"
+                  onClick={handleAddLine}
+                  style={styles.addLineBtn}
+                >
+                  <Plus size={14} />
+                  <span>Add Line</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
-      </FormView>
+      </div>
 
       {/* ── Achieved Documents Modal ── */}
       {activeDocLine && (
         <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 200,
-            background: 'rgba(74, 58, 52, 0.4)',
-            backdropFilter: 'blur(2px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: 16,
-          }}
+          style={styles.modalBackdrop}
           onClick={() => setActiveDocLine(null)}
         >
           <div
-            style={{
-              background: 'var(--surface)',
-              borderRadius: 'var(--radius-md)',
-              boxShadow: 'var(--shadow-lg)',
-              maxWidth: 760,
-              width: '100%',
-              overflow: 'hidden',
-              border: '1px solid rgba(208, 174, 146, 0.4)',
-            }}
+            style={styles.modalContent}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
-            <div
-              style={{
-                padding: '16px 20px',
-                borderBottom: '1px solid rgba(208, 174, 146, 0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                background: 'var(--cream)',
-              }}
-            >
+            <div style={styles.modalHeader}>
               <div>
-                <h3
-                  style={{
-                    fontFamily: 'var(--font-display)',
-                    fontWeight: 700,
-                    fontSize: 16,
-                    color: 'var(--brown-900)',
-                    margin: 0,
-                  }}
-                >
-                  Achieved Invoices & Vendor Bills
-                </h3>
-                <p style={{ margin: 0, fontSize: 12, color: 'var(--brown-700)', marginTop: 2 }}>
+                <h3 style={styles.modalTitle}>Achieved Invoices & Vendor Bills</h3>
+                <p style={styles.modalSubtitle}>
                   Analytic Account:{' '}
                   <strong>{activeDocLine.analytic_account_name || `Analytic #${activeDocLine.analytic_account_id}`}</strong>{' '}
                   ({periodStart} to {periodEnd})
@@ -732,94 +649,54 @@ export default function BudgetFormPage() {
               <button
                 type="button"
                 onClick={() => setActiveDocLine(null)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--brown-700)', cursor: 'pointer' }}
+                style={styles.modalCloseBtn}
               >
                 <X size={18} />
               </button>
             </div>
 
-            {/* Modal Body */}
-            <div style={{ padding: 20, maxHeight: 400, overflowY: 'auto' }}>
+            <div style={styles.modalBody}>
               {isDocsLoading ? (
-                <div style={{ textAlign: 'center', padding: 32, color: 'var(--brown-700)', fontSize: 13 }}>
-                  Loading related documents...
-                </div>
+                <div style={styles.modalLoading}>Loading related documents...</div>
               ) : docList.length > 0 ? (
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                <table style={styles.modalTable}>
                   <thead>
-                    <tr style={{ background: 'var(--brown-100)', height: 36, borderBottom: '1px solid var(--brown-300)' }}>
-                      <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)' }}>Date</th>
-                      <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)' }}>Type</th>
-                      <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)' }}>Doc #</th>
-                      <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)' }}>Partner</th>
-                      <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textAlign: 'right' }}>Amount</th>
-                      <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textAlign: 'center' }}>Status</th>
+                    <tr style={styles.modalTableHead}>
+                      <th style={styles.modalTh}>Date</th>
+                      <th style={styles.modalTh}>Type</th>
+                      <th style={styles.modalTh}>Doc #</th>
+                      <th style={styles.modalTh}>Partner</th>
+                      <th style={{ ...styles.modalTh, textAlign: 'right' }}>Amount</th>
+                      <th style={{ ...styles.modalTh, textAlign: 'center' }}>Status</th>
                     </tr>
                   </thead>
                   <tbody>
                     {docList.map((doc) => (
-                      <tr key={doc.id} style={{ height: 40, borderBottom: '1px solid rgba(208, 174, 146, 0.2)' }}>
-                        <td style={{ padding: '0 12px', fontSize: 12, color: 'var(--brown-700)' }}>{doc.date}</td>
-                        <td style={{ padding: '0 12px', fontSize: 12, color: 'var(--brown-900)', textTransform: 'capitalize' }}>
-                          {doc.type}
-                        </td>
-                        <td style={{ padding: '0 12px', fontSize: 12, fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
-                          {doc.number}
-                        </td>
-                        <td style={{ padding: '0 12px', fontSize: 12, color: 'var(--brown-900)' }}>{doc.partner}</td>
-                        <td style={{ padding: '0 12px', textAlign: 'right' }}>
-                          <Money value={doc.amount} />
-                        </td>
-                        <td style={{ padding: '0 12px', textAlign: 'center' }}>
-                          <span
-                            style={{
-                              fontSize: 10,
-                              fontWeight: 600,
-                              textTransform: 'uppercase',
-                              padding: '2px 6px',
-                              borderRadius: 4,
-                              background: 'var(--posted-bg)',
-                              color: 'var(--posted)',
-                            }}
-                          >
-                            {doc.status}
-                          </span>
+                      <tr key={doc.id} style={styles.modalTr}>
+                        <td style={styles.modalTd}>{doc.date}</td>
+                        <td style={{ ...styles.modalTd, textTransform: 'capitalize' }}>{doc.type}</td>
+                        <td style={{ ...styles.modalTd, fontWeight: 600 }}>{doc.number}</td>
+                        <td style={styles.modalTd}>{doc.partner}</td>
+                        <td style={{ ...styles.modalTd, textAlign: 'right' }}>{doc.amount}</td>
+                        <td style={{ ...styles.modalTd, textAlign: 'center' }}>
+                          <span style={styles.modalStatusBadge}>{doc.status}</span>
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               ) : (
-                <div style={{ textAlign: 'center', padding: 32, color: 'var(--brown-700)', fontSize: 13 }}>
+                <div style={styles.modalEmpty}>
                   No customer invoices or vendor bills recorded for this analytic account within the period.
                 </div>
               )}
             </div>
 
-            {/* Modal Footer */}
-            <div
-              style={{
-                padding: '12px 20px',
-                background: 'var(--cream)',
-                borderTop: '1px solid rgba(208, 174, 146, 0.3)',
-                display: 'flex',
-                justifyContent: 'flex-end',
-              }}
-            >
+            <div style={styles.modalFooter}>
               <button
                 type="button"
                 onClick={() => setActiveDocLine(null)}
-                style={{
-                  padding: '6px 14px',
-                  fontSize: 13,
-                  fontFamily: 'var(--font-body)',
-                  fontWeight: 500,
-                  color: 'var(--brown-900)',
-                  background: 'var(--surface)',
-                  border: '1px solid var(--brown-300)',
-                  borderRadius: 'var(--radius-sm)',
-                  cursor: 'pointer',
-                }}
+                style={styles.modalCloseButton}
               >
                 Close
               </button>
@@ -830,3 +707,509 @@ export default function BudgetFormPage() {
     </div>
   );
 }
+
+const styles = {
+  page: {
+    minHeight: '100%',
+    width: '100%',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    background: 'var(--cream, #F9F2E4)',
+    padding: '36px 20px 48px 20px',
+    fontFamily: '"DM Sans", var(--font-body), sans-serif',
+  } as React.CSSProperties,
+
+  container: {
+    width: '100%',
+    maxWidth: 980,
+  } as React.CSSProperties,
+
+  titleContainer: {
+    marginBottom: 22,
+    textAlign: 'center' as const,
+  } as React.CSSProperties,
+
+  headingTitle: {
+    fontFamily: '"Montserrat", var(--font-display), sans-serif',
+    fontWeight: 700,
+    fontSize: 24,
+    color: '#D97706',
+    margin: 0,
+    letterSpacing: '-0.01em',
+  } as React.CSSProperties,
+
+  headingSubtitle: {
+    fontFamily: '"DM Sans", var(--font-body), sans-serif',
+    fontWeight: 500,
+    fontSize: 18,
+    color: '#D97706',
+    marginLeft: 6,
+  } as React.CSSProperties,
+
+  card: {
+    background: '#FFFFFF',
+    borderRadius: 24,
+    border: '1.5px solid #77574A',
+    boxShadow: '0 10px 32px rgba(74, 58, 52, 0.08)',
+    padding: '28px 36px 40px 36px',
+    width: '100%',
+  } as React.CSSProperties,
+
+  topBar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+    marginBottom: 36,
+    flexWrap: 'wrap' as const,
+  } as React.CSSProperties,
+
+  leftBtnGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+  } as React.CSSProperties,
+
+  wireframeBtn: {
+    padding: '7px 24px',
+    border: '1.5px solid #4A3A34',
+    borderRadius: 12,
+    fontFamily: '"Montserrat", var(--font-display), sans-serif',
+    fontWeight: 700,
+    fontSize: 13,
+    color: '#4A3A34',
+    background: 'transparent',
+    cursor: 'pointer',
+    transition: 'all 150ms ease',
+    outline: 'none',
+    whiteSpace: 'nowrap' as const,
+  } as React.CSSProperties,
+
+  wireframeBtnHover: {
+    background: '#4A3A34',
+    color: '#FFFFFF',
+  } as React.CSSProperties,
+
+  confirmBtn: {
+    padding: '7px 24px',
+    border: '1.5px solid #5C3A4D',
+    borderRadius: 12,
+    fontFamily: '"Montserrat", var(--font-display), sans-serif',
+    fontWeight: 700,
+    fontSize: 13,
+    color: '#FFFFFF',
+    background: '#5C3A4D',
+    cursor: 'pointer',
+    transition: 'all 150ms ease',
+    outline: 'none',
+    whiteSpace: 'nowrap' as const,
+    boxShadow: '0 2px 6px rgba(92, 58, 77, 0.25)',
+  } as React.CSSProperties,
+
+  confirmBtnHover: {
+    background: '#482B3B',
+    borderColor: '#482B3B',
+  } as React.CSSProperties,
+
+  // Status Chevron Ribbon
+  chevronRibbon: {
+    display: 'flex',
+    alignItems: 'center',
+    background: '#EAE6E1',
+    borderRadius: 6,
+    overflow: 'hidden',
+    height: 32,
+    padding: '0 4px',
+  } as React.CSSProperties,
+
+  chevronItem: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '0 16px',
+    height: '100%',
+    position: 'relative' as const,
+    cursor: 'default',
+    color: '#4A3A34',
+    background: 'transparent',
+    fontSize: 12.5,
+    fontFamily: '"Montserrat", var(--font-display), sans-serif',
+    fontWeight: 600,
+    clipPath: 'polygon(0% 0%, calc(100% - 10px) 0%, 100% 50%, calc(100% - 10px) 100%, 0% 100%, 10px 50%)',
+    marginLeft: -4,
+  } as React.CSSProperties,
+
+  chevronFirst: {
+    marginLeft: 0,
+    clipPath: 'polygon(0% 0%, calc(100% - 10px) 0%, 100% 50%, calc(100% - 10px) 100%, 0% 100%)',
+  } as React.CSSProperties,
+
+  chevronLast: {
+    clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%, 10px 50%)',
+    paddingRight: 14,
+  } as React.CSSProperties,
+
+  chevronItemActive: {
+    background: '#D9D0C5',
+    color: '#382A24',
+    fontWeight: 700,
+  } as React.CSSProperties,
+
+  chevronText: {
+    whiteSpace: 'nowrap' as const,
+  } as React.CSSProperties,
+
+  errorAlert: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    padding: '10px 14px',
+    borderRadius: 8,
+    background: '#FDF2F2',
+    border: '1px solid #F8B4B4',
+    color: '#9B1C1C',
+    fontSize: 13,
+    marginBottom: 20,
+  } as React.CSSProperties,
+
+  formGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+    gap: '24px 44px',
+    marginBottom: 36,
+  } as React.CSSProperties,
+
+  col: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 22,
+  } as React.CSSProperties,
+
+  fieldRow: {
+    display: 'flex',
+    alignItems: 'center',
+  } as React.CSSProperties,
+
+  fieldLabel: {
+    width: 140,
+    fontFamily: '"Montserrat", var(--font-display), sans-serif',
+    fontWeight: 700,
+    fontSize: 15,
+    color: '#9B2C2C',
+    flexShrink: 0,
+  } as React.CSSProperties,
+
+  inputWrapper: {
+    flex: 1,
+  } as React.CSSProperties,
+
+  underlineInput: {
+    width: '100%',
+    border: 'none',
+    borderBottom: '1.5px solid #77574A',
+    background: 'transparent',
+    padding: '6px 4px',
+    fontFamily: '"DM Sans", var(--font-body), sans-serif',
+    fontSize: 14.5,
+    color: '#382A24',
+    outline: 'none',
+  } as React.CSSProperties,
+
+  periodInputsWrapper: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+  } as React.CSSProperties,
+
+  periodUnderlineInput: {
+    width: '45%',
+    border: 'none',
+    borderBottom: '1.5px solid #77574A',
+    background: 'transparent',
+    padding: '6px 4px',
+    fontFamily: '"DM Sans", var(--font-body), sans-serif',
+    fontSize: 14.5,
+    color: '#382A24',
+    outline: 'none',
+  } as React.CSSProperties,
+
+  periodToText: {
+    fontFamily: '"Montserrat", var(--font-display), sans-serif',
+    fontWeight: 700,
+    fontSize: 14.5,
+    color: '#9B2C2C',
+    flexShrink: 0,
+  } as React.CSSProperties,
+
+  // Table Styles
+  tableSection: {
+    marginTop: 12,
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 12,
+  } as React.CSSProperties,
+
+  tableWrapper: {
+    width: '100%',
+    overflowX: 'auto' as const,
+  } as React.CSSProperties,
+
+  table: {
+    width: '100%',
+    borderCollapse: 'collapse' as const,
+  } as React.CSSProperties,
+
+  headerRow: {
+    borderBottom: '1.5px solid #4A3A34',
+  } as React.CSSProperties,
+
+  th: {
+    padding: '12px 12px',
+    fontFamily: '"Montserrat", var(--font-display), sans-serif',
+    fontWeight: 700,
+    fontSize: 14,
+    color: '#382A24',
+    letterSpacing: '-0.01em',
+    whiteSpace: 'nowrap' as const,
+    textAlign: 'left' as const,
+  } as React.CSSProperties,
+
+  bodyRow: {
+    borderBottom: '1px solid #77574A',
+  } as React.CSSProperties,
+
+  td: {
+    padding: '12px 12px',
+    fontSize: 14,
+    color: '#382A24',
+    fontFamily: '"DM Sans", sans-serif',
+  } as React.CSSProperties,
+
+  typeText: {
+    textTransform: 'capitalize' as const,
+    color: '#5C453A',
+  } as React.CSSProperties,
+
+  inlineSelectWrapper: {
+    position: 'relative' as const,
+    width: '100%',
+    maxWidth: 180,
+  } as React.CSSProperties,
+
+  inlineSelect: {
+    width: '100%',
+    border: 'none',
+    borderBottom: '1px solid #77574A',
+    background: 'transparent',
+    padding: '4px 20px 4px 0',
+    fontFamily: '"DM Sans", sans-serif',
+    fontSize: 14,
+    color: '#382A24',
+    outline: 'none',
+    cursor: 'pointer',
+    appearance: 'none' as const,
+    WebkitAppearance: 'none' as const,
+  } as React.CSSProperties,
+
+  inlineSelectArrow: {
+    position: 'absolute' as const,
+    right: 4,
+    top: '50%',
+    transform: 'translateY(-50%)',
+    pointerEvents: 'none' as const,
+    color: '#77574A',
+  } as React.CSSProperties,
+
+  inlineAmountInput: {
+    width: '100%',
+    maxWidth: 130,
+    border: 'none',
+    borderBottom: '1px solid #77574A',
+    background: 'transparent',
+    padding: '4px',
+    textAlign: 'right' as const,
+    fontFamily: '"DM Sans", sans-serif',
+    fontSize: 14,
+    color: '#382A24',
+    outline: 'none',
+  } as React.CSSProperties,
+
+  achievedBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    background: 'transparent',
+    border: 'none',
+    color: '#382A24',
+    cursor: 'pointer',
+    padding: 0,
+    fontFamily: '"DM Sans", sans-serif',
+    fontSize: 14,
+  } as React.CSSProperties,
+
+  removeRowBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: '#9B2C2C',
+    cursor: 'pointer',
+    padding: 4,
+  } as React.CSSProperties,
+
+  addLineContainer: {
+    display: 'flex',
+    justifyContent: 'flex-start',
+    marginTop: 8,
+  } as React.CSSProperties,
+
+  addLineBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    padding: '6px 14px',
+    border: '1px solid #77574A',
+    borderRadius: 8,
+    background: '#FFFFFF',
+    color: '#4A3A34',
+    fontSize: 12.5,
+    fontWeight: 600,
+    fontFamily: '"Montserrat", var(--font-display), sans-serif',
+    cursor: 'pointer',
+  } as React.CSSProperties,
+
+  // Modal Styles
+  modalBackdrop: {
+    position: 'fixed' as const,
+    inset: 0,
+    zIndex: 200,
+    background: 'rgba(74, 58, 52, 0.4)',
+    backdropFilter: 'blur(2px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  } as React.CSSProperties,
+
+  modalContent: {
+    background: '#FFFFFF',
+    borderRadius: 16,
+    maxWidth: 760,
+    width: '100%',
+    overflow: 'hidden',
+    border: '1.5px solid #77574A',
+    boxShadow: '0 16px 40px rgba(0,0,0,0.15)',
+  } as React.CSSProperties,
+
+  modalHeader: {
+    padding: '16px 20px',
+    borderBottom: '1px solid #E4D5C7',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    background: 'var(--cream, #F9F2E4)',
+  } as React.CSSProperties,
+
+  modalTitle: {
+    fontFamily: '"Montserrat", var(--font-display), sans-serif',
+    fontWeight: 700,
+    fontSize: 16,
+    color: '#382A24',
+    margin: 0,
+  } as React.CSSProperties,
+
+  modalSubtitle: {
+    margin: '4px 0 0 0',
+    fontSize: 12,
+    color: '#77574A',
+  } as React.CSSProperties,
+
+  modalCloseBtn: {
+    background: 'transparent',
+    border: 'none',
+    color: '#77574A',
+    cursor: 'pointer',
+  } as React.CSSProperties,
+
+  modalBody: {
+    padding: 20,
+    maxHeight: 400,
+    overflowY: 'auto' as const,
+  } as React.CSSProperties,
+
+  modalLoading: {
+    textAlign: 'center' as const,
+    padding: 32,
+    color: '#77574A',
+    fontSize: 13,
+  } as React.CSSProperties,
+
+  modalEmpty: {
+    textAlign: 'center' as const,
+    padding: 32,
+    color: '#77574A',
+    fontSize: 13,
+  } as React.CSSProperties,
+
+  modalTable: {
+    width: '100%',
+    borderCollapse: 'collapse' as const,
+    textAlign: 'left' as const,
+  } as React.CSSProperties,
+
+  modalTableHead: {
+    background: '#F5EFEB',
+    height: 36,
+    borderBottom: '1px solid #E4D5C7',
+  } as React.CSSProperties,
+
+  modalTh: {
+    padding: '0 12px',
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#77574A',
+    textTransform: 'uppercase' as const,
+  } as React.CSSProperties,
+
+  modalTr: {
+    height: 40,
+    borderBottom: '1px solid #F0E8DF',
+  } as React.CSSProperties,
+
+  modalTd: {
+    padding: '0 12px',
+    fontSize: 12.5,
+    color: '#382A24',
+  } as React.CSSProperties,
+
+  modalStatusBadge: {
+    fontSize: 10,
+    fontWeight: 600,
+    textTransform: 'uppercase' as const,
+    padding: '2px 6px',
+    borderRadius: 4,
+    background: '#E8F5E9',
+    color: '#2E7D32',
+  } as React.CSSProperties,
+
+  modalFooter: {
+    padding: '12px 20px',
+    background: 'var(--cream, #F9F2E4)',
+    borderTop: '1px solid #E4D5C7',
+    display: 'flex',
+    justifyContent: 'flex-end',
+  } as React.CSSProperties,
+
+  modalCloseButton: {
+    padding: '6px 16px',
+    fontSize: 13,
+    fontFamily: '"Montserrat", var(--font-display), sans-serif',
+    fontWeight: 600,
+    color: '#382A24',
+    background: '#FFFFFF',
+    border: '1px solid #77574A',
+    borderRadius: 8,
+    cursor: 'pointer',
+  } as React.CSSProperties,
+};
