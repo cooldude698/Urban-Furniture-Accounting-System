@@ -2,6 +2,7 @@ import { PoolClient } from 'pg';
 import { pool } from '../db/pool';
 import { withTransaction } from '../db/withTransaction';
 import { SequenceService } from './sequenceService';
+import { AuditService } from './auditService';
 import Decimal from 'decimal.js';
 
 export interface POLineInput {
@@ -152,7 +153,7 @@ export class PurchaseOrderService {
     };
   }
 
-  static async create(input: CreatePOInput): Promise<PurchaseOrderDTO> {
+  static async create(input: CreatePOInput, userId?: number): Promise<PurchaseOrderDTO> {
     const createdPoId = await withTransaction(async (tx: PoolClient) => {
 
       const poNumber = await SequenceService.nextDocNumber('PO', tx);
@@ -186,12 +187,17 @@ export class PurchaseOrderService {
 
       for (const line of computedLines) {
         await tx.query(
-          `INSERT INTO purchase_order_lines 
+          `INSERT INTO purchase_order_lines
             (po_id, line_no, product_id, analytic_account_id, qty, unit_price, total)
            VALUES ($1, $2, $3, $4, $5, $6, $7)`,
           [poId, line.lineNo, line.productId, line.analyticAccountId, line.qty, line.unitPrice, line.total]
         );
       }
+
+      await AuditService.log(
+        { tableName: 'purchase_orders', recordId: poId, action: 'create', userId, afterData: { number: poNumber, vendorId: input.vendorId, total: grandTotal.toFixed(2) } },
+        tx
+      );
       return poId;
     });
 
@@ -201,7 +207,7 @@ export class PurchaseOrderService {
   }
 
 
-  static async confirm(id: number): Promise<{ po: PurchaseOrderDTO; warning?: string }> {
+  static async confirm(id: number, userId?: number): Promise<{ po: PurchaseOrderDTO; warning?: string }> {
     const po = await this.getById(id);
     if (!po) throw new Error(`Purchase order ${id} not found`);
     if (po.status !== 'draft') throw new Error(`PO #${po.number} is already ${po.status}`);
@@ -230,26 +236,32 @@ export class PurchaseOrderService {
     }
 
     // Confirm PO: No journal entry is created (AGENTS.md rule 4)
-    await pool.query(
-      "UPDATE purchase_orders SET status = 'confirmed' WHERE id = $1",
-      [id]
-    );
+    await withTransaction(async (tx) => {
+      await tx.query("UPDATE purchase_orders SET status = 'confirmed' WHERE id = $1", [id]);
+      await AuditService.log(
+        { tableName: 'purchase_orders', recordId: id, action: 'confirm', userId, afterData: { number: po.number, status: 'confirmed', budgetWarning: budgetWarning || null } },
+        tx
+      );
+    });
 
     const updated = await this.getById(id);
     return { po: updated!, warning: budgetWarning };
   }
 
-  static async cancel(id: number): Promise<PurchaseOrderDTO> {
+  static async cancel(id: number, userId?: number): Promise<PurchaseOrderDTO> {
     const po = await this.getById(id);
     if (!po) throw new Error(`Purchase order ${id} not found`);
     if (po.status === 'confirmed') {
       throw new Error(`Cannot cancel confirmed Purchase Order #${po.number}`);
     }
 
-    await pool.query(
-      "UPDATE purchase_orders SET status = 'cancelled' WHERE id = $1",
-      [id]
-    );
+    await withTransaction(async (tx) => {
+      await tx.query("UPDATE purchase_orders SET status = 'cancelled' WHERE id = $1", [id]);
+      await AuditService.log(
+        { tableName: 'purchase_orders', recordId: id, action: 'cancel', userId, afterData: { number: po.number, status: 'cancelled' } },
+        tx
+      );
+    });
 
     const updated = await this.getById(id);
     return updated!;

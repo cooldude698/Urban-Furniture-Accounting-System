@@ -3,6 +3,7 @@ import { pool } from '../db/pool';
 import { withTransaction } from '../db/withTransaction';
 import { SequenceService } from './sequenceService';
 import { PostingService } from './postingService';
+import { AuditService } from './auditService';
 import Decimal from 'decimal.js';
 
 export interface BillLineInput {
@@ -213,7 +214,7 @@ export class VendorBillService {
     };
   }
 
-  static async create(input: CreateBillInput): Promise<VendorBillDTO> {
+  static async create(input: CreateBillInput, userId?: number): Promise<VendorBillDTO> {
     const createdBillId = await withTransaction(async (tx: PoolClient) => {
 
       const billNumber = await SequenceService.nextDocNumber('BILL', tx);
@@ -302,6 +303,10 @@ export class VendorBillService {
           ]
         );
       }
+      await AuditService.log(
+        { tableName: 'vendor_bills', recordId: billId, action: 'create', userId, afterData: { number: billNumber, vendorId: input.vendorId, total: grandTotal.toFixed(2) } },
+        tx
+      );
       return billId;
     });
 
@@ -311,7 +316,7 @@ export class VendorBillService {
   }
 
 
-  static async confirm(id: number): Promise<{ bill: VendorBillDTO; warning?: string }> {
+  static async confirm(id: number, userId?: number): Promise<{ bill: VendorBillDTO; warning?: string }> {
     const warning = await withTransaction(async (tx: PoolClient) => {
       const bill = await this.getById(id);
       if (!bill) throw new Error(`Vendor bill ${id} not found`);
@@ -365,6 +370,11 @@ export class VendorBillService {
         [postResult.entryId, id]
       );
 
+      await AuditService.log(
+        { tableName: 'vendor_bills', recordId: id, action: 'confirm', userId, afterData: { number: bill.number, status: 'confirmed', journalEntryId: postResult.entryId } },
+        tx
+      );
+
       return budgetWarning;
     });
 
@@ -373,17 +383,20 @@ export class VendorBillService {
   }
 
 
-  static async cancel(id: number): Promise<VendorBillDTO> {
+  static async cancel(id: number, userId?: number): Promise<VendorBillDTO> {
     const bill = await this.getById(id);
     if (!bill) throw new Error(`Vendor bill ${id} not found`);
     if (bill.status === 'confirmed') {
       throw new Error(`Cannot cancel confirmed Vendor Bill #${bill.number}. Use an accounting reversal.`);
     }
 
-    await pool.query(
-      "UPDATE vendor_bills SET status = 'cancelled' WHERE id = $1",
-      [id]
-    );
+    await withTransaction(async (tx) => {
+      await tx.query("UPDATE vendor_bills SET status = 'cancelled' WHERE id = $1", [id]);
+      await AuditService.log(
+        { tableName: 'vendor_bills', recordId: id, action: 'cancel', userId, afterData: { number: bill.number, status: 'cancelled' } },
+        tx
+      );
+    });
 
     const updated = await this.getById(id);
     return updated!;

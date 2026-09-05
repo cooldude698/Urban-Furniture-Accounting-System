@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { PurchaseOrderService } from '../services/purchaseOrderService';
+import { AuthenticatedRequest } from '../middleware/auth';
 import { sendSuccess, sendError } from '../utils/response';
 
 export const poRouter = Router();
@@ -44,7 +45,7 @@ poRouter.post('/', async (req: Request, res: Response) => {
         unitPrice: l.unitPrice || l.unit_price,
         taxRate: l.taxRate || l.tax_rate,
       })),
-    });
+    }, (req as AuthenticatedRequest).user?.id);
     return sendSuccess(res, po, 201);
   } catch (err: any) {
     return sendError(res, 'CREATE_FAILED', err.message);
@@ -57,7 +58,7 @@ poRouter.post('/:id/confirm', async (req: Request, res: Response) => {
     const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) return sendError(res, 'INVALID_ID', 'ID must be an integer');
 
-    const result = await PurchaseOrderService.confirm(id);
+    const result = await PurchaseOrderService.confirm(id, (req as AuthenticatedRequest).user?.id);
     if (result.warning) {
       return res.status(200).json({
         data: result.po,
@@ -81,7 +82,7 @@ poRouter.post('/:id/cancel', async (req: Request, res: Response) => {
     const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) return sendError(res, 'INVALID_ID', 'ID must be an integer');
 
-    const po = await PurchaseOrderService.cancel(id);
+    const po = await PurchaseOrderService.cancel(id, (req as AuthenticatedRequest).user?.id);
     return sendSuccess(res, po);
   } catch (err: any) {
     return sendError(res, 'CANCEL_FAILED', err.message);

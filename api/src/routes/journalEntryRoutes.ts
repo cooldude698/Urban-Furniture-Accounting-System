@@ -74,14 +74,14 @@ journalEntryRouter.post('/', async (req: AuthenticatedRequest, res: Response) =>
 
 // 4. POST /api/journal-entries/:id/post
 // If SUM(debit) != SUM(credit), return error with severity 'blocking' and message "Debit and credit amounts do not match."
-journalEntryRouter.post('/:id/post', async (req: Request, res: Response) => {
+journalEntryRouter.post('/:id/post', async (req: AuthenticatedRequest, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) {
     return sendError(res, 'INVALID_ID', 'Invalid journal entry ID', 400);
   }
 
   try {
-    const result = await JournalEntryService.postEntry(id);
+    const result = await JournalEntryService.postEntry(id, req.user?.id);
     return sendSuccess(res, result);
   } catch (err: any) {
     const statusCode = err.statusCode || 400;
@@ -108,7 +108,7 @@ journalEntryRouter.post('/:id/reverse', async (req: AuthenticatedRequest, res: R
 });
 
 // 6. PUT /api/journal-entries/:id - block edit of posted entries
-journalEntryRouter.put('/:id', async (req: Request, res: Response) => {
+journalEntryRouter.put('/:id', async (req: AuthenticatedRequest, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) {
     return sendError(res, 'INVALID_ID', 'Invalid journal entry ID', 400);
@@ -120,7 +120,7 @@ journalEntryRouter.put('/:id', async (req: Request, res: Response) => {
   }
 
   try {
-    const updated = await JournalEntryService.updateDraftEntry(id, parseResult.data);
+    const updated = await JournalEntryService.updateDraftEntry(id, parseResult.data, req.user?.id);
     return sendSuccess(res, updated);
   } catch (err: any) {
     const statusCode = err.statusCode || 400;
@@ -129,14 +129,14 @@ journalEntryRouter.put('/:id', async (req: Request, res: Response) => {
 });
 
 // 7. DELETE /api/journal-entries/:id - block delete of posted entries
-journalEntryRouter.delete('/:id', async (req: Request, res: Response) => {
+journalEntryRouter.delete('/:id', async (req: AuthenticatedRequest, res: Response) => {
   const id = parseInt(req.params.id as string, 10);
   if (isNaN(id)) {
     return sendError(res, 'INVALID_ID', 'Invalid journal entry ID', 400);
   }
 
   try {
-    const result = await JournalEntryService.deleteDraftEntry(id);
+    const result = await JournalEntryService.deleteDraftEntry(id, req.user?.id);
     return sendSuccess(res, result);
   } catch (err: any) {
     const statusCode = err.statusCode || 400;

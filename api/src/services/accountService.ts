@@ -1,4 +1,6 @@
 import { pool } from '../db/pool';
+import { withTransaction } from '../db/withTransaction';
+import { AuditService } from './auditService';
 
 export interface AccountDTO {
   id: number;
@@ -60,15 +62,22 @@ export class AccountService {
     return res.rows[0] || null;
   }
 
-  static async createAccount(input: { name: string; type: string }): Promise<AccountDTO> {
-    const res = await pool.query(
-      'INSERT INTO accounts (name, type) VALUES ($1, $2) RETURNING *',
-      [input.name, input.type]
-    );
-    return res.rows[0];
+  static async createAccount(input: { name: string; type: string }, userId?: number): Promise<AccountDTO> {
+    return withTransaction(async (tx) => {
+      const res = await tx.query(
+        'INSERT INTO accounts (name, type) VALUES ($1, $2) RETURNING *',
+        [input.name, input.type]
+      );
+      const row = res.rows[0];
+      await AuditService.log(
+        { tableName: 'accounts', recordId: row.id, action: 'create', userId, afterData: row },
+        tx
+      );
+      return row;
+    });
   }
 
-  static async updateAccount(id: number, input: { name?: string; type?: string }): Promise<AccountDTO | null> {
+  static async updateAccount(id: number, input: { name?: string; type?: string }, userId?: number): Promise<AccountDTO | null> {
     const fields: string[] = [];
     const values: any[] = [];
     if (input.name) {
@@ -80,20 +89,39 @@ export class AccountService {
       fields.push(`type = $${values.length}`);
     }
     if (fields.length === 0) return this.getAccountById(id);
-    values.push(id);
-    const res = await pool.query(
-      `UPDATE accounts SET ${fields.join(', ')} WHERE id = $${values.length} RETURNING *`,
-      values
-    );
-    return res.rows[0] || null;
+    return withTransaction(async (tx) => {
+      const before = (await tx.query('SELECT * FROM accounts WHERE id = $1', [id])).rows[0] || null;
+      values.push(id);
+      const res = await tx.query(
+        `UPDATE accounts SET ${fields.join(', ')} WHERE id = $${values.length} RETURNING *`,
+        values
+      );
+      const row = res.rows[0] || null;
+      if (row) {
+        await AuditService.log(
+          { tableName: 'accounts', recordId: id, action: 'update', userId, beforeData: before, afterData: row },
+          tx
+        );
+      }
+      return row;
+    });
   }
 
-  static async archiveAccount(id: number, isArchived = true): Promise<AccountDTO | null> {
-    const res = await pool.query(
-      'UPDATE accounts SET is_archived = $1 WHERE id = $2 RETURNING *',
-      [isArchived, id]
-    );
-    return res.rows[0] || null;
+  static async archiveAccount(id: number, isArchived = true, userId?: number): Promise<AccountDTO | null> {
+    return withTransaction(async (tx) => {
+      const res = await tx.query(
+        'UPDATE accounts SET is_archived = $1 WHERE id = $2 RETURNING *',
+        [isArchived, id]
+      );
+      const row = res.rows[0] || null;
+      if (row) {
+        await AuditService.log(
+          { tableName: 'accounts', recordId: id, action: 'archive', userId, afterData: { is_archived: isArchived } },
+          tx
+        );
+      }
+      return row;
+    });
   }
 
   // --- Journals ---
@@ -128,15 +156,23 @@ export class AccountService {
     return res.rows[0] || null;
   }
 
-  static async createJournal(input: { name: string; type: string; default_account_id: number }): Promise<JournalDTO> {
-    const res = await pool.query(
-      'INSERT INTO journals (name, type, default_account_id) VALUES ($1, $2, $3) RETURNING *',
-      [input.name, input.type, input.default_account_id]
-    );
-    return this.getJournalById(res.rows[0].id) as Promise<JournalDTO>;
+  static async createJournal(input: { name: string; type: string; default_account_id: number }, userId?: number): Promise<JournalDTO> {
+    const id = await withTransaction(async (tx) => {
+      const res = await tx.query(
+        'INSERT INTO journals (name, type, default_account_id) VALUES ($1, $2, $3) RETURNING *',
+        [input.name, input.type, input.default_account_id]
+      );
+      const row = res.rows[0];
+      await AuditService.log(
+        { tableName: 'journals', recordId: row.id, action: 'create', userId, afterData: row },
+        tx
+      );
+      return row.id as number;
+    });
+    return this.getJournalById(id) as Promise<JournalDTO>;
   }
 
-  static async updateJournal(id: number, input: { name?: string; type?: string; default_account_id?: number }): Promise<JournalDTO | null> {
+  static async updateJournal(id: number, input: { name?: string; type?: string; default_account_id?: number }, userId?: number): Promise<JournalDTO | null> {
     const fields: string[] = [];
     const values: any[] = [];
     if (input.name) {
@@ -152,21 +188,39 @@ export class AccountService {
       fields.push(`default_account_id = $${values.length}`);
     }
     if (fields.length === 0) return this.getJournalById(id);
-    values.push(id);
-    const res = await pool.query(
-      `UPDATE journals SET ${fields.join(', ')} WHERE id = $${values.length} RETURNING *`,
-      values
-    );
-    if (!res.rows[0]) return null;
+    const ok = await withTransaction(async (tx) => {
+      const before = (await tx.query('SELECT * FROM journals WHERE id = $1', [id])).rows[0] || null;
+      values.push(id);
+      const res = await tx.query(
+        `UPDATE journals SET ${fields.join(', ')} WHERE id = $${values.length} RETURNING *`,
+        values
+      );
+      if (!res.rows[0]) return false;
+      await AuditService.log(
+        { tableName: 'journals', recordId: id, action: 'update', userId, beforeData: before, afterData: res.rows[0] },
+        tx
+      );
+      return true;
+    });
+    if (!ok) return null;
     return this.getJournalById(id);
   }
 
-  static async archiveJournal(id: number, isArchived = true): Promise<JournalDTO | null> {
-    const res = await pool.query(
-      'UPDATE journals SET is_archived = $1 WHERE id = $2 RETURNING *',
-      [isArchived, id]
-    );
-    return res.rows[0] || null;
+  static async archiveJournal(id: number, isArchived = true, userId?: number): Promise<JournalDTO | null> {
+    return withTransaction(async (tx) => {
+      const res = await tx.query(
+        'UPDATE journals SET is_archived = $1 WHERE id = $2 RETURNING *',
+        [isArchived, id]
+      );
+      const row = res.rows[0] || null;
+      if (row) {
+        await AuditService.log(
+          { tableName: 'journals', recordId: id, action: 'archive', userId, afterData: { is_archived: isArchived } },
+          tx
+        );
+      }
+      return row;
+    });
   }
 
   // --- Analytic Accounts ---
@@ -190,15 +244,22 @@ export class AccountService {
     return res.rows[0] || null;
   }
 
-  static async createAnalytic(input: { name: string; type: 'income' | 'expense' }): Promise<AnalyticAccountDTO> {
-    const res = await pool.query(
-      'INSERT INTO analytic_accounts (name, type) VALUES ($1, $2) RETURNING *',
-      [input.name, input.type]
-    );
-    return res.rows[0];
+  static async createAnalytic(input: { name: string; type: 'income' | 'expense' }, userId?: number): Promise<AnalyticAccountDTO> {
+    return withTransaction(async (tx) => {
+      const res = await tx.query(
+        'INSERT INTO analytic_accounts (name, type) VALUES ($1, $2) RETURNING *',
+        [input.name, input.type]
+      );
+      const row = res.rows[0];
+      await AuditService.log(
+        { tableName: 'analytic_accounts', recordId: row.id, action: 'create', userId, afterData: row },
+        tx
+      );
+      return row;
+    });
   }
 
-  static async updateAnalytic(id: number, input: { name?: string; type?: 'income' | 'expense' }): Promise<AnalyticAccountDTO | null> {
+  static async updateAnalytic(id: number, input: { name?: string; type?: 'income' | 'expense' }, userId?: number): Promise<AnalyticAccountDTO | null> {
     const fields: string[] = [];
     const values: any[] = [];
     if (input.name) {
@@ -210,19 +271,38 @@ export class AccountService {
       fields.push(`type = $${values.length}`);
     }
     if (fields.length === 0) return this.getAnalyticById(id);
-    values.push(id);
-    const res = await pool.query(
-      `UPDATE analytic_accounts SET ${fields.join(', ')} WHERE id = $${values.length} RETURNING *`,
-      values
-    );
-    return res.rows[0] || null;
+    return withTransaction(async (tx) => {
+      const before = (await tx.query('SELECT * FROM analytic_accounts WHERE id = $1', [id])).rows[0] || null;
+      values.push(id);
+      const res = await tx.query(
+        `UPDATE analytic_accounts SET ${fields.join(', ')} WHERE id = $${values.length} RETURNING *`,
+        values
+      );
+      const row = res.rows[0] || null;
+      if (row) {
+        await AuditService.log(
+          { tableName: 'analytic_accounts', recordId: id, action: 'update', userId, beforeData: before, afterData: row },
+          tx
+        );
+      }
+      return row;
+    });
   }
 
-  static async archiveAnalytic(id: number, isArchived = true): Promise<AnalyticAccountDTO | null> {
-    const res = await pool.query(
-      'UPDATE analytic_accounts SET is_archived = $1 WHERE id = $2 RETURNING *',
-      [isArchived, id]
-    );
-    return res.rows[0] || null;
+  static async archiveAnalytic(id: number, isArchived = true, userId?: number): Promise<AnalyticAccountDTO | null> {
+    return withTransaction(async (tx) => {
+      const res = await tx.query(
+        'UPDATE analytic_accounts SET is_archived = $1 WHERE id = $2 RETURNING *',
+        [isArchived, id]
+      );
+      const row = res.rows[0] || null;
+      if (row) {
+        await AuditService.log(
+          { tableName: 'analytic_accounts', recordId: id, action: 'archive', userId, afterData: { is_archived: isArchived } },
+          tx
+        );
+      }
+      return row;
+    });
   }
 }

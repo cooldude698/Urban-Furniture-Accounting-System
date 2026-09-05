@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { pool } from '../db/pool';
 import { SignupInput, LoginInput } from '../shared/schemas/auth';
 import { UserPayload } from './scope';
+import { AuditService } from './auditService';
 
 if (!process.env.JWT_SECRET) {
   throw new Error('FATAL: JWT_SECRET environment variable is required');
@@ -77,11 +78,25 @@ export class AuthService {
 
     // Constant-time failure or exact error message
     if (!user || !user.password_hash) {
+      await AuditService.log({
+        tableName: 'users',
+        recordId: user?.id ?? 0,
+        action: 'login_failed',
+        userId: user?.id ?? null,
+        afterData: { loginId: raw, reason: 'unknown_user' },
+      }).catch(() => undefined);
       throw new Error('Invalid Login Id or Password');
     }
 
     const validPassword = await argon2.verify(user.password_hash, input.password);
     if (!validPassword) {
+      await AuditService.log({
+        tableName: 'users',
+        recordId: user.id,
+        action: 'login_failed',
+        userId: user.id,
+        afterData: { loginId: user.login_id, reason: 'bad_password' },
+      }).catch(() => undefined);
       throw new Error('Invalid Login Id or Password');
     }
 
@@ -95,6 +110,14 @@ export class AuthService {
     };
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+
+    await AuditService.log({
+      tableName: 'users',
+      recordId: user.id,
+      action: 'login',
+      userId: user.id,
+      afterData: { loginId: user.login_id, role: user.role },
+    }).catch(() => undefined);
 
     return {
       user: payload,

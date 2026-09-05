@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { Router, Request, Response } from 'express';
 import { ProductService } from '../services/productService';
+import { AuthenticatedRequest } from '../middleware/auth';
 import { sendSuccess, sendError } from '../utils/response';
 
 export const productRouter = Router();
@@ -144,7 +145,7 @@ productRouter.get('/:id', async (req: Request, res: Response) => {
 // POST /api/products
 productRouter.post('/', async (req: Request, res: Response) => {
   try {
-    const product = await ProductService.create(req.body);
+    const product = await ProductService.create(req.body, (req as AuthenticatedRequest).user?.id);
     return sendSuccess(res, product, 201);
   } catch (err: any) {
     return sendError(res, 'CREATE_FAILED', err.message);
@@ -157,7 +158,7 @@ productRouter.put('/:id', async (req: Request, res: Response) => {
     const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) return sendError(res, 'INVALID_ID', 'ID must be an integer');
 
-    const updated = await ProductService.update(id, req.body);
+    const updated = await ProductService.update(id, req.body, (req as AuthenticatedRequest).user?.id);
     if (!updated) return sendError(res, 'NOT_FOUND', 'Product not found', 404);
 
     return sendSuccess(res, updated);
@@ -173,7 +174,7 @@ productRouter.patch('/:id/archive', async (req: Request, res: Response) => {
     if (isNaN(id)) return sendError(res, 'INVALID_ID', 'ID must be an integer');
 
     const isArchived = req.body.is_archived !== undefined ? Boolean(req.body.is_archived) : true;
-    const product = await ProductService.archive(id, isArchived);
+    const product = await ProductService.archive(id, isArchived, (req as AuthenticatedRequest).user?.id);
     if (!product) return sendError(res, 'NOT_FOUND', 'Product not found', 404);
 
     return sendSuccess(res, product);

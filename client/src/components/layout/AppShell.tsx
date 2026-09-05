@@ -23,9 +23,11 @@ import {
   Scale,
   TrendingUp,
   ShieldCheck,
+  ScrollText,
   BarChart2,
 } from 'lucide-react';
 import { MegaMenu } from './MegaMenu';
+import RecordTimelineDrawer from '../audit/RecordTimelineDrawer';
 import api from '../../lib/axios';
 import { BrandLogo } from '../ui/BrandLogo';
 
@@ -33,6 +35,7 @@ interface SubNavItem {
   label: string;
   to: string;
   icon: LucideIcon;
+  adminOnly?: boolean;
 }
 
 const MODULE_SUBNAV_MAP: Record<string, SubNavItem[]> = {
@@ -62,6 +65,7 @@ const MODULE_SUBNAV_MAP: Record<string, SubNavItem[]> = {
     { label: 'Budget Performance', to: '/report/budget', icon: FileBarChart },
     { label: 'Analytics Engine', to: '/report/analytics', icon: BarChart2 },
     { label: 'System Integrity', to: '/integrity', icon: ShieldCheck },
+    { label: 'Audit Log', to: '/audit', icon: ScrollText, adminOnly: true },
   ],
 };
 
@@ -116,7 +120,9 @@ export default function AppShell() {
     location.pathname.endsWith('/new') ||
     /\/\d+$/.test(location.pathname);
 
-  const currentSubNav = activeModule ? MODULE_SUBNAV_MAP[activeModule] : null;
+  const currentSubNav = activeModule
+    ? (MODULE_SUBNAV_MAP[activeModule] ?? []).filter((it) => !it.adminOnly || currentUser?.role === 'admin')
+    : null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', background: 'var(--cream)' }}>
@@ -385,6 +391,8 @@ export default function AppShell() {
       >
         <Outlet />
       </main>
+
+      <RecordTimelineDrawer />
     </div>
   );
 }

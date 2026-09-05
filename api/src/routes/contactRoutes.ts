@@ -1,9 +1,14 @@
 import { Router, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { pool } from '../db/pool';
+import { withTransaction } from '../db/withTransaction';
 import { sendSuccess, sendError } from '../utils/response';
 import { UserPayload } from '../services/scope';
+import { AuthenticatedRequest } from '../middleware/auth';
+import { AuditService } from '../services/auditService';
 import Decimal from 'decimal.js';
+
+const uid = (req: Request) => (req as AuthenticatedRequest).user?.id;
 
 export const contactRouter = Router();
 if (!process.env.JWT_SECRET) {
@@ -83,25 +88,32 @@ contactRouter.post('/', async (req: Request, res: Response) => {
 
   try {
     const b = req.body;
-    const result = await pool.query(
-      `INSERT INTO contacts 
-        (name, type, email, mobile, address, city, state, pincode, gstin, image_path)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-       RETURNING *`,
-      [
-        b.name,
-        b.type || 'customer',
-        b.email || null,
-        b.mobile || null,
-        b.address || null,
-        b.city || null,
-        b.state || null,
-        b.pincode || null,
-        b.gstin || null,
-        b.image_path || null,
-      ]
-    );
-    return sendSuccess(res, result.rows[0], 201);
+    const row = await withTransaction(async (tx) => {
+      const result = await tx.query(
+        `INSERT INTO contacts
+          (name, type, email, mobile, address, city, state, pincode, gstin, image_path)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         RETURNING *`,
+        [
+          b.name,
+          b.type || 'customer',
+          b.email || null,
+          b.mobile || null,
+          b.address || null,
+          b.city || null,
+          b.state || null,
+          b.pincode || null,
+          b.gstin || null,
+          b.image_path || null,
+        ]
+      );
+      await AuditService.log(
+        { tableName: 'contacts', recordId: result.rows[0].id, action: 'create', userId: uid(req), afterData: result.rows[0] },
+        tx
+      );
+      return result.rows[0];
+    });
+    return sendSuccess(res, row, 201);
   } catch (err: any) {
     return sendError(res, 'CREATE_FAILED', err.message, 400);
   }
@@ -116,13 +128,21 @@ contactRouter.post('/:id/image', async (req: Request, res: Response) => {
     if (isNaN(id)) return sendError(res, 'INVALID_ID', 'ID must be an integer');
 
     const imagePath = req.body.image_path || req.body.image || null;
-    const result = await pool.query(
-      'UPDATE contacts SET image_path = $1, updated_at = now() WHERE id = $2 RETURNING *',
-      [imagePath, id]
-    );
+    const row = await withTransaction(async (tx) => {
+      const result = await tx.query(
+        'UPDATE contacts SET image_path = $1, updated_at = now() WHERE id = $2 RETURNING *',
+        [imagePath, id]
+      );
+      if (result.rows.length === 0) return null;
+      await AuditService.log(
+        { tableName: 'contacts', recordId: id, action: 'update', userId: uid(req), afterData: { image_path: imagePath } },
+        tx
+      );
+      return result.rows[0];
+    });
 
-    if (result.rows.length === 0) return sendError(res, 'NOT_FOUND', 'Contact not found', 404);
-    return sendSuccess(res, result.rows[0]);
+    if (!row) return sendError(res, 'NOT_FOUND', 'Contact not found', 404);
+    return sendSuccess(res, row);
   } catch (err: any) {
     return sendError(res, 'IMAGE_UPLOAD_FAILED', err.message, 500);
   }
@@ -156,13 +176,22 @@ contactRouter.put('/:id', async (req: Request, res: Response) => {
     fields.push('updated_at = now()');
     values.push(id);
 
-    const result = await pool.query(
-      `UPDATE contacts SET ${fields.join(', ')} WHERE id = $${values.length} RETURNING *`,
-      values
-    );
+    const row = await withTransaction(async (tx) => {
+      const before = (await tx.query('SELECT * FROM contacts WHERE id = $1', [id])).rows[0] || null;
+      const result = await tx.query(
+        `UPDATE contacts SET ${fields.join(', ')} WHERE id = $${values.length} RETURNING *`,
+        values
+      );
+      if (result.rows.length === 0) return null;
+      await AuditService.log(
+        { tableName: 'contacts', recordId: id, action: 'update', userId: uid(req), beforeData: before, afterData: result.rows[0] },
+        tx
+      );
+      return result.rows[0];
+    });
 
-    if (result.rows.length === 0) return sendError(res, 'NOT_FOUND', 'Contact not found', 404);
-    return sendSuccess(res, result.rows[0]);
+    if (!row) return sendError(res, 'NOT_FOUND', 'Contact not found', 404);
+    return sendSuccess(res, row);
   } catch (err: any) {
     return sendError(res, 'UPDATE_FAILED', err.message, 400);
   }
@@ -177,13 +206,21 @@ contactRouter.patch('/:id/archive', async (req: Request, res: Response) => {
     if (isNaN(id)) return sendError(res, 'INVALID_ID', 'ID must be an integer');
 
     const isArchived = req.body.is_archived !== undefined ? Boolean(req.body.is_archived) : true;
-    const result = await pool.query(
-      'UPDATE contacts SET is_archived = $1, updated_at = now() WHERE id = $2 RETURNING *',
-      [isArchived, id]
-    );
+    const row = await withTransaction(async (tx) => {
+      const result = await tx.query(
+        'UPDATE contacts SET is_archived = $1, updated_at = now() WHERE id = $2 RETURNING *',
+        [isArchived, id]
+      );
+      if (result.rows.length === 0) return null;
+      await AuditService.log(
+        { tableName: 'contacts', recordId: id, action: 'archive', userId: uid(req), afterData: { is_archived: isArchived } },
+        tx
+      );
+      return result.rows[0];
+    });
 
-    if (result.rows.length === 0) return sendError(res, 'NOT_FOUND', 'Contact not found', 404);
-    return sendSuccess(res, result.rows[0]);
+    if (!row) return sendError(res, 'NOT_FOUND', 'Contact not found', 404);
+    return sendSuccess(res, row);
   } catch (err: any) {
     return sendError(res, 'ARCHIVE_FAILED', err.message, 500);
   }

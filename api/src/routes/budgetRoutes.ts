@@ -2,9 +2,13 @@ import { Router, Request, Response } from 'express';
 import { pool } from '../db/pool';
 import { withTransaction } from '../db/withTransaction';
 import { sendSuccess, sendError } from '../utils/response';
+import { AuthenticatedRequest } from '../middleware/auth';
+import { AuditService } from '../services/auditService';
 import Decimal from 'decimal.js';
 
 export const budgetRouter = Router();
+
+const uid = (req: Request) => (req as AuthenticatedRequest).user?.id;
 
 // GET /api/budgets
 budgetRouter.get('/', async (_req: Request, res: Response) => {
@@ -165,6 +169,10 @@ budgetRouter.post('/', async (req: Request, res: Response) => {
           [id, line.analytic_account_id, new Decimal(line.committed_amount || 0).toFixed(2)]
         );
       }
+      await AuditService.log(
+        { tableName: 'budgets', recordId: id, action: 'create', userId: uid(req), afterData: { name: b.name, lines: (b.lines || []).length } },
+        tx
+      );
       return id;
     });
 
@@ -270,6 +278,10 @@ budgetRouter.put('/:id', async (req: Request, res: Response) => {
           );
         }
       }
+      await AuditService.log(
+        { tableName: 'budgets', recordId: id, action: 'update', userId: uid(req), afterData: { name: b.name } },
+        tx
+      );
     });
 
     const updated = await fetchBudgetById(id);
@@ -291,7 +303,13 @@ budgetRouter.post('/:id/confirm', async (req: Request, res: Response) => {
       return sendError(res, 'INVALID_STATUS', 'Only draft budgets can be confirmed', 400);
     }
 
-    await pool.query("UPDATE budgets SET status = 'confirmed' WHERE id = $1", [id]);
+    await withTransaction(async (tx) => {
+      await tx.query("UPDATE budgets SET status = 'confirmed' WHERE id = $1", [id]);
+      await AuditService.log(
+        { tableName: 'budgets', recordId: id, action: 'confirm', userId: uid(req), afterData: { status: 'confirmed' } },
+        tx
+      );
+    });
     const updated = await fetchBudgetById(id);
     return sendSuccess(res, updated);
   } catch (err: any) {
@@ -308,7 +326,13 @@ budgetRouter.post('/:id/cancel', async (req: Request, res: Response) => {
     const check = await pool.query('SELECT status FROM budgets WHERE id = $1', [id]);
     if (check.rows.length === 0) return sendError(res, 'NOT_FOUND', 'Budget not found', 404);
 
-    await pool.query("UPDATE budgets SET status = 'cancelled' WHERE id = $1", [id]);
+    await withTransaction(async (tx) => {
+      await tx.query("UPDATE budgets SET status = 'cancelled' WHERE id = $1", [id]);
+      await AuditService.log(
+        { tableName: 'budgets', recordId: id, action: 'cancel', userId: uid(req), afterData: { status: 'cancelled' } },
+        tx
+      );
+    });
     const updated = await fetchBudgetById(id);
     return sendSuccess(res, updated);
   } catch (err: any) {
@@ -363,6 +387,15 @@ budgetRouter.post('/:id/revise', async (req: Request, res: Response) => {
           [newId, line.analytic_account_id, line.committed_amount]
         );
       }
+
+      await AuditService.log(
+        { tableName: 'budgets', recordId: id, action: 'revise', userId: uid(req), afterData: { status: 'revised', revisedId: newId } },
+        tx
+      );
+      await AuditService.log(
+        { tableName: 'budgets', recordId: newId, action: 'create', userId: uid(req), afterData: { revisedOfId: id, name: newName } },
+        tx
+      );
 
       return { originalId: id, revisedId: newId };
     });

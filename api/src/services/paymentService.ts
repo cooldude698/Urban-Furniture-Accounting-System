@@ -184,7 +184,7 @@ export class PaymentService {
       // Post document via PostingService
       const { entryId } = await PostingService.postDocument('payment', paymentId, client);
 
-      // Audit log
+      // Audit log — the payment itself...
       await client.query(
         `INSERT INTO audit_log (table_name, record_id, action, user_id, after_data)
          VALUES ($1, $2, 'pay', $3, $4)`,
@@ -204,6 +204,27 @@ export class PaymentService {
           }),
         ]
       );
+
+      // ...and a "pay" event on each invoice / bill it was applied to, so the
+      // per-record timeline shows "Payment recorded  <user>  <time>  PAY/...".
+      for (const alloc of dto.allocations) {
+        const target = alloc.invoiceId
+          ? { table: 'customer_invoices', id: alloc.invoiceId }
+          : alloc.billId
+          ? { table: 'vendor_bills', id: alloc.billId }
+          : null;
+        if (!target) continue;
+        await client.query(
+          `INSERT INTO audit_log (table_name, record_id, action, user_id, after_data)
+           VALUES ($1, $2, 'pay', $3, $4)`,
+          [
+            target.table,
+            target.id,
+            userId || null,
+            JSON.stringify({ number: paymentNumber, amount: new Decimal(alloc.amount).toFixed(2), journalEntryId: entryId }),
+          ]
+        );
+      }
 
       await client.query('COMMIT');
 

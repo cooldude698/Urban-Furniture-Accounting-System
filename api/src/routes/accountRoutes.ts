@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { AccountService } from '../services/accountService';
+import { AuthenticatedRequest } from '../middleware/auth';
 import { sendSuccess, sendError } from '../utils/response';
 
 export const accountRouter = Router();
@@ -37,7 +38,7 @@ accountRouter.get('/:id', async (req: Request, res: Response) => {
 // POST /api/accounts
 accountRouter.post('/', async (req: Request, res: Response) => {
   try {
-    const account = await AccountService.createAccount(req.body);
+    const account = await AccountService.createAccount(req.body, (req as AuthenticatedRequest).user?.id);
     return sendSuccess(res, account, 201);
   } catch (err: any) {
     return sendError(res, 'CREATE_FAILED', err.message);
@@ -50,7 +51,7 @@ accountRouter.put('/:id', async (req: Request, res: Response) => {
     const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) return sendError(res, 'INVALID_ID', 'ID must be an integer');
 
-    const updated = await AccountService.updateAccount(id, req.body);
+    const updated = await AccountService.updateAccount(id, req.body, (req as AuthenticatedRequest).user?.id);
     if (!updated) return sendError(res, 'NOT_FOUND', 'Account not found', 404);
 
     return sendSuccess(res, updated);
@@ -66,7 +67,7 @@ accountRouter.patch('/:id/archive', async (req: Request, res: Response) => {
     if (isNaN(id)) return sendError(res, 'INVALID_ID', 'ID must be an integer');
 
     const isArchived = req.body.is_archived !== undefined ? Boolean(req.body.is_archived) : true;
-    const account = await AccountService.archiveAccount(id, isArchived);
+    const account = await AccountService.archiveAccount(id, isArchived, (req as AuthenticatedRequest).user?.id);
     if (!account) return sendError(res, 'NOT_FOUND', 'Account not found', 404);
 
     return sendSuccess(res, account);
@@ -107,7 +108,7 @@ journalRouter.get('/:id', async (req: Request, res: Response) => {
 // POST /api/journals
 journalRouter.post('/', async (req: Request, res: Response) => {
   try {
-    const journal = await AccountService.createJournal(req.body);
+    const journal = await AccountService.createJournal(req.body, (req as AuthenticatedRequest).user?.id);
     return sendSuccess(res, journal, 201);
   } catch (err: any) {
     return sendError(res, 'CREATE_FAILED', err.message);
@@ -120,7 +121,7 @@ journalRouter.put('/:id', async (req: Request, res: Response) => {
     const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) return sendError(res, 'INVALID_ID', 'ID must be an integer');
 
-    const updated = await AccountService.updateJournal(id, req.body);
+    const updated = await AccountService.updateJournal(id, req.body, (req as AuthenticatedRequest).user?.id);
     if (!updated) return sendError(res, 'NOT_FOUND', 'Journal not found', 404);
 
     return sendSuccess(res, updated);
@@ -136,7 +137,7 @@ journalRouter.patch('/:id/archive', async (req: Request, res: Response) => {
     if (isNaN(id)) return sendError(res, 'INVALID_ID', 'ID must be an integer');
 
     const isArchived = req.body.is_archived !== undefined ? Boolean(req.body.is_archived) : true;
-    const journal = await AccountService.archiveJournal(id, isArchived);
+    const journal = await AccountService.archiveJournal(id, isArchived, (req as AuthenticatedRequest).user?.id);
     if (!journal) return sendError(res, 'NOT_FOUND', 'Journal not found', 404);
 
     return sendSuccess(res, journal);

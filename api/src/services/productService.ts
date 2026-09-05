@@ -1,5 +1,6 @@
 import { pool } from '../db/pool';
 import { withTransaction } from '../db/withTransaction';
+import { AuditService } from './auditService';
 import Decimal from 'decimal.js';
 
 export interface ProductInput {
@@ -100,31 +101,37 @@ export class ProductService {
     return this.mapRow(res.rows[0]);
   }
 
-  static async create(input: ProductInput): Promise<ProductDTO> {
+  static async create(input: ProductInput, userId?: number): Promise<ProductDTO> {
     const sku = input.sku || (await this.generateDeterministicSku(input.category || 'GEN', input.name));
-    const res = await pool.query(
-      `INSERT INTO products 
-        (sku, name, type, category, sales_price, cost_price, mrp, tax_rate, stock_qty, model_url, image_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-       RETURNING *`,
-      [
-        sku,
-        input.name,
-        input.type,
-        input.category || null,
-        input.sales_price,
-        input.cost_price,
-        input.mrp || null,
-        input.tax_rate,
-        input.stock_qty || '0',
-        input.model_url || null,
-        input.image_url || null,
-      ]
-    );
-    return this.mapRow(res.rows[0]);
+    return withTransaction(async (tx) => {
+      const res = await tx.query(
+        `INSERT INTO products
+          (sku, name, type, category, sales_price, cost_price, mrp, tax_rate, stock_qty, model_url, image_url)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         RETURNING *`,
+        [
+          sku,
+          input.name,
+          input.type,
+          input.category || null,
+          input.sales_price,
+          input.cost_price,
+          input.mrp || null,
+          input.tax_rate,
+          input.stock_qty || '0',
+          input.model_url || null,
+          input.image_url || null,
+        ]
+      );
+      await AuditService.log(
+        { tableName: 'products', recordId: res.rows[0].id, action: 'create', userId, afterData: res.rows[0] },
+        tx
+      );
+      return this.mapRow(res.rows[0]);
+    });
   }
 
-  static async update(id: number, input: Partial<ProductInput>): Promise<ProductDTO | null> {
+  static async update(id: number, input: Partial<ProductInput>, userId?: number): Promise<ProductDTO | null> {
     const fields: string[] = [];
     const values: any[] = [];
 
@@ -178,21 +185,34 @@ export class ProductService {
     fields.push('updated_at = now()');
     values.push(id);
 
-    const res = await pool.query(
-      `UPDATE products SET ${fields.join(', ')} WHERE id = $${values.length} RETURNING *`,
-      values
-    );
-    if (res.rows.length === 0) return null;
-    return this.mapRow(res.rows[0]);
+    return withTransaction(async (tx) => {
+      const before = (await tx.query('SELECT * FROM products WHERE id = $1', [id])).rows[0] || null;
+      const res = await tx.query(
+        `UPDATE products SET ${fields.join(', ')} WHERE id = $${values.length} RETURNING *`,
+        values
+      );
+      if (res.rows.length === 0) return null;
+      await AuditService.log(
+        { tableName: 'products', recordId: id, action: 'update', userId, beforeData: before, afterData: res.rows[0] },
+        tx
+      );
+      return this.mapRow(res.rows[0]);
+    });
   }
 
-  static async archive(id: number, isArchived = true): Promise<ProductDTO | null> {
-    const res = await pool.query(
-      'UPDATE products SET is_archived = $1, updated_at = now() WHERE id = $2 RETURNING *',
-      [isArchived, id]
-    );
-    if (res.rows.length === 0) return null;
-    return this.mapRow(res.rows[0]);
+  static async archive(id: number, isArchived = true, userId?: number): Promise<ProductDTO | null> {
+    return withTransaction(async (tx) => {
+      const res = await tx.query(
+        'UPDATE products SET is_archived = $1, updated_at = now() WHERE id = $2 RETURNING *',
+        [isArchived, id]
+      );
+      if (res.rows.length === 0) return null;
+      await AuditService.log(
+        { tableName: 'products', recordId: id, action: 'archive', userId, afterData: { is_archived: isArchived } },
+        tx
+      );
+      return this.mapRow(res.rows[0]);
+    });
   }
 
   static generateSku(category: string, name: string): string {

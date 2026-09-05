@@ -231,7 +231,7 @@ export class JournalEntryService {
    * Blocking validation: If SUM(debit) != SUM(credit), return error with severity 'blocking'
    * and message "Debit and credit amounts do not match."
    */
-  static async postEntry(id: number): Promise<{ id: number; status: string }> {
+  static async postEntry(id: number, userId?: number): Promise<{ id: number; status: string }> {
     const entry = await this.getEntryById(id);
     if (!entry) {
       const err = new Error(`Journal entry ${id} not found`);
@@ -270,6 +270,7 @@ export class JournalEntryService {
           tableName: 'journal_entries',
           recordId: id,
           action: 'post',
+          userId: userId ?? null,
           afterData: { status: 'posted' },
         },
         tx
@@ -390,9 +391,11 @@ export class JournalEntryService {
 
   static async updateDraftEntry(
     id: number,
-    input: CreateJournalEntryInput
+    input: CreateJournalEntryInput,
+    userId?: number
   ): Promise<JournalEntryDetail> {
     await this.assertNotPosted(id);
+    const before = await this.getEntryById(id);
 
     await withTransaction(async (tx) => {
       await tx.query(
@@ -424,6 +427,18 @@ export class JournalEntryService {
           ]
         );
       }
+
+      await AuditService.log(
+        {
+          tableName: 'journal_entries',
+          recordId: id,
+          action: 'update',
+          userId: userId ?? null,
+          beforeData: before ? { number: before.number, lines: before.lines?.length } : null,
+          afterData: { journalId: input.journal_id, reference: input.reference || null, lines: input.lines.length },
+        },
+        tx
+      );
     });
 
     const full = await this.getEntryById(id);
@@ -431,10 +446,21 @@ export class JournalEntryService {
     return full;
   }
 
-  static async deleteDraftEntry(id: number): Promise<{ id: number; deleted: boolean }> {
+  static async deleteDraftEntry(id: number, userId?: number): Promise<{ id: number; deleted: boolean }> {
     await this.assertNotPosted(id);
+    const before = await this.getEntryById(id);
 
     await withTransaction(async (tx) => {
+      await AuditService.log(
+        {
+          tableName: 'journal_entries',
+          recordId: id,
+          action: 'delete',
+          userId: userId ?? null,
+          beforeData: before ? { number: before.number, status: before.status } : null,
+        },
+        tx
+      );
       await tx.query('DELETE FROM journal_entry_lines WHERE entry_id = $1', [id]);
       await tx.query("DELETE FROM journal_entries WHERE id = $1 AND status = 'draft'", [id]);
     });

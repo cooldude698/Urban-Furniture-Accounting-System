@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { VendorBillService } from '../services/vendorBillService';
 import { PaymentService } from '../services/paymentService';
 import { BillScannerService } from '../services/billScannerService';
+import { AuthenticatedRequest } from '../middleware/auth';
 import { sendSuccess, sendError } from '../utils/response';
 
 export const billRouter = Router();
@@ -77,7 +78,7 @@ billRouter.post('/', async (req: Request, res: Response) => {
         unitPrice: l.unitPrice || l.unit_price,
         taxRate: l.taxRate !== undefined ? l.taxRate : l.tax_rate,
       })),
-    });
+    }, (req as AuthenticatedRequest).user?.id);
     return sendSuccess(res, bill, 201);
   } catch (err: any) {
     return sendError(res, 'CREATE_FAILED', err.message);
@@ -90,7 +91,7 @@ billRouter.post('/:id/confirm', async (req: Request, res: Response) => {
     const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) return sendError(res, 'INVALID_ID', 'ID must be an integer');
 
-    const result = await VendorBillService.confirm(id);
+    const result = await VendorBillService.confirm(id, (req as AuthenticatedRequest).user?.id);
     if (result.warning) {
       return res.status(200).json({
         data: result.bill,
@@ -114,7 +115,7 @@ billRouter.post('/:id/cancel', async (req: Request, res: Response) => {
     const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) return sendError(res, 'INVALID_ID', 'ID must be an integer');
 
-    const bill = await VendorBillService.cancel(id);
+    const bill = await VendorBillService.cancel(id, (req as AuthenticatedRequest).user?.id);
     return sendSuccess(res, bill);
   } catch (err: any) {
     return sendError(res, 'CANCEL_FAILED', err.message);

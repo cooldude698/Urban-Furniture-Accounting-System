@@ -347,11 +347,16 @@ CREATE TABLE stock_moves (
   created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Chatter / audit trail. 2026-09-06: action CHECK extended (human-approved) with
+-- 'revise' (budget lifecycle), 'delete' (draft journal-entry deletion), and
+-- 'login'/'login_failed' (auth events, table_name='users') to cover the Audit
+-- Log UI spec. before_data/after_data hold { } blobs; password_hash is stripped
+-- in AuditService before any row is written.
 CREATE TABLE audit_log (
   id           INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   table_name   TEXT NOT NULL,
   record_id    INTEGER NOT NULL,
-  action       TEXT NOT NULL CHECK (action IN ('create', 'update', 'confirm', 'post', 'reverse', 'cancel', 'pay', 'archive')),
+  action       TEXT NOT NULL CHECK (action IN ('create', 'update', 'confirm', 'post', 'reverse', 'cancel', 'pay', 'archive', 'revise', 'delete', 'login', 'login_failed')),
   user_id      INTEGER REFERENCES users(id),
   before_data  JSONB,
   after_data   JSONB,
