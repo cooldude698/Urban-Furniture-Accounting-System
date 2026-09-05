@@ -1,14 +1,23 @@
 import React, { useState } from 'react';
 import { SalesOrderList } from './pages/SalesOrderList';
 import { SalesOrderForm } from './pages/SalesOrderForm';
+import { CustomerInvoiceList } from './pages/CustomerInvoiceList';
+import { CustomerInvoiceForm } from './pages/CustomerInvoiceForm';
 
-type ViewMode = 'list' | 'form';
+type SalesSubMenu = 'orders' | 'invoices';
 type NavTab = 'Sales' | 'Purchase' | 'Account' | 'Report';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavTab>('Sales');
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [selectedOrderId, setSelectedOrderId] = useState<number | null>(null);
+  const [salesSubMenu, setSalesSubMenu] = useState<SalesSubMenu>('orders');
+  
+  // Sales order view state
+  const [soViewMode, setSoViewMode] = useState<'list' | 'form'>('list');
+  const [selectedSoId, setSelectedSoId] = useState<number | null>(null);
+
+  // Customer invoice view state
+  const [invViewMode, setInvViewMode] = useState<'list' | 'form'>('list');
+  const [selectedInvId, setSelectedInvId] = useState<number | null>(null);
 
   const navItems: NavTab[] = ['Sales', 'Purchase', 'Account', 'Report'];
 
@@ -32,8 +41,8 @@ export const App: React.FC = () => {
                 key={tab}
                 onClick={() => {
                   setActiveTab(tab);
-                  setViewMode('list');
-                  setSelectedOrderId(null);
+                  setSoViewMode('list');
+                  setInvViewMode('list');
                 }}
                 className={`text-sm font-semibold pb-1 transition-all ${
                   activeTab === tab
@@ -54,32 +63,99 @@ export const App: React.FC = () => {
         </div>
       </header>
 
+      {/* Submenu for Sales (Sales Orders / Customer Invoices) */}
+      {activeTab === 'Sales' && (
+        <div className="bg-surface/70 border-b border-brown-300/60 px-8 py-2 flex items-center space-x-4 text-sm font-medium">
+          <button
+            onClick={() => {
+              setSalesSubMenu('orders');
+              setSoViewMode('list');
+              setSelectedSoId(null);
+            }}
+            className={`px-3 py-1 rounded-[6px] transition-colors ${
+              salesSubMenu === 'orders'
+                ? 'bg-brown-900 text-cream font-semibold'
+                : 'text-brown-700 hover:bg-brown-100'
+            }`}
+          >
+            Sales Orders
+          </button>
+
+          <button
+            onClick={() => {
+              setSalesSubMenu('invoices');
+              setInvViewMode('list');
+              setSelectedInvId(null);
+            }}
+            className={`px-3 py-1 rounded-[6px] transition-colors ${
+              salesSubMenu === 'invoices'
+                ? 'bg-brown-900 text-cream font-semibold'
+                : 'text-brown-700 hover:bg-brown-100'
+            }`}
+          >
+            Customer Invoices
+          </button>
+        </div>
+      )}
+
       {/* Main Content Area */}
       <main className="flex-1">
         {activeTab === 'Sales' ? (
-          viewMode === 'list' ? (
-            <SalesOrderList
-              onSelectOrder={id => {
-                setSelectedOrderId(id);
-                setViewMode('form');
-              }}
-              onNewOrder={() => {
-                setSelectedOrderId(null);
-                setViewMode('form');
-              }}
-            />
+          salesSubMenu === 'orders' ? (
+            soViewMode === 'list' ? (
+              <SalesOrderList
+                onSelectOrder={id => {
+                  setSelectedSoId(id);
+                  setSoViewMode('form');
+                }}
+                onNewOrder={() => {
+                  setSelectedSoId(null);
+                  setSoViewMode('form');
+                }}
+              />
+            ) : (
+              <SalesOrderForm
+                orderId={selectedSoId}
+                onBack={() => {
+                  setSoViewMode('list');
+                  setSelectedSoId(null);
+                }}
+                onNavigateToInvoice={invId => {
+                  setSelectedInvId(invId);
+                  setSalesSubMenu('invoices');
+                  setInvViewMode('form');
+                }}
+              />
+            )
           ) : (
-            <SalesOrderForm
-              orderId={selectedOrderId}
-              onBack={() => {
-                setViewMode('list');
-                setSelectedOrderId(null);
-              }}
-              onNavigateToInvoice={invId => {
-                alert(`Invoice #${invId} created. Customer invoice module will open this.`);
-                setViewMode('list');
-              }}
-            />
+            invViewMode === 'list' ? (
+              <CustomerInvoiceList
+                onSelectInvoice={id => {
+                  setSelectedInvId(id);
+                  setInvViewMode('form');
+                }}
+                onNewInvoice={() => {
+                  setSelectedInvId(null);
+                  setInvViewMode('form');
+                }}
+              />
+            ) : (
+              <CustomerInvoiceForm
+                invoiceId={selectedInvId}
+                onBack={() => {
+                  setInvViewMode('list');
+                  setSelectedInvId(null);
+                }}
+                onNavigateToSO={soId => {
+                  setSelectedSoId(soId);
+                  setSalesSubMenu('orders');
+                  setSoViewMode('form');
+                }}
+                onRegisterPayment={invId => {
+                  alert(`Register payment for Invoice #${invId} (Handled in Phase 3)`);
+                }}
+              />
+            )
           )
         ) : (
           <div className="max-w-4xl mx-auto py-16 text-center text-brown-700">

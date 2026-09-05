@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { FormButtons } from '../components/FormButtons';
 import { StatusBadge } from '../components/StatusBadge';
 import { LineItemGrid, GridLine } from '../components/LineItemGrid';
-import { BlockingWarning, NonBlockingWarning } from '../components/Warnings';
+import { BlockingWarning } from '../components/Warnings';
 import { SalesOrderDTO } from '../../../shared/schemas/salesOrder';
 
 interface SalesOrderFormProps {
