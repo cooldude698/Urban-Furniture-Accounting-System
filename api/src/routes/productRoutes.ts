@@ -17,12 +17,23 @@ productRouter.get('/', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/products/inventory-analytics
+productRouter.get('/inventory-analytics', async (_req: Request, res: Response) => {
+  try {
+    const analytics = await ProductService.getInventoryAnalytics();
+    return sendSuccess(res, analytics);
+  } catch (err: any) {
+    return sendError(res, 'ANALYTICS_FAILED', err.message);
+  }
+});
+
 // GET /api/products/generate-sku
-productRouter.get('/generate-sku', (req: Request, res: Response) => {
+productRouter.get('/generate-sku', async (req: Request, res: Response) => {
   try {
     const category = typeof req.query.category === 'string' ? req.query.category : 'GEN';
     const name = typeof req.query.name === 'string' ? req.query.name : 'ITEM';
-    const sku = ProductService.generateSku(category, name);
+    const year = typeof req.query.year === 'string' ? req.query.year : undefined;
+    const sku = await ProductService.generateDeterministicSku(category, name, year);
     return sendSuccess(res, { sku });
   } catch (err: any) {
     return sendError(res, 'SKU_GEN_FAILED', err.message);

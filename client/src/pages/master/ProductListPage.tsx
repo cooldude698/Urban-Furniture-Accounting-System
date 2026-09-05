@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ProductsApi } from '../../api/products.api';
+import { ProductsApi, type InventoryAnalytics } from '../../api/products.api';
 import { Product } from '@shared/schemas/product.schema';
 import { Money } from '../../components/Money';
-import { List, LayoutGrid, Image as ImageIcon } from 'lucide-react';
+import { List, LayoutGrid, Image as ImageIcon, TrendingUp, AlertTriangle, Building, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 
 interface ProductListPageProps {
   onSelectProduct: (id: number) => void;
@@ -23,6 +23,27 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [hoveredBtn, setHoveredBtn] = useState<string | null>(null);
+
+  // Inventory Intelligence & Velocity State
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [analytics, setAnalytics] = useState<InventoryAnalytics | null>(null);
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false);
+
+  const toggleAnalytics = async () => {
+    const nextState = !showAnalytics;
+    setShowAnalytics(nextState);
+    if (nextState && !analytics) {
+      try {
+        setLoadingAnalytics(true);
+        const data = await ProductsApi.getInventoryAnalytics();
+        setAnalytics(data);
+      } catch (err) {
+        console.error('Failed to load inventory analytics', err);
+      } finally {
+        setLoadingAnalytics(false);
+      }
+    }
+  };
 
   const fetchProducts = async () => {
     try {
@@ -87,19 +108,40 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
         <div style={styles.card}>
           {/* Top Action Bar */}
           <div style={styles.topBar}>
-            {/* Left: New Button */}
-            <button
-              type="button"
-              onClick={onNewProduct}
-              onMouseEnter={() => setHoveredBtn('new')}
-              onMouseLeave={() => setHoveredBtn(null)}
-              style={{
-                ...styles.wireframeBtn,
-                ...(hoveredBtn === 'new' ? styles.wireframeBtnHover : {}),
-              }}
-            >
-              New
-            </button>
+            {/* Left: New & Velocity Analytics Buttons */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <button
+                type="button"
+                onClick={onNewProduct}
+                onMouseEnter={() => setHoveredBtn('new')}
+                onMouseLeave={() => setHoveredBtn(null)}
+                style={{
+                  ...styles.wireframeBtn,
+                  ...(hoveredBtn === 'new' ? styles.wireframeBtnHover : {}),
+                }}
+              >
+                New
+              </button>
+              <button
+                type="button"
+                onClick={toggleAnalytics}
+                style={{
+                  ...styles.wireframeBtn,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  backgroundColor: showAnalytics ? 'var(--brown-900)' : 'var(--cream)',
+                  color: showAnalytics ? 'var(--cream)' : 'var(--brown-900)',
+                  borderColor: 'var(--brown-900)',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                }}
+              >
+                <TrendingUp size={14} />
+                <span>Stock Intelligence & Velocity</span>
+                {showAnalytics ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+              </button>
+            </div>
 
             {/* Center: Search Bar */}
             <div style={styles.searchWrapper}>
@@ -107,7 +149,7 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
                 type="text"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
-                placeholder="Search"
+                placeholder="Search products, SKU, category..."
                 style={styles.searchInput}
               />
             </div>
@@ -140,7 +182,6 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
                 >
                   <List size={18} />
                 </button>
-
                 <button
                   type="button"
                   onClick={() => setViewMode('kanban')}
@@ -155,6 +196,217 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
               </div>
             </div>
           </div>
+
+          {/* ── Inventory Intelligence & Analytics Panel ── */}
+          {showAnalytics && (
+            <div
+              style={{
+                borderBottom: '1px solid #D0AE92',
+                backgroundColor: 'rgba(247, 243, 238, 0.95)',
+                padding: '16px 20px',
+              }}
+            >
+              {loadingAnalytics ? (
+                <div style={{ padding: '20px', textAlign: 'center', color: '#5C453A' }}>
+                  Loading real-time inventory intelligence...
+                </div>
+              ) : analytics ? (
+                <div>
+                  {/* KPI Stat Cards */}
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                      gap: 12,
+                      marginBottom: 16,
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: '10px 14px',
+                        backgroundColor: '#FFF',
+                        borderRadius: 8,
+                        border: '1px solid rgba(208, 174, 146, 0.4)',
+                      }}
+                    >
+                      <div style={{ fontSize: 11, color: '#77574A', textTransform: 'uppercase', fontWeight: 600 }}>
+                        Total Stock On Hand
+                      </div>
+                      <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#382A24' }}>
+                        {analytics.summary.totalStockUnits.toLocaleString()} Units
+                      </div>
+                      <div style={{ fontSize: 11, color: '#5C453A' }}>
+                        Across {analytics.summary.totalCatalogItems} active catalog products
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        padding: '10px 14px',
+                        backgroundColor: '#FFF',
+                        borderRadius: 8,
+                        border: '1px solid rgba(208, 174, 146, 0.4)',
+                      }}
+                    >
+                      <div style={{ fontSize: 11, color: 'var(--posted)', textTransform: 'uppercase', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <TrendingUp size={13} />
+                        Fast-Moving Lines
+                      </div>
+                      <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--posted)' }}>
+                        {analytics.summary.fastMoverCount} Items
+                      </div>
+                      <div style={{ fontSize: 11, color: '#5C453A' }}>
+                        High turnover velocity from invoice dispatches
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        padding: '10px 14px',
+                        backgroundColor: '#FFF',
+                        borderRadius: 8,
+                        border: '1px solid rgba(208, 174, 146, 0.4)',
+                      }}
+                    >
+                      <div style={{ fontSize: 11, color: '#b45309', textTransform: 'uppercase', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <AlertTriangle size={13} />
+                        Slow-Moving / Clearance Alerts
+                      </div>
+                      <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#b45309' }}>
+                        {analytics.summary.slowMoverCount} Items
+                      </div>
+                      <div style={{ fontSize: 11, color: '#5C453A' }}>
+                        Idle inventory with zero sales movement
+                      </div>
+                    </div>
+
+                    {/* Location Breakdown */}
+                    {analytics.locationBreakdown.map((loc) => (
+                      <div
+                        key={loc.code}
+                        style={{
+                          padding: '10px 14px',
+                          backgroundColor: '#FFF',
+                          borderRadius: 8,
+                          border: '1px solid rgba(208, 174, 146, 0.4)',
+                        }}
+                      >
+                        <div style={{ fontSize: 11, color: '#77574A', textTransform: 'uppercase', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Building size={13} />
+                          {loc.code} ({loc.percentage}%)
+                        </div>
+                        <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-mono)', color: '#382A24' }}>
+                          {loc.total_units.toLocaleString()} Units
+                        </div>
+                        <div style={{ fontSize: 11, color: '#5C453A' }}>
+                          {loc.location_name}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Fast vs Slow Movers Side-by-Side Tables */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 16 }}>
+                    {/* Fast Movers Column */}
+                    <div
+                      style={{
+                        backgroundColor: '#FFF',
+                        borderRadius: 8,
+                        border: '1px solid rgba(208, 174, 146, 0.4)',
+                        padding: 14,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--posted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <TrendingUp size={15} />
+                          Top Velocity Dispatches (Fast-Moving)
+                        </span>
+                        <span style={{ fontSize: 11, color: '#77574A', fontFamily: 'var(--font-mono)' }}>
+                          Verified Outbound Moves
+                        </span>
+                      </div>
+                      <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                        <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid #eee', color: '#77574A' }}>
+                              <th style={{ textAlign: 'left', padding: '4px 6px' }}>Product</th>
+                              <th style={{ textAlign: 'left', padding: '4px 6px' }}>SKU</th>
+                              <th style={{ textAlign: 'right', padding: '4px 6px' }}>Sold</th>
+                              <th style={{ textAlign: 'right', padding: '4px 6px' }}>Velocity</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {analytics.fastMoving.map((p) => (
+                              <tr key={p.id} style={{ borderBottom: '1px solid #f9f9f9', cursor: 'pointer' }} onClick={() => onSelectProduct(p.id)}>
+                                <td style={{ padding: '6px', fontWeight: 600, color: '#382A24' }}>{p.name}</td>
+                                <td style={{ padding: '6px', fontFamily: 'var(--font-mono)', color: '#77574A' }}>{p.sku || '—'}</td>
+                                <td style={{ padding: '6px', textAlign: 'right', fontWeight: 700, color: 'var(--posted)', fontFamily: 'var(--font-mono)' }}>
+                                  {p.units_sold} units
+                                </td>
+                                <td style={{ padding: '6px', textAlign: 'right' }}>
+                                  <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, backgroundColor: 'rgba(54, 83, 20, 0.12)', color: 'var(--posted)', fontWeight: 700 }}>
+                                    {p.velocity_status === 'high_velocity' ? '🔥 HIGH' : 'STEADY'}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* Slow Movers Column */}
+                    <div
+                      style={{
+                        backgroundColor: '#FFF',
+                        borderRadius: 8,
+                        border: '1px solid rgba(208, 174, 146, 0.4)',
+                        padding: 14,
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#b45309', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <AlertTriangle size={15} />
+                          Clearance & Stagnant Stock Alerts
+                        </span>
+                        <span style={{ fontSize: 11, color: '#77574A', fontFamily: 'var(--font-mono)' }}>
+                          Idle On-Hand
+                        </span>
+                      </div>
+                      <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                        <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid #eee', color: '#77574A' }}>
+                              <th style={{ textAlign: 'left', padding: '4px 6px' }}>Product</th>
+                              <th style={{ textAlign: 'left', padding: '4px 6px' }}>SKU</th>
+                              <th style={{ textAlign: 'right', padding: '4px 6px' }}>Stock</th>
+                              <th style={{ textAlign: 'right', padding: '4px 6px' }}>Action</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {analytics.slowMoving.map((p) => (
+                              <tr key={p.id} style={{ borderBottom: '1px solid #f9f9f9', cursor: 'pointer' }} onClick={() => onSelectProduct(p.id)}>
+                                <td style={{ padding: '6px', fontWeight: 600, color: '#382A24' }}>{p.name}</td>
+                                <td style={{ padding: '6px', fontFamily: 'var(--font-mono)', color: '#77574A' }}>{p.sku || '—'}</td>
+                                <td style={{ padding: '6px', textAlign: 'right', fontWeight: 700, color: '#b45309', fontFamily: 'var(--font-mono)' }}>
+                                  {p.stock_qty}
+                                </td>
+                                <td style={{ padding: '6px', textAlign: 'right' }}>
+                                  <span style={{ fontSize: 10, padding: '2px 6px', borderRadius: 4, backgroundColor: 'rgba(180, 83, 9, 0.12)', color: '#b45309', fontWeight: 700 }}>
+                                    {p.clearance_recommended ? `-${p.clearance_discount_pct}% CLEARANCE` : 'MONITOR'}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          )}
 
           {/* Body Content */}
           {loading ? (
