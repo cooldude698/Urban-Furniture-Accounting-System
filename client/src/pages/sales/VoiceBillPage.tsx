@@ -793,7 +793,7 @@ export const VoiceBillPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      handleSendMessage(`1 ${prod.name}`);
+                      handleSendMessage(prod.name);
                     }}
                     className="px-2.5 py-1 bg-brown-900 hover:bg-brown-800 text-cream text-[11px] font-semibold rounded-[6px] flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
                   >
@@ -1042,30 +1042,43 @@ export const VoiceBillPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Pane (5 cols): Modern Professional Live Invoice Sheet */}
+        {/* Right Pane (5 cols): Modern Showroom-Grade Live Invoice Sheet */}
         <div className={`lg:col-span-5 space-y-3 ${activeTabMobile === 'bill' ? 'block' : 'hidden lg:block'}`}>
-          <div className="bg-white border border-brown-200/80 rounded-[16px] p-5 sm:p-6 shadow-sm flex flex-col justify-between min-h-[720px] text-brown-900 font-body transition-all">
+          <div className="bg-white border border-stone-200/90 rounded-2xl p-5 sm:p-6 shadow-sm flex flex-col justify-between min-h-[720px] text-stone-900 font-body transition-all relative">
             <div className="space-y-4">
-              {/* Top Bar: Compliance Badge & Format Toggle */}
-              <div className="flex items-center justify-between pb-3 border-b border-brown-100">
+              {/* Top Bar: Live Status & Format Segmented Switcher */}
+              <div className="flex items-center justify-between pb-3 border-b border-stone-100">
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-semibold font-mono bg-emerald-50 text-emerald-800 border border-emerald-200/60">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    GST Rule 46 Compliant
-                  </span>
-                  <span className="text-[10px] text-brown-400 font-mono hidden sm:inline">
-                    State: Gujarat (24)
+                  {session?.status === 'confirmed' ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold font-mono bg-emerald-50 text-emerald-800 border border-emerald-300 shadow-2xs">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      OFFICIAL INVOICE POSTED
+                    </span>
+                  ) : session?.status === 'ready_for_confirm' ? (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold font-mono bg-emerald-50 text-emerald-800 border border-emerald-300 animate-pulse shadow-2xs">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                      READY TO CONFIRM
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold font-mono bg-amber-50 text-amber-900 border border-amber-200/80 shadow-2xs">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                      LIVE DRAFT BILL
+                    </span>
+                  )}
+                  <span className="text-[10px] text-stone-400 font-mono hidden sm:inline">
+                    State Code: 24 (Gujarat)
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1 bg-brown-50/70 p-0.5 rounded-lg border border-brown-200/60">
+                {/* Segmented Mode Control */}
+                <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-lg border border-stone-200/80">
                   <button
                     type="button"
                     onClick={() => setReceiptMode('a4')}
-                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all cursor-pointer ${
+                    className={`px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
                       receiptMode === 'a4'
-                        ? 'bg-white text-brown-900 shadow-xs font-semibold'
-                        : 'text-brown-600 hover:text-brown-900'
+                        ? 'bg-white text-stone-900 shadow-xs'
+                        : 'text-stone-500 hover:text-stone-900'
                     }`}
                   >
                     Tax Invoice
@@ -1073,10 +1086,10 @@ export const VoiceBillPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setReceiptMode('pos')}
-                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all cursor-pointer ${
+                    className={`px-3 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
                       receiptMode === 'pos'
-                        ? 'bg-white text-brown-900 shadow-xs font-semibold'
-                        : 'text-brown-600 hover:text-brown-900'
+                        ? 'bg-white text-stone-900 shadow-xs'
+                        : 'text-stone-500 hover:text-stone-900'
                     }`}
                   >
                     POS Slip
@@ -1085,110 +1098,121 @@ export const VoiceBillPage: React.FC = () => {
               </div>
 
               {receiptMode === 'a4' ? (
-                /* ── Modern Showroom-Grade Tax Invoice ─────────────────────── */
-                <div className="space-y-3 text-xs">
+                /* ── Sleek Modern Showroom Tax Invoice ─────────────────────── */
+                <div className="space-y-3.5 text-xs">
                   {/* Brand & Invoice Header */}
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-brown-100">
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 pb-4 border-b border-stone-100">
                     <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-brown-900 text-amber-200 font-display font-bold text-xs flex items-center justify-center shadow-xs">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-stone-900 text-amber-200 font-display font-black text-sm flex items-center justify-center shadow-xs tracking-wider">
                           UF
                         </div>
                         <div>
-                          <h2 className="text-base font-bold font-display tracking-tight text-brown-900 leading-none">
+                          <h2 className="text-lg font-black font-display tracking-tight text-stone-900 leading-none">
                             URBAN FURNITURE
                           </h2>
-                          <p className="text-[10px] text-brown-500 font-body">Contract &amp; Domestic Furnishings</p>
+                          <p className="text-[11px] text-stone-500 font-body mt-0.5">Contemporary Living &amp; Architectural Showroom</p>
                         </div>
                       </div>
-                      <div className="text-[10px] text-brown-600 space-y-0.5 pt-1 font-mono">
-                        <div>GSTIN: <strong className="text-brown-900">24AABCU9603R1ZM</strong> • CIN: U36100GJ2020PTC115482</div>
-                        <div className="text-brown-500">Plot 42, GIDC Electronics Zone, Gandhinagar - 382024</div>
+                      <div className="text-[10.5px] text-stone-600 space-y-0.5 pt-1.5 font-mono">
+                        <div>GSTIN: <strong className="text-stone-900 font-bold">24AABCU9603R1ZM</strong> • CIN: U36100GJ2020PTC115482</div>
+                        <div className="text-stone-500">Plot 42, GIDC Electronics Zone, Gandhinagar - 382024, Gujarat</div>
                       </div>
                     </div>
 
                     <div className="text-left sm:text-right space-y-1 sm:self-start">
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-brown-900 text-cream rounded-md text-[10px] font-mono font-bold tracking-wider uppercase">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-stone-900 text-cream rounded-md text-[10px] font-mono font-bold tracking-wider uppercase shadow-2xs">
                         TAX INVOICE
-                      </div>
-                      <div className="text-sm font-bold font-mono text-brown-900">
+                      </span>
+                      <div className="text-base font-bold font-mono text-stone-900 tracking-tight">
                         {session?.invoiceNumber || 'INV-2026-DRAFT'}
                       </div>
-                      <div className="text-[10px] text-brown-500 font-mono">
-                        Date: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      <div className="text-[11px] text-stone-500 font-mono">
+                        Issue Date: {new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
                       </div>
                     </div>
                   </div>
 
                   {/* 2-Column Info Cards */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {/* Customer / Billed To Card */}
-                    <div className="bg-brown-50/40 border border-brown-200/60 rounded-xl p-3 space-y-1">
-                      <div className="text-[9.5px] font-bold font-mono uppercase tracking-wider text-brown-400">
-                        Billed To
+                    <div className="bg-stone-50/70 border border-stone-200/80 rounded-xl p-3.5 space-y-1.5 shadow-2xs">
+                      <div className="text-[10px] font-bold font-mono uppercase tracking-wider text-stone-400 flex items-center gap-1.5">
+                        <User className="w-3 h-3 text-stone-500" />
+                        <span>Billed To</span>
                       </div>
-                      <div className="text-sm font-bold text-brown-900">
-                        {session?.customerName || <span className="text-brown-400 font-normal italic">Pending Customer Name...</span>}
+                      <div className="text-sm font-bold text-stone-900">
+                        {session?.customerName || (
+                          <span className="text-stone-400 font-normal italic">Pending Customer Name...</span>
+                        )}
                       </div>
-                      <div className="text-xs text-brown-700 font-mono">
-                        {session?.phone ? `+91 ${session.phone}` : <span className="text-brown-400 font-normal italic">Pending Contact No...</span>}
+                      <div className="text-xs text-stone-700 font-mono">
+                        {session?.phone ? (
+                          <span className="inline-flex items-center gap-1 bg-white px-2 py-0.5 rounded border border-stone-200 text-stone-800 font-semibold shadow-2xs">
+                            <Phone className="w-2.5 h-2.5 text-stone-500" />
+                            +91 {session.phone}
+                          </span>
+                        ) : (
+                          <span className="text-stone-400 font-normal italic">Pending Contact Number...</span>
+                        )}
                       </div>
-                      <div className="flex items-center justify-between text-[10px] text-brown-600 pt-1 border-t border-brown-200/40">
-                        <span>Place of Supply: <strong>Gujarat (24)</strong></span>
-                        <span className="px-1.5 py-0.2 bg-white text-brown-700 rounded border border-brown-200 text-[9px] font-mono">
+                      <div className="flex items-center justify-between text-[10.5px] text-stone-600 pt-1.5 border-t border-stone-200/60">
+                        <span>Place of Supply: <strong className="text-stone-800 font-semibold">24 - Gujarat</strong></span>
+                        <span className="px-2 py-0.5 bg-white text-stone-700 rounded-full border border-stone-200 text-[9px] font-mono font-medium shadow-2xs">
                           B2C Consumer
                         </span>
                       </div>
                     </div>
 
                     {/* Invoice Particulars Card */}
-                    <div className="bg-brown-50/40 border border-brown-200/60 rounded-xl p-3 space-y-1 text-[11px]">
-                      <div className="text-[9.5px] font-bold font-mono uppercase tracking-wider text-brown-400">
-                        Invoice Particulars
+                    <div className="bg-stone-50/70 border border-stone-200/80 rounded-xl p-3.5 space-y-1.5 text-xs shadow-2xs">
+                      <div className="text-[10px] font-bold font-mono uppercase tracking-wider text-stone-400 flex items-center gap-1.5">
+                        <FileText className="w-3 h-3 text-stone-500" />
+                        <span>Invoice Particulars</span>
                       </div>
-                      <div className="flex justify-between items-center text-brown-800">
-                        <span className="text-brown-500">Supply Type:</span>
-                        <span className="font-medium">Intra-State (CGST + SGST)</span>
+                      <div className="flex justify-between items-center text-stone-700 pt-0.5">
+                        <span className="text-stone-500">Supply Nature:</span>
+                        <span className="font-semibold text-stone-900">Intra-State (9% CGST + 9% SGST)</span>
                       </div>
-                      <div className="flex justify-between items-center text-brown-800">
-                        <span className="text-brown-500">HSN Chapter:</span>
-                        <span className="font-mono font-medium">9403 (Furniture)</span>
+                      <div className="flex justify-between items-center text-stone-700">
+                        <span className="text-stone-500">HSN Classification:</span>
+                        <span className="font-mono font-medium text-stone-800">9403 (Furniture &amp; Fixtures)</span>
                       </div>
-                      <div className="flex justify-between items-center text-brown-800 pt-1 border-t border-brown-200/40">
-                        <span className="text-brown-500">Reverse Charge:</span>
-                        <span className="font-semibold text-emerald-700 font-mono">No</span>
+                      <div className="flex justify-between items-center text-stone-700 pt-1 border-t border-stone-200/60">
+                        <span className="text-stone-500">Settlement:</span>
+                        <span className="font-semibold text-emerald-700 font-mono">Immediate Due</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Disagreement Warning (if any) */}
+                  {/* Disagreement Warnings (if any) */}
                   {session?.disagreementWarnings && (
-                    <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-lg text-xs text-amber-900 space-y-0.5">
-                      <div className="font-semibold flex items-center gap-1.5 text-amber-800">
-                        <AlertCircle className="w-3.5 h-3.5" />
-                        <span>Parser Overrides Applied:</span>
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 space-y-1 shadow-2xs">
+                      <div className="font-bold flex items-center gap-1.5 text-amber-800">
+                        <AlertCircle className="w-4 h-4 text-amber-600" />
+                        <span>Parser Clarifications Applied:</span>
                       </div>
                       {session.disagreementWarnings.en?.map((w, i) => (
-                        <div key={i} className="pl-5 text-[11px]">• {w}</div>
+                        <div key={i} className="pl-5 text-[11px] text-amber-800">• {w}</div>
                       ))}
                     </div>
                   )}
 
-                  {/* Modern Line Items Table */}
-                  <div className="border border-brown-200/70 rounded-xl overflow-hidden bg-white">
+                  {/* Modern Spacious Line Items Table */}
+                  <div className="border border-stone-200 rounded-xl overflow-hidden bg-white shadow-2xs">
                     <table className="w-full text-left text-xs">
-                      <thead className="bg-brown-50/60 border-b border-brown-200/70 text-brown-700 font-semibold font-mono text-[10px] uppercase tracking-wider">
+                      <thead className="bg-stone-50/90 border-b border-stone-200 text-stone-600 font-bold font-mono text-[10px] uppercase tracking-wider">
                         <tr>
-                          <th className="py-2.5 px-3">Item &amp; Description</th>
-                          <th className="py-2.5 px-2 text-center w-12">HSN</th>
-                          <th className="py-2.5 px-2 text-center w-20">Qty</th>
-                          <th className="py-2.5 px-2 text-right w-20">Rate</th>
-                          <th className="py-2.5 px-2 text-right w-20">Taxable</th>
-                          <th className="py-2.5 px-3 text-right w-24">Total</th>
-                          <th className="py-2.5 px-1.5 text-center w-6"></th>
+                          <th className="py-2.5 px-3.5">Item &amp; Grade</th>
+                          <th className="py-2.5 px-2 text-center w-14">HSN</th>
+                          <th className="py-2.5 px-2 text-center w-24">Qty</th>
+                          <th className="py-2.5 px-2 text-right w-24">Rate</th>
+                          <th className="py-2.5 px-2 text-right w-24">Taxable</th>
+                          <th className="py-2.5 px-3.5 text-right w-28">Total</th>
+                          <th className="py-2.5 px-2 text-center w-8"></th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-brown-100">
+                      <tbody className="divide-y divide-stone-100">
                         {session?.lineItems && session.lineItems.length > 0 ? (
                           session.lineItems.map((item, idx) => {
                             const baseRate = item.unitPrice || 0;
@@ -1199,57 +1223,63 @@ export const VoiceBillPage: React.FC = () => {
                             const lineTotal = taxable + gstAmt;
 
                             return (
-                              <tr key={item.id || idx} className="hover:bg-brown-50/30 transition-colors">
-                                <td className="py-2 px-3">
-                                  <div className="font-semibold text-brown-900 leading-tight">
+                              <tr key={item.id || idx} className="hover:bg-stone-50/60 transition-colors">
+                                <td className="py-3 px-3.5">
+                                  <div className="font-bold text-stone-900 text-xs leading-tight">
                                     {item.matchedName || item.productName}
                                   </div>
-                                  <div className="text-[10px] text-brown-400 font-mono">
-                                    Grade-A Finish
+                                  <div className="text-[10px] text-stone-500 font-mono mt-0.5 flex items-center gap-1.5">
+                                    <span className="px-1.5 py-0.2 bg-stone-100 text-stone-600 rounded text-[9px]">
+                                      Showroom Finish
+                                    </span>
                                     {discount > 0 && (
-                                      <span className="ml-1.5 text-emerald-700 font-medium">
+                                      <span className="text-emerald-700 font-semibold">
                                         ({discount}% off)
                                       </span>
                                     )}
                                   </div>
                                 </td>
-                                <td className="py-2 px-2 text-center font-mono text-brown-500 text-[11px]">
+                                <td className="py-3 px-2 text-center font-mono text-stone-500 text-xs">
                                   9403
                                 </td>
-                                <td className="py-2 px-2 text-center">
-                                  <div className="inline-flex items-center gap-1 bg-brown-50 px-1.5 py-0.5 rounded-md border border-brown-200/50">
+                                <td className="py-3 px-2 text-center">
+                                  <div className="inline-flex items-center gap-1 bg-stone-100 px-2 py-0.5 rounded-lg border border-stone-200">
                                     <button
                                       type="button"
-                                      onClick={() => handleUpdateQty(item.id, item.qty - 1)}
-                                      className="w-4 h-4 rounded text-brown-600 hover:bg-brown-200 flex items-center justify-center cursor-pointer text-xs"
+                                      onClick={() => handleUpdateQty(item.id, Math.max(0, item.qty - 1))}
+                                      className="w-4 h-4 rounded text-stone-600 hover:bg-white hover:shadow-xs flex items-center justify-center cursor-pointer text-xs font-bold transition-all"
+                                      title="Decrease quantity"
                                     >
                                       -
                                     </button>
-                                    <span className="font-mono font-bold text-xs w-4 text-center text-brown-900">{item.qty}</span>
+                                    <span className="font-mono font-bold text-xs w-4 text-center text-stone-900">
+                                      {item.qty}
+                                    </span>
                                     <button
                                       type="button"
                                       onClick={() => handleUpdateQty(item.id, item.qty + 1)}
-                                      className="w-4 h-4 rounded text-brown-600 hover:bg-brown-200 flex items-center justify-center cursor-pointer text-xs"
+                                      className="w-4 h-4 rounded text-stone-600 hover:bg-white hover:shadow-xs flex items-center justify-center cursor-pointer text-xs font-bold transition-all"
+                                      title="Increase quantity"
                                     >
                                       +
                                     </button>
                                   </div>
                                 </td>
-                                <td className="py-2 px-2 text-right font-mono text-brown-700">
-                                  ₹{baseRate.toFixed(2)}
+                                <td className="py-3 px-2 text-right font-mono text-stone-700 text-xs">
+                                  ₹{baseRate.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </td>
-                                <td className="py-2 px-2 text-right font-mono text-brown-800">
-                                  ₹{taxable.toFixed(2)}
+                                <td className="py-3 px-2 text-right font-mono text-stone-800 text-xs">
+                                  ₹{taxable.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </td>
-                                <td className="py-2 px-3 text-right font-mono font-bold text-brown-900">
-                                  ₹{lineTotal.toFixed(2)}
+                                <td className="py-3 px-3.5 text-right font-mono font-bold text-stone-900 text-xs">
+                                  ₹{lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                 </td>
-                                <td className="py-2 px-1.5 text-center">
+                                <td className="py-3 px-2 text-center">
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteItem(item.id)}
                                     title="Remove item"
-                                    className="text-brown-400 hover:text-red-600 p-1 cursor-pointer transition-colors"
+                                    className="text-stone-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-md cursor-pointer transition-colors"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
                                   </button>
@@ -1259,8 +1289,16 @@ export const VoiceBillPage: React.FC = () => {
                           })
                         ) : (
                           <tr>
-                            <td colSpan={7} className="py-10 text-center text-brown-400 italic text-xs">
-                              Speak or type product details to begin building the invoice.
+                            <td colSpan={7} className="py-12 text-center text-stone-400 text-xs">
+                              <div className="flex flex-col items-center justify-center gap-2">
+                                <div className="w-10 h-10 rounded-full bg-stone-100 flex items-center justify-center text-stone-400">
+                                  <ShoppingBag className="w-5 h-5" />
+                                </div>
+                                <div className="font-semibold text-stone-600">No items on invoice yet</div>
+                                <div className="text-[11px] text-stone-400">
+                                  Speak or type product details to start building the bill.
+                                </div>
+                              </div>
                             </td>
                           </tr>
                         )}
@@ -1271,45 +1309,47 @@ export const VoiceBillPage: React.FC = () => {
                   {/* Summary & Bank Remittance Grid */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                     {/* Left: Remittance Bank Card */}
-                    <div className="bg-brown-50/30 border border-brown-200/50 rounded-xl p-3 space-y-1.5">
-                      <div className="text-[10px] font-bold font-mono uppercase tracking-wider text-brown-500">
-                        Payment &amp; Remittance
+                    <div className="bg-stone-50/70 border border-stone-200/80 rounded-xl p-3.5 space-y-2 shadow-2xs">
+                      <div className="text-[10px] font-bold font-mono uppercase tracking-wider text-stone-500 flex items-center gap-1.5">
+                        <CreditCard className="w-3.5 h-3.5 text-stone-500" />
+                        <span>Payment &amp; Showroom Warranty</span>
                       </div>
-                      <div className="text-[11px] font-mono text-brown-700 leading-tight space-y-0.5">
-                        <div>Bank: <strong>State Bank of India</strong></div>
-                        <div>A/C: <strong>389201004521</strong> (Current)</div>
+                      <div className="text-xs font-mono text-stone-700 leading-tight space-y-1">
+                        <div>Bank: <strong className="text-stone-900 font-semibold">State Bank of India</strong></div>
+                        <div>A/C: <strong className="text-stone-900 font-semibold">389201004521</strong> (Current)</div>
                         <div>IFSC: <strong>SBIN0001234</strong> • Gandhinagar</div>
-                        <div>UPI: <strong>urbanfurniture@sbi</strong></div>
+                        <div>UPI Handle: <strong className="text-emerald-700 font-bold">urbanfurniture@sbi</strong></div>
                       </div>
-                      <div className="text-[10px] text-brown-500 pt-1 border-t border-brown-200/40">
-                        ✓ 1-Year Comprehensive Warranty on all items
+                      <div className="text-[10.5px] text-emerald-800 pt-1.5 border-t border-stone-200/60 font-medium flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        <span>1-Year Comprehensive Warranty Included</span>
                       </div>
                     </div>
 
-                    {/* Right: Modern Totals Card */}
-                    <div className="bg-brown-50/50 border border-brown-200/60 rounded-xl p-3 space-y-1.5">
-                      <div className="flex justify-between text-brown-600 text-xs">
-                        <span>Taxable Amount:</span>
-                        <span className="font-mono font-medium">₹{subtotalDec.toFixed(2)}</span>
+                    {/* Right: Modern High-Impact Totals Card */}
+                    <div className="bg-stone-900 text-white rounded-xl p-4 space-y-2.5 shadow-sm">
+                      <div className="flex justify-between text-stone-300 text-xs">
+                        <span>Taxable Subtotal:</span>
+                        <span className="font-mono font-medium">₹{subtotalDec.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                       </div>
-                      <div className="flex justify-between text-brown-600 text-[11px]">
+                      <div className="flex justify-between text-stone-400 text-[11px]">
                         <span>CGST (9%):</span>
-                        <span className="font-mono">₹{(taxDec / 2).toFixed(2)}</span>
+                        <span className="font-mono">₹{(taxDec / 2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                       </div>
-                      <div className="flex justify-between text-brown-600 text-[11px]">
+                      <div className="flex justify-between text-stone-400 text-[11px]">
                         <span>SGST (9%):</span>
-                        <span className="font-mono">₹{(taxDec / 2).toFixed(2)}</span>
+                        <span className="font-mono">₹{(taxDec / 2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                       </div>
-                      <div className="pt-2 border-t border-brown-200/80 flex items-center justify-between">
-                        <span className="font-bold text-brown-900 text-xs uppercase tracking-tight">
-                          Total Amount:
+                      <div className="pt-2.5 border-t border-stone-700/90 flex items-center justify-between">
+                        <span className="font-bold text-amber-200 text-xs font-mono uppercase tracking-wider">
+                          TOTAL AMOUNT DUE
                         </span>
-                        <span className="font-mono font-bold text-base text-emerald-900">
-                          ₹{session?.grandTotal || '0.00'}
+                        <span className="font-mono font-black text-xl text-emerald-400 tracking-tight">
+                          ₹{parseFloat(session?.grandTotal || '0').toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                         </span>
                       </div>
                       {session?.grandTotal && parseFloat(session.grandTotal) > 0 && (
-                        <div className="text-[9.5px] text-brown-500 italic text-right font-mono pt-0.5">
+                        <div className="text-[10px] text-stone-400 italic text-right font-mono pt-1 leading-snug border-t border-stone-800">
                           {amountToWords(session.grandTotal)}
                         </div>
                       )}
@@ -1317,33 +1357,33 @@ export const VoiceBillPage: React.FC = () => {
                   </div>
 
                   {/* Verification Footer */}
-                  <div className="flex items-center justify-between pt-2 border-t border-brown-100 text-[10px]">
+                  <div className="flex items-center justify-between pt-3 border-t border-stone-100 text-[10.5px]">
                     <div className="flex items-center gap-1.5 text-emerald-800 font-mono font-medium">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Verified GST Electronic Invoice</span>
+                      <span>Certified Electronic Commercial Invoice</span>
                     </div>
 
-                    <div className="text-right text-brown-500 font-mono">
+                    <div className="text-right text-stone-500 font-mono text-[10px]">
                       <span>Authorised Signatory • Urban Furniture Pvt. Ltd.</span>
                     </div>
                   </div>
                 </div>
               ) : (
                 /* ── Modern Minimalist POS Slip ─────────────────────── */
-                <div className="bg-stone-50 border border-stone-200 rounded-xl p-4 font-mono text-xs space-y-3 shadow-inner">
-                  <div className="text-center border-b border-dashed border-stone-300 pb-2.5">
-                    <div className="text-sm font-bold tracking-tight text-stone-900 uppercase">URBAN FURNITURE</div>
-                    <div className="text-[10px] text-stone-500">Plot 42, GIDC, Gandhinagar, Gujarat</div>
-                    <div className="text-[10px] text-stone-500">GSTIN: 24AABCU9603R1ZM</div>
-                    <div className="text-[10px] font-semibold text-stone-800 mt-1 uppercase tracking-wider">
+                <div className="bg-stone-50/80 border border-stone-200 rounded-xl p-5 font-mono text-xs space-y-3.5 shadow-2xs">
+                  <div className="text-center border-b border-dashed border-stone-300 pb-3 space-y-0.5">
+                    <div className="text-base font-black tracking-tight text-stone-900 uppercase">URBAN FURNITURE</div>
+                    <div className="text-[10px] text-stone-500">Plot 42, GIDC Electronics Zone, Gandhinagar</div>
+                    <div className="text-[10px] text-stone-600 font-bold">GSTIN: 24AABCU9603R1ZM</div>
+                    <div className="text-[10px] font-bold text-emerald-800 mt-1 uppercase tracking-wider">
                       Retail Tax Invoice
                     </div>
                   </div>
 
-                  <div className="flex justify-between text-[10px] border-b border-dashed border-stone-300 pb-2 text-stone-600">
+                  <div className="flex justify-between text-[10px] border-b border-dashed border-stone-300 pb-2.5 text-stone-600">
                     <div>
-                      <div>Bill: <strong>{session?.invoiceNumber || 'POS-DRAFT'}</strong></div>
-                      <div>Customer: <strong>{session?.customerName || 'Walk-in'}</strong></div>
+                      <div>Bill No: <strong className="text-stone-900">{session?.invoiceNumber || 'POS-DRAFT'}</strong></div>
+                      <div>Customer: <strong className="text-stone-900">{session?.customerName || 'Walk-in'}</strong></div>
                     </div>
                     <div className="text-right">
                       <div>{new Date().toLocaleDateString('en-IN')}</div>
@@ -1352,7 +1392,7 @@ export const VoiceBillPage: React.FC = () => {
                   </div>
 
                   {/* POS Line Items */}
-                  <div className="space-y-1.5 border-b border-dashed border-stone-300 pb-2">
+                  <div className="space-y-2 border-b border-dashed border-stone-300 pb-3">
                     <div className="flex justify-between font-bold text-[10px] text-stone-700">
                       <span className="w-1/2">ITEM</span>
                       <span className="w-1/6 text-center">QTY</span>
@@ -1361,11 +1401,11 @@ export const VoiceBillPage: React.FC = () => {
                     </div>
                     {session?.lineItems && session.lineItems.length > 0 ? (
                       session.lineItems.map((item, idx) => (
-                        <div key={idx} className="flex justify-between text-[9px]">
-                          <span className="w-1/2 truncate font-medium">{item.matchedName || item.productName}</span>
+                        <div key={idx} className="flex justify-between text-[10px]">
+                          <span className="w-1/2 truncate font-semibold text-stone-900">{item.matchedName || item.productName}</span>
                           <span className="w-1/6 text-center">{item.qty}</span>
-                          <span className="w-1/6 text-right">{item.unitPrice}</span>
-                          <span className="w-1/6 text-right font-bold">{item.lineTotal}</span>
+                          <span className="w-1/6 text-right font-mono">₹{item.unitPrice}</span>
+                          <span className="w-1/6 text-right font-mono font-bold text-stone-900">₹{item.lineTotal}</span>
                         </div>
                       ))
                     ) : (
@@ -1374,72 +1414,72 @@ export const VoiceBillPage: React.FC = () => {
                   </div>
 
                   {/* POS Totals */}
-                  <div className="space-y-1 text-[10px]">
-                    <div className="flex justify-between">
+                  <div className="space-y-1.5 text-[10.5px]">
+                    <div className="flex justify-between text-stone-600">
                       <span>Subtotal (Taxable):</span>
-                      <span>₹{subtotalDec.toFixed(2)}</span>
+                      <span className="font-mono font-medium text-stone-800">₹{subtotalDec.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
-                    <div className="flex justify-between text-stone-600">
+                    <div className="flex justify-between text-stone-500">
                       <span>CGST (9%):</span>
-                      <span>₹{(taxDec / 2).toFixed(2)}</span>
+                      <span className="font-mono">₹{(taxDec / 2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
-                    <div className="flex justify-between text-stone-600">
+                    <div className="flex justify-between text-stone-500">
                       <span>SGST (9%):</span>
-                      <span>₹{(taxDec / 2).toFixed(2)}</span>
+                      <span className="font-mono">₹{(taxDec / 2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
-                    <div className="border-t-2 border-dashed border-stone-800 pt-1 flex justify-between font-black text-sm text-stone-900">
+                    <div className="border-t-2 border-dashed border-stone-900 pt-2 flex justify-between font-black text-sm text-stone-900">
                       <span>NET AMOUNT PAYABLE:</span>
-                      <span>₹{session?.grandTotal || '0.00'}</span>
+                      <span className="font-mono text-emerald-800">₹{parseFloat(session?.grandTotal || '0').toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                     </div>
                   </div>
 
-                  <div className="text-center pt-2 border-t border-dashed border-stone-400 text-[8px] text-stone-500">
-                    <div>Thank you for choosing Urban Furniture!</div>
-                    <div>Goods covered under 1 Year Warranty • Visit www.urbanfurniture.in</div>
+                  <div className="text-center pt-2.5 border-t border-dashed border-stone-300 text-[9px] text-stone-500">
+                    <div>Thank you for visiting Urban Furniture!</div>
+                    <div>Goods covered under 1-Year Warranty • www.urbanfurniture.in</div>
                   </div>
                 </div>
               )}
             </div>
 
             {/* Bottom Actions & Ledger Confirmation */}
-            <div className="pt-4 border-t border-brown-200 space-y-2.5">
+            <div className="pt-4 border-t border-stone-200 space-y-2.5">
               {session?.status === 'ready_for_confirm' && (
                 <button
                   type="button"
                   disabled={confirming}
                   onClick={handleConfirmBill}
-                  className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white font-bold font-display text-xs uppercase tracking-wider rounded-[10px] transition-all shadow-md flex items-center justify-center gap-2 active:scale-[0.99] disabled:opacity-50 cursor-pointer"
+                  className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold font-display text-xs uppercase tracking-wider rounded-xl transition-all shadow-md flex items-center justify-center gap-2 active:scale-[0.99] disabled:opacity-50 cursor-pointer"
                 >
                   {confirming ? (
                     'Generating Customer Invoice & Posting Ledger...'
                   ) : (
                     <>
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Confirm & Post Invoice to Ledger</span>
+                      <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                      <span>Confirm &amp; Post Invoice to Ledger</span>
                     </>
                   )}
                 </button>
               )}
 
               {session?.status === 'confirmed' && (
-                <div className="space-y-2">
-                  <div className="p-2.5 bg-emerald-100 border border-emerald-300 text-emerald-950 rounded-[8px] text-xs flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 font-bold">
+                <div className="space-y-2.5">
+                  <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-950 rounded-xl text-xs flex items-center justify-between shadow-2xs">
+                    <div className="flex items-center gap-2 font-bold">
                       <CheckCircle2 className="w-4 h-4 text-emerald-700" />
-                      <span>Posted: {session.invoiceNumber}</span>
+                      <span>Invoice Posted: {session.invoiceNumber}</span>
                     </div>
-                    <span className="text-[10px] bg-emerald-700 text-white px-2 py-0.5 rounded font-mono">
+                    <span className="text-[10px] bg-emerald-700 text-white px-2.5 py-0.5 rounded-full font-mono font-bold">
                       POSTED
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2.5">
                     {session.pdfUrl && (
                       <a
                         href={session.pdfUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex-1 py-2 bg-brown-900 text-cream hover:bg-brown-800 text-xs font-semibold rounded-[8px] transition-colors shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                        className="flex-1 py-2.5 bg-stone-900 text-amber-100 hover:bg-stone-800 text-xs font-semibold rounded-xl transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                       >
                         <Printer className="w-3.5 h-3.5 text-amber-300" />
                         <span>Print PDF Bill</span>
@@ -1450,9 +1490,9 @@ export const VoiceBillPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => navigate(`/sales/invoices/${session.invoiceId}`)}
-                        className="flex-1 py-2 bg-surface border border-brown-300 hover:bg-brown-100 text-brown-900 text-xs font-semibold rounded-[8px] transition-colors shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                        className="flex-1 py-2.5 bg-white border border-stone-300 hover:bg-stone-50 text-stone-900 text-xs font-semibold rounded-xl transition-colors shadow-xs flex items-center justify-center gap-2 cursor-pointer"
                       >
-                        <FileText className="w-3.5 h-3.5 text-brown-600" />
+                        <FileText className="w-3.5 h-3.5 text-stone-600" />
                         <span>View Invoice</span>
                       </button>
                     )}
@@ -1461,8 +1501,9 @@ export const VoiceBillPage: React.FC = () => {
               )}
 
               {(!session || session.status === 'collecting') && (
-                <div className="text-center text-[11px] text-brown-500 italic py-1">
-                  Draft bill updates live as you speak or chat
+                <div className="text-center text-xs text-stone-400 italic py-1 flex items-center justify-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                  <span>Draft bill updates live as you speak or chat</span>
                 </div>
               )}
             </div>

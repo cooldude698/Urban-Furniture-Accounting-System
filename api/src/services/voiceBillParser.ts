@@ -277,6 +277,64 @@ export class VoiceBillParser {
   }
 
   /**
+   * Converts Devanagari numerals (०-९) to standard ASCII digits (0-9)
+   */
+  static normalizeDigits(text: string): string {
+    const devanagariDigits: Record<string, string> = {
+      '०': '0', '१': '1', '२': '2', '३': '3', '४': '4',
+      '५': '5', '६': '6', '७': '7', '८': '8', '९': '9',
+    };
+    return text.replace(/[०-९]/g, d => devanagariDigits[d] || d);
+  }
+
+  /**
+   * Checks if text contains any digit or recognized number word (Hindi or English)
+   */
+  static hasNumberWord(text: string): boolean {
+    if (/\d+/.test(text) || /[०-९]/.test(text)) return true;
+    const words = text.toLowerCase().split(/[\s,.:;!?]+/);
+    return words.some(w => HINDI_NUMBER_WORDS[w] !== undefined || ENGLISH_NUMBER_WORDS[w] !== undefined);
+  }
+
+  /**
+   * Robust phone number extraction:
+   * Handles 10-13 digits, +91 prefixes, spaces/dashes, Devanagari numerals, and spoken number words
+   */
+  static extractPhoneNumber(text: string): string | null {
+    if (!text) return null;
+    let normalized = this.normalizeDigits(text);
+    normalized = this.normalizeNumberWordsInText(normalized);
+
+    // 1. Explicit phone anchor e.g. phone: 9876543210 or mobile 98765 43210
+    const anchorMatch = normalized.match(
+      /(?:phone|number|mobile|contact|फ़ोन|फोन|नंबर|मोबाइल|mob)[\s:=]*(\+?91[\s-]?)?(\d[\d\s-]{8,14}\d)/i
+    );
+    if (anchorMatch) {
+      const digits = anchorMatch[2].replace(/\D/g, '');
+      if (digits.length >= 10 && digits.length <= 13) {
+        return digits.slice(-10);
+      }
+    }
+
+    // 2. Any contiguous or hyphen/space separated 10-13 digit number
+    const phonePattern = /(?:^|(?<=[\s,.:;]))(?:\+?91[\s-]?)?(\d[\d\s-]{8,14}\d)(?=[\s,.:;]|$)/g;
+    for (const match of normalized.matchAll(phonePattern)) {
+      const digits = match[1].replace(/\D/g, '');
+      if (digits.length >= 10 && digits.length <= 13) {
+        return digits.slice(-10);
+      }
+    }
+
+    // 3. Raw digits anywhere in the message (if 10 to 13 digits total)
+    const rawDigits = normalized.replace(/\D/g, '');
+    if (rawDigits.length >= 10 && rawDigits.length <= 13) {
+      return rawDigits.slice(-10);
+    }
+
+    return null;
+  }
+
+  /**
    * Replaces multi-word numbers like "five hundred", "दो सौ", "panch hazar" with digits
    */
   static normalizeNumberWordsInText(text: string): string {
@@ -416,18 +474,9 @@ export class VoiceBillParser {
     }
 
     // 2. Extract Phone Number
-    // Look for anchor OR raw 10-13 digit Indian phone number (handles +91, 91, 0, or raw digits)
-    const phoneAnchorMatch = normalizedText.match(
-      /(?:phone|number|mobile|contact|फ़ोन|फोन|नंबर|मोबाइल|mob)[\s:=]*(\+?91[\s-]?)?(\d{10,13})\b/i
-    );
-    if (phoneAnchorMatch) {
-      slots.phone = phoneAnchorMatch[2].slice(-10);
-    } else {
-      // Direct 10-13 digit mobile number pattern
-      const directPhoneMatch = normalizedText.match(/(?:^|(?<=[\s,.:;]))(?:\+?91[\s-]?)?(\d{10,13})(?=[\s,.:;]|$)/);
-      if (directPhoneMatch) {
-        slots.phone = directPhoneMatch[1].slice(-10);
-      }
+    const detectedPhone = this.extractPhoneNumber(inputText);
+    if (detectedPhone) {
+      slots.phone = detectedPhone;
     }
 
     // 3. Extract Customer Name
@@ -682,11 +731,10 @@ export class VoiceBillParser {
 
     // --- STEP 1: Phone (10-13 digit regex) ---
     if (!slots.phone) {
-      const phoneRegex = /(?:^|(?<=[\s,.:;]))(?:\+?91[\s-]?)?(\d{10,13})(?=[\s,.:;]|$)/;
-      const phoneMatch = workingText.match(phoneRegex);
-      if (phoneMatch) {
-        slots.phone = phoneMatch[1].slice(-10);
-        workingText = workingText.replace(phoneMatch[0], ' ');
+      const p = this.extractPhoneNumber(workingText);
+      if (p) {
+        slots.phone = p;
+        workingText = workingText.replace(new RegExp(`(?:\\+?91[\\s-]?)?${p}`, 'g'), ' ');
       }
     }
 
