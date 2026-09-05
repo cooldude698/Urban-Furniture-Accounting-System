@@ -512,4 +512,48 @@ export class PortalService {
       user.id
     );
   }
+
+  /**
+   * Fetch customer's own payments / transaction logs via contact_id
+   */
+  static async getPortalPayments(user: UserPayload) {
+    const contactId = user.contact_id || -1;
+
+    const res = await pool.query(
+      `SELECT 
+         p.id,
+         p.number,
+         p.payment_date AS "paymentDate",
+         p.method,
+         p.direction,
+         p.amount::text,
+         p.created_at AS "createdAt",
+         COALESCE(
+           json_agg(
+             json_build_object(
+               'allocationId', pa.id,
+               'invoiceId', pa.invoice_id,
+               'invoiceNumber', ci.number,
+               'billId', pa.bill_id,
+               'billNumber', vb.number,
+               'amount', pa.amount::text
+             )
+           ) FILTER (WHERE pa.id IS NOT NULL),
+           '[]'::json
+         ) AS allocations
+       FROM payments p
+       LEFT JOIN payment_allocations pa ON pa.payment_id = p.id
+       LEFT JOIN customer_invoices ci ON ci.id = pa.invoice_id
+       LEFT JOIN vendor_bills vb ON vb.id = pa.bill_id
+       WHERE p.partner_id = $1
+       GROUP BY p.id
+       ORDER BY p.payment_date DESC, p.id DESC`,
+      [contactId]
+    );
+
+    return res.rows.map(r => ({
+      ...r,
+      paymentDate: r.paymentDate ? new Date(r.paymentDate).toISOString().split('T')[0] : '',
+    }));
+  }
 }

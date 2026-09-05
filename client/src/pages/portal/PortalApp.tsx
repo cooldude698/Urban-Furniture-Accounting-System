@@ -9,12 +9,14 @@ import { PortalInvoiceList } from './PortalInvoiceList';
 import { PortalInvoiceDetail } from './PortalInvoiceDetail';
 import { PortalBillList } from './PortalBillList';
 import { PortalBillDetail } from './PortalBillDetail';
+import { PortalPaymentList } from './PortalPaymentList';
 
 /**
  * Portal route tree.
  *
  * Public  – /portal/login, /portal/accept-invite
  * Protected (behind PortalAuthGuard) – /portal/invoices, /portal/invoices/:id,
+ *                                       /portal/payments,
  *                                       /portal/bills, /portal/bills/:id
  *
  * The PortalLayout wraps authenticated pages; it reads the user and logout
@@ -36,6 +38,9 @@ export const PortalApp: React.FC = () => {
           {/* Invoices */}
           <Route path="invoices" element={<PortalInvoiceList />} />
           <Route path="invoices/:id" element={<PortalInvoiceDetail />} />
+
+          {/* Payments & Transaction Logs */}
+          <Route path="payments" element={<PortalPaymentList />} />
 
           {/* Bills */}
           <Route path="bills" element={<PortalBillList />} />

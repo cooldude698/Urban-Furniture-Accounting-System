@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Decimal from 'decimal.js';
 import { ListView } from '../../components/ui/ListView';
 import type { ListColumn } from '../../components/ui/ListView';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { formatINRCompact, formatINR } from '../../lib/money';
+import { loadRazorpayScript } from '../../lib/razorpay';
 
 export interface PortalInvoiceListItem {
   id: number;
@@ -80,100 +81,17 @@ function SummaryCard({ label, value, subtext, accent }: SummaryCardProps) {
   );
 }
 
-/* ── column definition ─────────────────────────────────────────────────── */
-const columns: ListColumn<PortalInvoiceListItem>[] = [
-  {
-    key: 'number',
-    label: 'Invoice #',
-    type: 'text',
-    render: (row) => (
-      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 13 }}>
-        {row.number}
-      </span>
-    ),
-  },
-  {
-    key: 'invoiceDate',
-    label: 'Invoice Date',
-    type: 'date',
-  },
-  {
-    key: 'dueDate',
-    label: 'Due Date',
-    type: 'date',
-  },
-  {
-    key: 'paymentStatus',
-    label: 'Status',
-    type: 'text',
-    render: (row) => (
-      <StatusBadge
-        status={
-          row.paymentStatus === 'paid'
-            ? 'paid'
-            : row.paymentStatus === 'partial'
-              ? 'partial'
-              : 'not_paid'
-        }
-      />
-    ),
-  },
-  {
-    key: 'total',
-    label: 'Total',
-    type: 'money',
-    align: 'right',
-  },
-  {
-    key: 'amountPaid',
-    label: 'Paid',
-    type: 'money',
-    align: 'right',
-    render: (row) => (
-      <span
-        style={{
-          fontFamily: 'var(--font-mono)',
-          fontVariantNumeric: 'tabular-nums',
-          fontSize: 13,
-          color: 'var(--posted)',
-        }}
-      >
-        {formatINR(row.amountPaid)}
-      </span>
-    ),
-  },
-  {
-    key: 'amountDue',
-    label: 'Outstanding',
-    type: 'money',
-    align: 'right',
-    render: (row) => {
-      const due = new Decimal(row.amountDue || '0');
-      return (
-        <span
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontVariantNumeric: 'tabular-nums',
-            fontSize: 13,
-            fontWeight: due.gt(0) ? 700 : 400,
-            color: due.gt(0) ? 'var(--danger)' : 'var(--brown-500)',
-          }}
-        >
-          {formatINR(row.amountDue)}
-        </span>
-      );
-    },
-  },
-];
-
 /* ── main component ─────────────────────────────────────────────────────── */
 export const PortalInvoiceList: React.FC = () => {
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState<PortalInvoiceListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [payingId, setPayingId] = useState<number | null>(null);
+  const [successNotice, setSuccessNotice] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchInvoices = useCallback(() => {
     setLoading(true);
     fetch('/api/portal/invoices')
       .then(res => res.json())
@@ -187,6 +105,299 @@ export const PortalInvoiceList: React.FC = () => {
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    fetchInvoices();
+  }, [fetchInvoices]);
+
+  const handleInitiateRazorpay = async (row: PortalInvoiceListItem) => {
+    setPayingId(row.id);
+    setActionError(null);
+    try {
+      const loaded = await loadRazorpayScript();
+      if (!loaded) {
+        throw new Error('Could not load Razorpay Payment Gateway SDK');
+      }
+
+      const orderRes = await fetch(`/api/portal/invoices/${row.id}/razorpay/create-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: new Decimal(row.amountDue).toFixed(2) }),
+      });
+      const orderJson = await orderRes.json();
+      if (!orderRes.ok || orderJson.error) {
+        throw new Error(orderJson.error?.message || 'Failed to create Razorpay payment order');
+      }
+
+      const order = orderJson.data;
+      const rzpKey = (window as any).__VITE_RAZORPAY_KEY_ID__ || (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || 'rzp_test_TYL9FJAZxMYoFc';
+
+      const rzp = new (window as any).Razorpay({
+        key: rzpKey,
+        amount: order.amount,
+        currency: order.currency || 'INR',
+        name: 'Urban Furniture',
+        description: `Payment for Invoice ${row.number}`,
+        order_id: order.id,
+        theme: { color: '#77574A' },
+        handler: async (response: any) => {
+          try {
+            const verifyRes = await fetch(`/api/portal/invoices/${row.id}/razorpay/verify-payment`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                amount: new Decimal(row.amountDue).toFixed(2),
+              }),
+            });
+            const verifyJson = await verifyRes.json();
+            if (!verifyRes.ok || verifyJson.error) {
+              throw new Error(verifyJson.error?.message || 'Payment signature verification failed');
+            }
+
+            setSuccessNotice(`Payment ${response.razorpay_payment_id} verified & posted to General Ledger! PDF receipt dispatched.`);
+            fetchInvoices();
+          } catch (vErr: any) {
+            setActionError(vErr.message || 'Signature verification failed');
+          } finally {
+            setPayingId(null);
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setPayingId(null);
+          },
+        },
+      });
+
+      rzp.open();
+    } catch (err: any) {
+      setActionError(err.message || 'Razorpay initialization failed');
+      setPayingId(null);
+    }
+  };
+
+  /* ── column definition ─────────────────────────────────────────────────── */
+  const columns: ListColumn<PortalInvoiceListItem>[] = [
+    {
+      key: 'number',
+      label: 'Invoice #',
+      type: 'text',
+      render: (row) => (
+        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 13 }}>
+          {row.number}
+        </span>
+      ),
+    },
+    {
+      key: 'invoiceDate',
+      label: 'Invoice Date',
+      type: 'date',
+    },
+    {
+      key: 'dueDate',
+      label: 'Due Date',
+      type: 'date',
+    },
+    {
+      key: 'paymentStatus',
+      label: 'Status',
+      type: 'text',
+      render: (row) => (
+        <StatusBadge
+          status={
+            row.paymentStatus === 'paid'
+              ? 'paid'
+              : row.paymentStatus === 'partial'
+                ? 'partial'
+                : 'not_paid'
+          }
+        />
+      ),
+    },
+    {
+      key: 'total',
+      label: 'Total',
+      type: 'money',
+      align: 'right',
+    },
+    {
+      key: 'amountPaid',
+      label: 'Paid',
+      type: 'money',
+      align: 'right',
+      render: (row) => (
+        <span
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontVariantNumeric: 'tabular-nums',
+            fontSize: 13,
+            color: 'var(--posted)',
+          }}
+        >
+          {formatINR(row.amountPaid)}
+        </span>
+      ),
+    },
+    {
+      key: 'amountDue',
+      label: 'Outstanding',
+      type: 'money',
+      align: 'right',
+      render: (row) => {
+        const due = new Decimal(row.amountDue || '0');
+        return (
+          <span
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontVariantNumeric: 'tabular-nums',
+              fontSize: 13,
+              fontWeight: due.gt(0) ? 700 : 400,
+              color: due.gt(0) ? 'var(--danger)' : 'var(--brown-500)',
+            }}
+          >
+            {formatINR(row.amountDue)}
+          </span>
+        );
+      },
+    },
+    {
+      key: 'actions',
+      label: 'Actions & Settle',
+      type: 'text',
+      align: 'right',
+      render: (row) => {
+        const due = new Decimal(row.amountDue || '0');
+        const isPaying = payingId === row.id;
+        return (
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              justifyContent: 'flex-end',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {due.gt(0) ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleInitiateRazorpay(row);
+                }}
+                disabled={isPaying}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '5px 12px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-display)',
+                  borderRadius: 'var(--radius-sm, 6px)',
+                  backgroundColor: '#77574A',
+                  color: '#FBF9F5',
+                  border: 'none',
+                  cursor: isPaying ? 'wait' : 'pointer',
+                  opacity: isPaying ? 0.7 : 1,
+                  boxShadow: 'var(--shadow-sm)',
+                  transition: 'background 120ms ease',
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isPaying) e.currentTarget.style.backgroundColor = '#5c4033';
+                }}
+                onMouseLeave={(e) => {
+                  if (!isPaying) e.currentTarget.style.backgroundColor = '#77574A';
+                }}
+                title={`Pay ${formatINR(row.amountDue)} instantly via Razorpay Online`}
+              >
+                <span>⚡</span>
+                <span>{isPaying ? 'Processing…' : 'Pay via Razorpay'}</span>
+              </button>
+            ) : (
+              <span
+                style={{
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-body)',
+                  color: 'var(--posted)',
+                  backgroundColor: 'rgba(56, 102, 65, 0.10)',
+                  border: '1px solid rgba(56, 102, 65, 0.25)',
+                  padding: '3px 8px',
+                  borderRadius: '4px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span>✓</span> Settled
+              </span>
+            )}
+
+            <a
+              href={`/api/portal/invoices/${row.id}/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                padding: '4px 8px',
+                fontSize: '12px',
+                fontWeight: 500,
+                borderRadius: 'var(--radius-sm, 6px)',
+                backgroundColor: 'var(--surface)',
+                color: 'var(--brown-800)',
+                border: '1px solid rgba(208, 174, 146, 0.60)',
+                textDecoration: 'none',
+                whiteSpace: 'nowrap',
+                transition: 'background 120ms ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--brown-100)')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface)')}
+              title="Download official PDF invoice"
+            >
+              <span>📄</span>
+              <span>PDF</span>
+            </a>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/portal/invoices/${row.id}`);
+              }}
+              style={{
+                padding: '4px 8px',
+                fontSize: '12px',
+                fontWeight: 500,
+                borderRadius: 'var(--radius-sm, 6px)',
+                backgroundColor: 'transparent',
+                color: 'var(--brown-700)',
+                border: '1px solid transparent',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(208, 174, 146, 0.50)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'transparent';
+              }}
+            >
+              Details →
+            </button>
+          </div>
+        );
+      },
+    },
+  ];
 
   /* ── derived KPIs ── */
   const totalCount = invoices.length;
@@ -217,11 +428,78 @@ export const PortalInvoiceList: React.FC = () => {
           Your Invoices
         </h1>
         <p style={{ fontSize: '12px', color: 'var(--brown-600)', marginTop: '4px' }}>
-          View, inspect, and settle all invoices billed to your account
+          View, inspect, and settle all invoices billed to your account with instant Razorpay online checkout
         </p>
       </div>
 
-      {/* ── Error ── */}
+      {/* ── Success Banner ── */}
+      {successNotice && (
+        <div
+          style={{
+            padding: '12px 16px',
+            background: 'rgba(56, 102, 65, 0.12)',
+            border: '1px solid var(--posted)',
+            borderRadius: 'var(--radius-sm)',
+            color: 'var(--posted)',
+            fontSize: '13px',
+            fontFamily: 'var(--font-body)',
+            fontWeight: 600,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <span>✅ {successNotice}</span>
+          <button
+            onClick={() => setSuccessNotice(null)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--posted)',
+              fontWeight: 700,
+              fontSize: '14px',
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* ── Action Error ── */}
+      {actionError && (
+        <div
+          style={{
+            padding: '10px 14px',
+            background: 'var(--danger-bg)',
+            border: '1px solid var(--danger)',
+            borderRadius: 'var(--radius-sm)',
+            color: 'var(--danger)',
+            fontSize: '12px',
+            fontFamily: 'var(--font-body)',
+            fontWeight: 500,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <span>⚠️ {actionError}</span>
+          <button
+            onClick={() => setActionError(null)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--danger)',
+              fontWeight: 700,
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* ── Fetch Error ── */}
       {error && (
         <div
           style={{
@@ -274,3 +552,6 @@ export const PortalInvoiceList: React.FC = () => {
     </div>
   );
 };
+
+export default PortalInvoiceList;
+

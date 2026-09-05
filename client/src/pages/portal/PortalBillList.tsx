@@ -116,8 +116,21 @@ export const PortalBillList: React.FC = () => {
                 </tr>
               ) : bills.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="p-8 text-center text-brown-600 text-sm font-body">
-                    No vendor bills found for your account.
+                  <td colSpan={9} className="p-10 text-center text-brown-700 text-sm font-body">
+                    <div className="max-w-md mx-auto flex flex-col items-center gap-2">
+                      <span className="text-2xl">📋</span>
+                      <p className="font-semibold text-brown-900 m-0 text-sm">No Vendor Purchase Bills on Record</p>
+                      <p className="text-xs text-brown-600 m-0 leading-relaxed">
+                        Your account is currently registered as a Customer. Vendor bills are only applicable to supplier/vendor accounts.
+                      </p>
+                      <button
+                        onClick={() => navigate('/portal/invoices')}
+                        className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 bg-brown-800 hover:bg-brown-900 text-cream text-xs font-semibold rounded-md shadow-sm transition-colors"
+                      >
+                        <span>⚡</span>
+                        <span>Go to Customer Invoices & Pay Online</span>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ) : (

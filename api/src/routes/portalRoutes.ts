@@ -291,6 +291,16 @@ portalRouter.get('/contact-user/:contactId', requireAuth, requireInternalUser, a
   }
 });
 
+// 8b. GET /api/portal/payments - Contact's OWN payments / transaction logs (scoped at data layer)
+portalRouter.get('/payments', requireAuth, requirePortalContact, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const payments = await PortalService.getPortalPayments(req.user!);
+    return sendSuccess(res, payments);
+  } catch (err: any) {
+    return sendError(res, 'SERVER_ERROR', err.message, 500);
+  }
+});
+
 // 9. GET /api/portal/bills - Contact's OWN vendor bills only
 portalRouter.get('/bills', requireAuth, requirePortalContact, async (req: AuthenticatedRequest, res: Response) => {
   try {
