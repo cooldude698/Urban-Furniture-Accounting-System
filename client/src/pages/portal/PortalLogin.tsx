@@ -134,11 +134,58 @@ export const PortalLogin: React.FC = () => {
             </p>
           </div>
 
+          {/* ── Demo Customer Credentials Helper ── */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 14px',
+              background: 'var(--cream)',
+              borderRadius: 'var(--radius-sm)',
+              marginBottom: '18px',
+              border: '1px dashed var(--brown-300)',
+            }}
+          >
+            <div>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--brown-900)', fontFamily: 'var(--font-display)' }}>
+                Demo Customer Account
+              </div>
+              <div style={{ fontSize: '12px', fontFamily: 'var(--font-mono)', color: 'var(--brown-700)', marginTop: 2 }}>
+                clientuf / Client@12345
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setLoginId('clientuf');
+                setPassword('Client@12345');
+                setError(null);
+              }}
+              style={{
+                background: 'var(--brown-900)',
+                color: 'var(--cream)',
+                border: 'none',
+                borderRadius: 'var(--radius-sm)',
+                padding: '6px 12px',
+                fontSize: '11px',
+                fontWeight: 700,
+                fontFamily: 'var(--font-display)',
+                cursor: 'pointer',
+                transition: 'opacity 120ms ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
+              onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+            >
+              Auto-Fill
+            </button>
+          </div>
+
           {/* ── Error banner ── */}
           {error && (
             <div
               style={{
-                padding: '10px 14px',
+                padding: '12px 14px',
                 background: 'var(--danger-bg)',
                 border: '1px solid var(--danger)',
                 borderRadius: 'var(--radius-sm)',
@@ -147,9 +194,45 @@ export const PortalLogin: React.FC = () => {
                 fontFamily: 'var(--font-body)',
                 fontWeight: 500,
                 marginBottom: '20px',
+                lineHeight: '18px',
               }}
             >
-              {error}
+              <div>{error}</div>
+              {error.toLowerCase().includes('restricted') && (
+                <div
+                  style={{
+                    marginTop: 10,
+                    paddingTop: 8,
+                    borderTop: '1px dashed rgba(200, 50, 50, 0.35)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 8,
+                  }}
+                >
+                  <span style={{ fontSize: 11 }}>Switch to demo customer:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLoginId('clientuf');
+                      setPassword('Client@12345');
+                      setError(null);
+                    }}
+                    style={{
+                      background: 'var(--brown-900)',
+                      color: 'var(--cream)',
+                      border: 'none',
+                      borderRadius: 4,
+                      padding: '4px 10px',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Fill clientuf
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
@@ -279,6 +362,53 @@ export const PortalLogin: React.FC = () => {
             >
               Activate Account with Token →
             </button>
+          </div>
+
+          {/* ── Public & Staff Navigation Links ── */}
+          <div
+            style={{
+              marginTop: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => navigate('/portal/catalogue')}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                fontSize: '12px',
+                fontFamily: 'var(--font-display)',
+                fontWeight: 600,
+                color: 'var(--brown-900)',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+            >
+              <span>Browse Furniture Catalogue (No login needed)</span>
+              <span>→</span>
+            </button>
+
+            <a
+              href="/dashboard"
+              style={{
+                fontSize: '11px',
+                fontFamily: 'var(--font-body)',
+                color: 'var(--brown-500)',
+                textDecoration: 'none',
+                marginTop: 4,
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--brown-900)')}
+              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--brown-500)')}
+            >
+              ← Back to Internal ERP
+            </a>
           </div>
         </div>
       </div>
