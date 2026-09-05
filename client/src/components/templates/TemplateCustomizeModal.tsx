@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Download,
@@ -355,15 +356,15 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
 
   if (!isOpen || !template) return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[9999] bg-black/75 backdrop-blur-xs p-2 sm:p-4 flex items-center justify-center animate-in fade-in duration-150"
+      className="fixed inset-0 z-[999999] bg-black/80 backdrop-blur-xs p-3 sm:p-6 flex items-center justify-center animate-in fade-in duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className="bg-white border-2 border-black rounded-[12px] shadow-2xl w-full max-w-6xl h-[92vh] max-h-[92vh] flex flex-col overflow-hidden"
+        className="bg-white border-2 border-black rounded-[12px] shadow-2xl w-full max-w-6xl h-[88vh] max-h-[88vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header - Crisp Black and White - Fixed at top */}
@@ -752,6 +753,7 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

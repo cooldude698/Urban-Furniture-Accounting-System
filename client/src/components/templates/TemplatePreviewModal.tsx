@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, FileText, CheckCircle2, Calculator, ArrowRight, ShieldCheck, Sparkles } from 'lucide-react';
 import { BusinessTemplateDetail } from '../../types/template';
 
@@ -40,15 +41,15 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
 
   if (!isOpen || !template) return null;
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[9999] bg-black/75 backdrop-blur-xs p-2 sm:p-4 flex items-center justify-center animate-in fade-in duration-150"
+      className="fixed inset-0 z-[999999] bg-black/80 backdrop-blur-xs p-3 sm:p-6 flex items-center justify-center animate-in fade-in duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
-        className="bg-white border-2 border-black rounded-[12px] shadow-2xl w-full max-w-5xl h-[90vh] max-h-[90vh] flex flex-col overflow-hidden"
+        className="bg-white border-2 border-black rounded-[12px] shadow-2xl w-full max-w-5xl h-[88vh] max-h-[88vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header - Crisp Black and White - Fixed at top */}
@@ -275,6 +276,7 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
