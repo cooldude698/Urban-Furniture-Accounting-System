@@ -18,9 +18,7 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
   const cols = template?.structure?.columns || [];
   const previewRows = template?.previewData?.rows || [];
 
-  const previewCardRef = React.useRef<HTMLDivElement>(null);
-
-  // Lock background scroll when preview modal is open, restore when closed
+  // Lock background scroll when preview modal is open, and reliably unlock when closed
   React.useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -39,13 +37,12 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
   if (!isOpen || !template) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs p-3 sm:p-4 flex items-center justify-center animate-in fade-in duration-150">
       <div
-        ref={previewCardRef}
-        className="bg-white border border-black rounded-[12px] shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
+        className="bg-white border border-black rounded-[12px] shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden my-auto"
       >
-        {/* Modal Header - Crisp Black and White */}
-        <div className="px-6 py-4 border-b border-gray-200 bg-white flex items-center justify-between">
+        {/* Modal Header - Crisp Black and White - Fixed at top */}
+        <div className="px-6 py-4 border-b border-gray-200 bg-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-[8px] bg-black text-white flex items-center justify-center shadow-xs">
               <FileText className="w-5 h-5" />
@@ -73,8 +70,8 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="p-6 overflow-y-auto space-y-5 bg-white">
+        {/* Modal Body - flex-1 min-h-0 */}
+        <div className="p-6 overflow-y-auto flex-1 min-h-0 space-y-5 bg-white">
           {/* Description & Source Banner */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 rounded-[10px] bg-gray-50 border border-gray-300">
             <div className="md:col-span-2">
@@ -246,8 +243,8 @@ export const TemplatePreviewModal: React.FC<TemplatePreviewModalProps> = ({
           </div>
         </div>
 
-        {/* Modal Footer */}
-        <div className="px-6 py-3.5 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+        {/* Modal Footer - Fixed at bottom */}
+        <div className="px-6 py-3.5 border-t border-gray-200 bg-gray-50 flex items-center justify-between shrink-0">
           <button
             type="button"
             onClick={onClose}

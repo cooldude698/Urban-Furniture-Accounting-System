@@ -67,9 +67,7 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
   const [downloadingFormat, setDownloadingFormat] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  const modalCardRef = React.useRef<HTMLDivElement>(null);
-
-  // Lock background scroll when modal is open, restore when closed
+  // Lock background scroll when modal is open, and reliably unlock when closed
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -351,13 +349,12 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
   if (!isOpen || !template) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs p-3 sm:p-4 flex items-center justify-center animate-in fade-in duration-150">
       <div
-        ref={modalCardRef}
-        className="bg-white border border-black rounded-[12px] shadow-2xl w-full max-w-6xl max-h-[94vh] flex flex-col overflow-hidden"
+        className="bg-white border border-black rounded-[12px] shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden my-auto"
       >
-        {/* Header - Crisp Black and White */}
-        <div className="px-6 py-4 border-b border-gray-200 bg-white flex items-center justify-between">
+        {/* Header - Crisp Black and White - Fixed at top */}
+        <div className="px-6 py-4 border-b border-gray-200 bg-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-[8px] bg-black text-white flex items-center justify-center shadow-xs">
               <FileSpreadsheet className="w-4 h-4" />
@@ -386,8 +383,8 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
           </button>
         </div>
 
-        {/* Scrollable Form & Table */}
-        <div className="p-6 overflow-y-auto space-y-6 bg-white">
+        {/* Scrollable Form & Table - flex-1 min-h-0 */}
+        <div className="p-6 overflow-y-auto flex-1 min-h-0 space-y-6 bg-white">
           {/* Status Message */}
           {statusMsg && (
             <div
@@ -680,8 +677,8 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
           </div>
         </div>
 
-        {/* Action Footer - Crisp Black and White */}
-        <div className="px-6 py-3.5 border-t border-gray-200 bg-gray-50 flex flex-wrap items-center justify-between gap-3">
+        {/* Action Footer - Crisp Black and White - Fixed at bottom */}
+        <div className="px-6 py-3.5 border-t border-gray-200 bg-gray-50 flex flex-wrap items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-2">
             <button
               type="button"

@@ -47,24 +47,12 @@ export const TemplateLibraryPage: React.FC = () => {
   const [customizeSavedItem, setCustomizeSavedItem] = useState<UserTemplateItem | null>(null);
   const [isCustomizeOpen, setIsCustomizeOpen] = useState<boolean>(false);
 
-  // Synchronize background scroll locking with modal open state
-  useEffect(() => {
-    if (isPreviewOpen || isCustomizeOpen) {
-      document.body.style.overflow = 'hidden';
-      document.documentElement.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-      document.documentElement.style.overflow = '';
-    }
-
-    return () => {
-      document.body.style.overflow = '';
-      document.documentElement.style.overflow = '';
-    };
-  }, [isPreviewOpen, isCustomizeOpen]);
-
   // Load Categories & Templates
   useEffect(() => {
+    // Ensure document scroll is reset and unlocked
+    document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
+
     setLoading(true);
     setError(null);
     Promise.all([
@@ -81,6 +69,11 @@ export const TemplateLibraryPage: React.FC = () => {
         setError(err?.response?.data?.error?.message || err.message || 'Failed to load templates');
       })
       .finally(() => setLoading(false));
+
+    return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
   }, []);
 
   // Reload saved templates after save/duplicate/delete
@@ -520,7 +513,11 @@ export const TemplateLibraryPage: React.FC = () => {
       <TemplatePreviewModal
         template={previewTemplate}
         isOpen={isPreviewOpen}
-        onClose={() => setIsPreviewOpen(false)}
+        onClose={() => {
+          setIsPreviewOpen(false);
+          document.body.style.overflow = '';
+          document.documentElement.style.overflow = '';
+        }}
         onUseTemplate={tmpl => {
           setIsPreviewOpen(false);
           setCustomizeTemplate(tmpl);
@@ -534,7 +531,11 @@ export const TemplateLibraryPage: React.FC = () => {
         template={customizeTemplate}
         savedItem={customizeSavedItem}
         isOpen={isCustomizeOpen}
-        onClose={() => setIsCustomizeOpen(false)}
+        onClose={() => {
+          setIsCustomizeOpen(false);
+          document.body.style.overflow = '';
+          document.documentElement.style.overflow = '';
+        }}
         onSavedSuccess={loadSavedTemplates}
       />
     </div>
