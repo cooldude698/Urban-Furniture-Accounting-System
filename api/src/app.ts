@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { authRouter } from './routes/authRoutes';
 import { journalEntryRouter } from './routes/journalEntryRoutes';
+import { salesOrderRouter } from './routes/salesOrderRoutes';
 import { sendError } from './utils/response';
 
 dotenv.config();
@@ -25,6 +26,7 @@ app.use(express.json());
 // Routes
 app.use('/api/auth', authRouter);
 app.use('/api/journal-entries', journalEntryRouter);
+app.use('/api/sales-orders', salesOrderRouter);
 
 // Health check
 app.get('/api/health', (req: Request, res: Response) => {
