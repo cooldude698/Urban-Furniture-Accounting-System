@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { PortalService } from '../services/portalService';
 import { requireAuth, requireInternalUser, requirePortalContact, AuthenticatedRequest } from '../middleware/auth';
 import { sendSuccess, sendError } from '../utils/response';
+import { pool } from '../db/pool';
+import { scopeFor } from '../services/scope';
 
 export const portalRouter = Router();
 
@@ -343,4 +345,98 @@ portalRouter.post(['/bills/:id/payments', '/bills/:id/pay'], requireAuth, requir
     return sendError(res, 'PAYMENT_ERROR', err.message || 'Failed to record bill payment', 400);
   }
 });
+
+// 12. GET /api/portal/catalogue - Public route to browse furniture products (goods)
+portalRouter.get('/catalogue', async (_req: Request, res: Response) => {
+  try {
+    const query = `
+      SELECT 
+        id,
+        name,
+        sku,
+        category,
+        sales_price::text,
+        mrp::text,
+        tax_rate::text,
+        stock_qty::text,
+        model_url,
+        image_url
+      FROM products
+      WHERE is_archived = false AND type = 'goods'
+      ORDER BY category ASC, name ASC, id ASC
+    `;
+    const result = await pool.query(query);
+    return sendSuccess(res, result.rows);
+  } catch (err: any) {
+    return sendError(res, 'FETCH_FAILED', err.message || 'Failed to fetch catalogue', 500);
+  }
+});
+
+// 13. GET /api/portal/catalogue/:id - Single product by ID plus customer's invoices containing it
+portalRouter.get('/catalogue/:id', requireAuth, requirePortalContact, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const productId = parseInt(String(req.params.id), 10);
+    if (isNaN(productId)) {
+      return sendError(res, 'INVALID_ID', 'Product ID must be a number', 400);
+    }
+
+    const productRes = await pool.query(
+      `SELECT 
+         id,
+         name,
+         sku,
+         category,
+         sales_price::text,
+         mrp::text,
+         tax_rate::text,
+         stock_qty::text,
+         model_url,
+         image_url
+       FROM products
+       WHERE id = $1 AND is_archived = false`,
+      [productId]
+    );
+
+    if (productRes.rows.length === 0) {
+      return sendError(res, 'NOT_FOUND', 'Product not found', 404);
+    }
+
+    const scope = scopeFor(req.user!, 'invoice');
+    const invoicesRes = await pool.query(
+      `SELECT 
+         ci.id,
+         ci.number,
+         ci.invoice_date AS "invoiceDate",
+         ci.status,
+         cil.qty::text,
+         cil.unit_price::text AS "unitPrice",
+         cil.total::text AS "lineTotal",
+         vis.total::text,
+         vis.amount_paid::text AS "amountPaid",
+         vis.amount_due::text AS "amountDue",
+         vis.payment_status AS "paymentStatus"
+       FROM customer_invoices ci
+       JOIN customer_invoice_lines cil ON cil.invoice_id = ci.id
+       LEFT JOIN v_invoice_status vis ON vis.invoice_id = ci.id
+       WHERE cil.product_id = $1 AND ci.customer_id = $2
+       ORDER BY ci.invoice_date DESC, ci.id DESC`,
+      [productId, scope.customerId]
+    );
+
+    const product = productRes.rows[0];
+    const invoices = invoicesRes.rows.map(r => ({
+      ...r,
+      invoiceDate: r.invoiceDate ? new Date(r.invoiceDate).toISOString().split('T')[0] : '',
+    }));
+
+    return sendSuccess(res, {
+      ...product,
+      product,
+      invoices,
+    });
+  } catch (err: any) {
+    return sendError(res, 'FETCH_FAILED', err.message || 'Failed to fetch catalogue item', 500);
+  }
+});
+
 
