@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   Download,
@@ -32,13 +32,41 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
   onClose,
   onSavedSuccess,
 }) => {
-  if (!isOpen || !template) return null;
+  const modalRef = useRef<HTMLDivElement>(null);
 
-  const cols = template.structure?.columns || [];
+  // Lock background scroll completely whenever modal is open
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    const preventScroll = (e: WheelEvent | TouchEvent) => {
+      if (modalRef.current && modalRef.current.contains(e.target as Node)) {
+        return;
+      }
+      e.preventDefault();
+    };
+
+    window.addEventListener('wheel', preventScroll, { passive: false });
+    window.addEventListener('touchmove', preventScroll, { passive: false });
+
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      window.removeEventListener('wheel', preventScroll);
+      window.removeEventListener('touchmove', preventScroll);
+    };
+  }, [isOpen]);
+
+  const cols = template?.structure?.columns || [];
 
   // Configuration State
   const [templateName, setTemplateName] = useState<string>(
-    savedItem?.name || template.name
+    savedItem?.name || template?.name || ''
   );
   const [businessName, setBusinessName] = useState<string>(
     savedItem?.configuration?.businessName || 'Urban Furniture Studio'
@@ -332,9 +360,11 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
     }
   };
 
+  if (!isOpen || !template) return null;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white border border-black rounded-[12px] shadow-2xl w-full max-w-6xl max-h-[94vh] flex flex-col overflow-hidden">
+      <div ref={modalRef} className="bg-white border border-black rounded-[12px] shadow-2xl w-full max-w-6xl max-h-[94vh] flex flex-col overflow-hidden">
         {/* Header - Crisp Black and White */}
         <div className="px-6 py-4 border-b border-gray-200 bg-white flex items-center justify-between">
           <div className="flex items-center gap-3">
