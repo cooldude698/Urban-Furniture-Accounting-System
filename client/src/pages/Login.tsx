@@ -1,9 +1,10 @@
 import { useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import api from '../lib/axios';
 
 export default function Login() {
+  const navigate = useNavigate();
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -16,12 +17,16 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      await api.post('/api/auth/login', {
+      const res = await api.post('/api/auth/login', {
         login_id: loginId.trim(),
         loginId: loginId.trim(),
         password,
       });
-      window.location.href = '/';
+      localStorage.setItem('urban_logged_in', 'true');
+      if (res.data?.data?.user) {
+        localStorage.setItem('urban_user', JSON.stringify(res.data.data.user));
+      }
+      navigate('/dashboard', { replace: true });
     } catch {
       // Exact error text from the spec/mockup
       setError('Invalid Login Id or Password');

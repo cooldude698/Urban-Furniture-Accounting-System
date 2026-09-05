@@ -75,9 +75,11 @@ export function App() {
       {/* ── Kitchen sink (no shell — full-page design system preview) ── */}
       <Route path="/kitchen-sink" element={<KitchenSink />} />
 
+      {/* ── Default entry route (render login page directly on start) ── */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
+
       {/* ── Main ERP App Shell ── */}
       <Route element={<AppShell />}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
         <Route path="dashboard" element={<Dashboard />} />
 
         {/* ── Sales Module ── */}

@@ -1,10 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { ChevronDown, LayoutDashboard } from 'lucide-react';
+import { NavLink, Outlet, useLocation, useNavigate, Navigate } from 'react-router-dom';
+import { ChevronDown, LayoutDashboard, LogOut, User } from 'lucide-react';
 import { MegaMenu } from './MegaMenu';
+import api from '../../lib/axios';
 
 export default function AppShell() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
   const headerRef = useRef<HTMLElement | null>(null);
 
@@ -12,6 +14,32 @@ export default function AppShell() {
   useEffect(() => {
     setIsMegaMenuOpen(false);
   }, [location.pathname]);
+
+  const isAuthenticated = localStorage.getItem('urban_logged_in') === 'true';
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace state={{ from: location }} />;
+  }
+
+  const handleLogout = async () => {
+    try {
+      await api.post('/api/auth/logout');
+    } catch {
+      // Ignore network failure on logout
+    } finally {
+      localStorage.removeItem('urban_logged_in');
+      localStorage.removeItem('urban_user');
+      navigate('/login', { replace: true });
+    }
+  };
+
+  let currentUser: { full_name?: string; login_id?: string; role?: string } | null = null;
+  try {
+    const raw = localStorage.getItem('urban_user');
+    if (raw) currentUser = JSON.parse(raw);
+  } catch {
+    // Ignore JSON error
+  }
 
   const navModules = ['Sales', 'Purchase', 'Account', 'Report'];
 
@@ -124,7 +152,7 @@ export default function AppShell() {
           />
 
           {/* Right Header Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, zIndex: 2 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, zIndex: 2 }}>
             <NavLink
               to="/dashboard"
               style={{
@@ -143,6 +171,48 @@ export default function AppShell() {
               <LayoutDashboard size={14} />
               <span>Dashboard</span>
             </NavLink>
+
+            {currentUser && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '4px 10px',
+                  background: 'rgba(235, 215, 190, 0.25)',
+                  borderRadius: 8,
+                  fontSize: 12,
+                  color: 'var(--brown-900)',
+                  fontWeight: 600,
+                }}
+              >
+                <User size={13} color="var(--brown-700)" />
+                <span>{currentUser.login_id || currentUser.full_name}</span>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleLogout}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '5px 11px',
+                fontSize: 12,
+                fontWeight: 600,
+                color: 'var(--brown-800)',
+                background: 'transparent',
+                border: '1px solid var(--brown-400)',
+                borderRadius: 8,
+                cursor: 'pointer',
+                transition: 'all 120ms ease',
+              }}
+              title="Sign Out"
+            >
+              <LogOut size={13} />
+              <span>Sign Out</span>
+            </button>
           </div>
         </div>
       </header>
