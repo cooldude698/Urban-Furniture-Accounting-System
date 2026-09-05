@@ -37,6 +37,7 @@ import {
   AccountListRoute,
   AccountFormRoute,
   ContactListRoute,
+  ContactKanbanRoute,
   ContactFormRoute,
   ProductListRoute,
   ProductKanbanRoute,
@@ -44,6 +45,7 @@ import {
   JournalListRoute,
   JournalFormRoute,
   AnalyticListRoute,
+  AnalyticKanbanRoute,
   AnalyticFormRoute,
 } from './pages/master/AccountRoutes';
 import BudgetListPage from './pages/budget/BudgetListPage';
@@ -133,6 +135,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="budgets/new" element={<BudgetFormPage />} />
                 <Route path="budgets/:id" element={<BudgetFormPage />} />
                 <Route path="contacts" element={<ContactListRoute />} />
+                <Route path="contacts/kanban" element={<ContactKanbanRoute />} />
                 <Route path="contacts/new" element={<ContactFormRoute />} />
                 <Route path="contacts/:id" element={<ContactFormRoute />} />
                 <Route path="products" element={<ProductListRoute />} />
@@ -143,6 +146,7 @@ createRoot(document.getElementById('root')!).render(
                 <Route path="journals/new" element={<JournalFormRoute />} />
                 <Route path="journals/:id" element={<JournalFormRoute />} />
                 <Route path="analytics" element={<AnalyticListRoute />} />
+                <Route path="analytics/kanban" element={<AnalyticKanbanRoute />} />
                 <Route path="analytics/new" element={<AnalyticFormRoute />} />
                 <Route path="analytics/:id" element={<AnalyticFormRoute />} />
               </Route>
