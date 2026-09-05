@@ -50,37 +50,39 @@ export default function LandingPage() {
 
       {/* ── Main Hero Section ────────────────────────────────────────────── */}
       <section className="relative pt-12 pb-20 md:pt-20 md:pb-28 px-6 sm:px-10 max-w-7xl mx-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-stretch">
           
           {/* Hero Left: Copy & Primary CTA */}
-          <div className="lg:col-span-6 z-10 flex flex-col items-start hero-text-reveal">
-            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#4A3A34] leading-[1.12] mb-6">
-              Run Your Furniture Business.{' '}
-              <span className="text-[#77574A] block mt-1">
-                Keep Every Transaction in Balance.
-              </span>
-            </h1>
+          <div className="lg:col-span-6 z-10 flex flex-col justify-between hero-text-reveal">
+            <div>
+              <h1 className="font-display text-3xl sm:text-4xl lg:text-[42px] font-bold tracking-tight text-[#4A3A34] leading-[1.15] mb-4">
+                Run Your Furniture Business.{' '}
+                <span className="text-[#77574A] block mt-1">
+                  Keep Every Transaction in Balance.
+                </span>
+              </h1>
 
-            <p className="text-base sm:text-lg text-[#5E453A] leading-relaxed mb-8 max-w-xl">
-              An all-in-one system that brings your orders, inventory, customer billing, and accounting together in one simple, unified place.
-            </p>
+              <p className="text-sm sm:text-base text-[#5E453A] leading-relaxed mb-6 max-w-lg">
+                An all-in-one system that brings your orders, inventory, customer billing, and accounting together in one simple, unified place.
+              </p>
 
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
-              <button
-                onClick={handleEnterPortal}
-                className="w-full sm:w-auto px-8 py-4 rounded-xl bg-[#4A3A34] text-[#F9F2E4] font-semibold text-base sm:text-lg hover:bg-[#5E453A] active:scale-[0.98] transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-3 group focus:outline-none focus:ring-2 focus:ring-[#77574A] focus:ring-offset-2 focus:ring-offset-[#F9F2E4]"
-              >
-                <span>ENTER TO THE PORTAL</span>
-                <ArrowRight size={20} className="transition-transform group-hover:translate-x-1" />
-              </button>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
+                <button
+                  onClick={handleEnterPortal}
+                  className="w-full sm:w-auto px-7 py-3.5 rounded-xl bg-[#4A3A34] text-[#F9F2E4] font-semibold text-sm sm:text-base hover:bg-[#5E453A] active:scale-[0.98] transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-3 group focus:outline-none focus:ring-2 focus:ring-[#77574A] focus:ring-offset-2 focus:ring-offset-[#F9F2E4]"
+                >
+                  <span>ENTER TO THE PORTAL</span>
+                  <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
+                </button>
+              </div>
+
+              <p className="text-xs font-mono text-[#77574A] mt-2.5 tracking-wide flex items-center gap-1.5">
+                <span>✦</span> Internal ERP & Customer Portal Access
+              </p>
             </div>
 
-            <p className="text-xs font-mono text-[#77574A] mt-3 tracking-wide flex items-center gap-1.5">
-              <span>✦</span> Internal ERP & Customer Portal Access
-            </p>
-
             {/* Invariant highlight pill */}
-            <div className="mt-10 pt-6 border-t border-[#D0AE92]/50 w-full grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div className="mt-8 pt-5 border-t border-[#D0AE92]/50 w-full grid grid-cols-2 sm:grid-cols-3 gap-4">
               <div>
                 <span className="text-xs font-mono text-[#77574A] block uppercase">Ledger Rule</span>
                 <span className="text-sm font-semibold text-[#4A3A34]">Debit ≡ Credit</span>
@@ -97,8 +99,8 @@ export default function LandingPage() {
           </div>
 
           {/* Hero Right: Crafted Furniture Showroom Composition (Scalable SVG) */}
-          <div className="lg:col-span-6 relative flex items-center justify-center hero-furniture-reveal">
-            <div className="w-full max-w-[560px] aspect-[4/3.2] relative rounded-2xl overflow-hidden shadow-xl bg-gradient-to-b from-[#FAF5EE] to-[#F2E8DA] border border-[#D0AE92]/60 p-4 sm:p-6 flex items-center justify-center">
+          <div className="lg:col-span-6 relative flex hero-furniture-reveal">
+            <div className="w-full h-full min-h-[380px] lg:min-h-[420px] relative rounded-2xl overflow-hidden shadow-xl bg-gradient-to-b from-[#FAF5EE] to-[#F2E8DA] border border-[#D0AE92]/60 p-4 sm:p-6 flex items-center justify-center">
               
               {/* Showroom Ambient Glow */}
               <div className="absolute top-0 right-1/4 w-72 h-72 rounded-full bg-[#EBD7BE]/40 blur-3xl pointer-events-none" />
