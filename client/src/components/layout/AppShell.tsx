@@ -287,37 +287,6 @@ export default function AppShell() {
               </div>
             )}
 
-            {/* Portal switch link — subtle, top-right, visible to internal staff */}
-            <Link
-              to="/login?portal=customer"
-              style={{
-                fontSize: 12,
-                fontWeight: 600,
-                fontFamily: 'var(--font-body)',
-                color: 'var(--brown-600)',
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                padding: '5px 0',
-                borderBottom: '1px solid transparent',
-                transition: 'color 120ms ease, border-color 120ms ease',
-                whiteSpace: 'nowrap',
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.color = 'var(--brown-900)';
-                e.currentTarget.style.borderBottomColor = 'var(--brown-900)';
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.color = 'var(--brown-600)';
-                e.currentTarget.style.borderBottomColor = 'transparent';
-              }}
-              title="Open the Customer Portal"
-            >
-              <span>Customer Portal</span>
-              <span style={{ fontSize: 11, opacity: 0.75 }}>→</span>
-            </Link>
-
             <button
               type="button"
               onClick={handleLogout}
