@@ -9,9 +9,10 @@ interface JournalFormPageProps {
   onBack: () => void;
   onSaved: (id: number) => void;
   onHome: () => void;
+  onNew?: () => void;
 }
 
-export const JournalFormPage: React.FC<JournalFormPageProps> = ({ journalId, onBack, onSaved, onHome }) => {
+export const JournalFormPage: React.FC<JournalFormPageProps> = ({ journalId, onBack, onSaved, onHome, onNew }) => {
   const isNew = !journalId;
 
   const [formData, setFormData] = useState<CreateJournalInput>({
@@ -43,6 +44,15 @@ export const JournalFormPage: React.FC<JournalFormPageProps> = ({ journalId, onB
         })
         .catch(err => setError(err.message))
         .finally(() => setLoading(false));
+    } else {
+      setJournal(null);
+      setFormData({
+        name: '',
+        type: 'purchase',
+        default_account_id: accounts[0]?.id || 1,
+        is_archived: false,
+      });
+      setError(null);
     }
   }, [journalId]);
 
@@ -87,7 +97,7 @@ export const JournalFormPage: React.FC<JournalFormPageProps> = ({ journalId, onB
       isNew={isNew}
       isArchived={formData.is_archived}
       onSave={handleSave}
-      onNew={() => onSaved(0)}
+      onNew={onNew}
       onArchiveToggle={!isNew ? handleArchiveToggle : undefined}
       onBack={onBack}
       onHome={onHome}

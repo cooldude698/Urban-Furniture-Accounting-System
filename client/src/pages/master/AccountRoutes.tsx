@@ -33,6 +33,7 @@ export const AccountFormRoute: React.FC = () => {
       onBack={() => navigate('/account/coa')}
       onHome={() => navigate('/account/coa')}
       onSaved={savedId => navigate(`/account/coa/${savedId}`)}
+      onNew={() => navigate('/account/coa/new')}
     />
   );
 };
@@ -58,6 +59,7 @@ export const ContactFormRoute: React.FC = () => {
       onBack={() => navigate('/account/contacts')}
       onHome={() => navigate('/account/contacts')}
       onSaved={savedId => navigate(`/account/contacts/${savedId}`)}
+      onNew={() => navigate('/account/contacts/new')}
       onViewBills={() => navigate('/purchase/bills')}
       onViewPOs={() => navigate('/purchase/orders')}
       onViewStatement={cId => navigate(`/purchase/statements/${cId}`)}
@@ -97,6 +99,7 @@ export const ProductFormRoute: React.FC = () => {
       onBack={() => navigate('/account/products')}
       onHome={() => navigate('/account/products')}
       onSaved={savedId => navigate(`/account/products/${savedId}`)}
+      onNew={() => navigate('/account/products/new')}
     />
   );
 };
@@ -122,6 +125,7 @@ export const JournalFormRoute: React.FC = () => {
       onBack={() => navigate('/account/journals')}
       onHome={() => navigate('/account/journals')}
       onSaved={savedId => navigate(`/account/journals/${savedId}`)}
+      onNew={() => navigate('/account/journals/new')}
     />
   );
 };
@@ -147,6 +151,7 @@ export const AnalyticFormRoute: React.FC = () => {
       onBack={() => navigate('/account/analytics')}
       onHome={() => navigate('/account/analytics')}
       onSaved={savedId => navigate(`/account/analytics/${savedId}`)}
+      onNew={() => navigate('/account/analytics/new')}
     />
   );
 };

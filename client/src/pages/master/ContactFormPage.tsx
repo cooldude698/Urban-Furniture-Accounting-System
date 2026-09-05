@@ -10,6 +10,7 @@ interface ContactFormPageProps {
   onBack: () => void;
   onSaved: (id: number) => void;
   onHome: () => void;
+  onNew?: () => void;
   onViewBills?: (vendorId: number) => void;
   onViewPOs?: (vendorId: number) => void;
   onViewStatement?: (contactId: number) => void;
@@ -20,6 +21,7 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
   onBack,
   onSaved,
   onHome,
+  onNew,
   onViewBills,
   onViewPOs,
   onViewStatement,
@@ -84,6 +86,25 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
         })
         .catch(err => setError(err.message))
         .finally(() => setLoading(false));
+    } else {
+      setContact(null);
+      setCounts(null);
+      setSelectedFile(null);
+      setImagePreview(null);
+      setFormData({
+        name: '',
+        type: 'customer',
+        email: '',
+        mobile: '',
+        address: '',
+        city: '',
+        state: '',
+        pincode: '',
+        image_path: null,
+        gstin: '',
+        is_archived: false,
+      });
+      setError(null);
     }
   }, [contactId]);
 
@@ -141,7 +162,7 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
       isNew={isNew}
       isArchived={formData.is_archived}
       onSave={handleSave}
-      onNew={() => onSaved(0)}
+      onNew={onNew}
       onArchiveToggle={!isNew ? handleArchiveToggle : undefined}
       onBack={onBack}
       onHome={onHome}

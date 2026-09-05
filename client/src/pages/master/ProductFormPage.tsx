@@ -11,9 +11,10 @@ interface ProductFormPageProps {
   onBack: () => void;
   onSaved: (id: number) => void;
   onHome: () => void;
+  onNew?: () => void;
 }
 
-export const ProductFormPage: React.FC<ProductFormPageProps> = ({ productId, onBack, onSaved, onHome }) => {
+export const ProductFormPage: React.FC<ProductFormPageProps> = ({ productId, onBack, onSaved, onHome, onNew }) => {
   const isNew = !productId;
 
   const [formData, setFormData] = useState<CreateProductInput>({
@@ -55,6 +56,21 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({ productId, onB
         })
         .catch(err => setError(err.message))
         .finally(() => setLoading(false));
+    } else {
+      setProduct(null);
+      setFormData({
+        sku: '',
+        name: '',
+        type: 'goods',
+        category: '',
+        sales_price: '0.00',
+        cost_price: '0.00',
+        mrp: '0.00',
+        tax_rate: '18.00',
+        min_stock_threshold: 5,
+        is_archived: false,
+      });
+      setError(null);
     }
   }, [productId]);
 
@@ -132,7 +148,7 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({ productId, onB
       isNew={isNew}
       isArchived={formData.is_archived}
       onSave={handleSave}
-      onNew={() => onSaved(0)}
+      onNew={onNew}
       onArchiveToggle={!isNew ? handleArchiveToggle : undefined}
       onBack={onBack}
       onHome={onHome}

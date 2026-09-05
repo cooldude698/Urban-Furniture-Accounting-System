@@ -9,9 +9,10 @@ interface AccountFormPageProps {
   onBack: () => void;
   onSaved: (id: number) => void;
   onHome: () => void;
+  onNew?: () => void;
 }
 
-export const AccountFormPage: React.FC<AccountFormPageProps> = ({ accountId, onBack, onSaved, onHome }) => {
+export const AccountFormPage: React.FC<AccountFormPageProps> = ({ accountId, onBack, onSaved, onHome, onNew }) => {
   const isNew = !accountId;
 
   const [formData, setFormData] = useState<CreateAccountInput>({
@@ -40,6 +41,15 @@ export const AccountFormPage: React.FC<AccountFormPageProps> = ({ accountId, onB
         })
         .catch(err => setError(err.message))
         .finally(() => setLoading(false));
+    } else {
+      setAccount(null);
+      setFormData({
+        code: '',
+        name: '',
+        type: 'asset',
+        is_archived: false,
+      });
+      setError(null);
     }
   }, [accountId]);
 
@@ -86,7 +96,7 @@ export const AccountFormPage: React.FC<AccountFormPageProps> = ({ accountId, onB
       isNew={isNew}
       isArchived={formData.is_archived}
       onSave={handleSave}
-      onNew={() => onSaved(0)}
+      onNew={onNew}
       onArchiveToggle={!isNew ? handleArchiveToggle : undefined}
       onBack={onBack}
       onHome={onHome}

@@ -891,6 +891,10 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
                   setActiveView('contact-list');
                 }}
                 onHome={() => setActiveView('contact-list')}
+                onNew={() => {
+                  setSelectedContactId(null);
+                  setActiveView('contact-form');
+                }}
                 onViewBills={vendorId => {
                   setActiveTab('Purchase');
                   setActiveView('bill-list');
@@ -948,6 +952,10 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
                   setActiveView('product-list');
                 }}
                 onHome={() => setActiveView('product-list')}
+                onNew={() => {
+                  setSelectedProductId(null);
+                  setActiveView('product-form');
+                }}
               />
             )}
 
@@ -973,6 +981,10 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
                   setActiveView('account-list');
                 }}
                 onHome={() => setActiveView('account-list')}
+                onNew={() => {
+                  setSelectedAccountId(null);
+                  setActiveView('account-form');
+                }}
               />
             )}
 
@@ -998,6 +1010,10 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
                   setActiveView('journal-list');
                 }}
                 onHome={() => setActiveView('journal-list')}
+                onNew={() => {
+                  setSelectedJournalId(null);
+                  setActiveView('journal-form');
+                }}
               />
             )}
 
@@ -1023,6 +1039,10 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
                   setActiveView('analytic-list');
                 }}
                 onHome={() => setActiveView('analytic-list')}
+                onNew={() => {
+                  setSelectedAnalyticId(null);
+                  setActiveView('analytic-form');
+                }}
               />
             )}
 
