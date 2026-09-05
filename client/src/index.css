@@ -11,33 +11,10 @@
 @import '@fontsource/ibm-plex-mono/400.css';
 @import '@fontsource/ibm-plex-mono/500.css';
 
-/* ── Tailwind v4 ─────────────────────────────────────────────────── */
-@import "tailwindcss";
-
-@theme {
-  /* Map CSS tokens into Tailwind theme */
-  --color-brown-900: var(--brown-900);
-  --color-brown-700: var(--brown-700);
-  --color-brown-500: var(--brown-500);
-  --color-brown-300: var(--brown-300);
-  --color-brown-100: var(--brown-100);
-  --color-cream: var(--cream);
-  --color-surface: var(--surface);
-  --color-posted: var(--posted);
-  --color-posted-bg: var(--posted-bg);
-  --color-warning: var(--warning);
-  --color-warning-bg: var(--warning-bg);
-  --color-danger: var(--danger);
-  --color-danger-bg: var(--danger-bg);
-
-  --font-family-display: var(--font-display);
-  --font-family-body: var(--font-body);
-  --font-family-mono: var(--font-mono);
-
-  --radius-sm: var(--radius-sm);
-  --radius-md: var(--radius-md);
-  --radius-lg: var(--radius-lg);
-}
+/* ── Tailwind v3 ─────────────────────────────────────────────────── */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* ── Design tokens ─────────────────────────────────────────────── */
 :root {
