@@ -25,6 +25,7 @@ import { dashboardRouter } from './routes/dashboardRoutes';
 import { voiceBillRouter } from './routes/voiceBillRoutes';
 import { integrityRouter } from './routes/integrityRoutes';
 import { analyticsRouter } from './routes/analyticsRoutes';
+import { templateRouter } from './routes/templateRoutes';
 import { requireAuth, requireInternalUser } from './middleware/auth';
 import { requireRole } from './middleware/role';
 import { sendError } from './utils/response';
@@ -79,6 +80,7 @@ app.use('/api/dashboard', requireAuth, requireInternalUser, dashboardRouter);
 app.use('/api/voice-bill', requireAuth, requireInternalUser, voiceBillRouter);
 app.use('/api/integrity', requireAuth, requireRole('admin'), integrityRouter);
 app.use('/api/analytics', requireAuth, requireInternalUser, analyticsRouter);
+app.use('/api/templates', requireAuth, requireInternalUser, templateRouter);
 
 
 // 404 handler

@@ -25,6 +25,8 @@ import {
   ShieldCheck,
   ScrollText,
   BarChart2,
+  FileSpreadsheet,
+  FolderCheck,
 } from 'lucide-react';
 import { MegaMenu } from './MegaMenu';
 import RecordTimelineDrawer from '../audit/RecordTimelineDrawer';
@@ -66,6 +68,11 @@ const MODULE_SUBNAV_MAP: Record<string, SubNavItem[]> = {
     { label: 'Analytics Engine', to: '/report/analytics', icon: BarChart2 },
     { label: 'System Integrity', to: '/integrity', icon: ShieldCheck },
     { label: 'Audit Log', to: '/audit', icon: ScrollText, adminOnly: true },
+  ],
+  tools: [
+    { label: 'Template Library', to: '/tools/templates', icon: FileSpreadsheet },
+    { label: 'My Saved Templates', to: '/tools/templates?tab=saved', icon: FolderCheck },
+    { label: 'Template Management', to: '/tools/templates/manage', icon: ShieldCheck, adminOnly: true },
   ],
 };
 
@@ -120,11 +127,11 @@ export default function AppShell() {
 
   const isManager = currentUser?.role === 'manager';
   const navModules = isManager
-    ? ['Sales', 'Purchase', 'Report']
-    : ['Sales', 'Purchase', 'Account', 'Report'];
+    ? ['Sales', 'Purchase', 'Report', 'Tools']
+    : ['Sales', 'Purchase', 'Account', 'Report', 'Tools'];
 
   // Determine active module and whether sub-nav should be displayed
-  const activeModule = ['sales', 'purchase', 'account', 'report'].find((m) =>
+  const activeModule = ['sales', 'purchase', 'account', 'report', 'tools'].find((m) =>
     location.pathname.startsWith(`/${m}`)
   );
 

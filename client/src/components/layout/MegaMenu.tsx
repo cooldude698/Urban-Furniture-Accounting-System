@@ -55,6 +55,14 @@ const MEGA_MENU_COLUMNS: ColumnData[] = [
       { label: 'Budget Report', to: '/report/budget', tab: 'Report', view: 'report-budget' },
     ],
   },
+  {
+    title: 'Tools',
+    items: [
+      { label: 'Template Library', to: '/tools/templates', tab: 'Tools', view: 'templates' },
+      { label: 'My Saved Sheets', to: '/tools/templates?tab=saved', tab: 'Tools', view: 'saved-templates' },
+      { label: 'Template Settings', to: '/tools/templates/manage', tab: 'Tools', view: 'manage-templates' },
+    ],
+  },
 ];
 
 export const MegaMenu: React.FC<MegaMenuProps> = ({
@@ -231,23 +239,23 @@ const styles = {
     borderRadius: 24,
     border: '1.5px solid #5C453A',
     boxShadow: '0 16px 40px rgba(74, 58, 52, 0.16)',
-    padding: '24px 38px 28px 38px',
+    padding: '24px 28px 28px 28px',
     width: '100%',
-    maxWidth: 820,
+    maxWidth: 960,
     position: 'relative' as const,
   } as React.CSSProperties,
 
   headerRow: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: 24,
+    gridTemplateColumns: 'repeat(5, 1fr)',
+    gap: 16,
     paddingBottom: 14,
   } as React.CSSProperties,
 
   colHeader: {
     fontFamily: '"Montserrat", var(--font-display), sans-serif',
     fontWeight: 700,
-    fontSize: 18,
+    fontSize: 16,
     color: '#382A24',
     letterSpacing: '-0.01em',
   } as React.CSSProperties,
@@ -261,8 +269,8 @@ const styles = {
 
   contentGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(4, 1fr)',
-    gap: 24,
+    gridTemplateColumns: 'repeat(5, 1fr)',
+    gap: 16,
   } as React.CSSProperties,
 
   columnList: {
