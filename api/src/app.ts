@@ -3,6 +3,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { authRouter } from './routes/authRoutes';
+import { journalEntryRouter } from './routes/journalEntryRoutes';
 import { sendError } from './utils/response';
 
 dotenv.config();
@@ -23,6 +24,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api/auth', authRouter);
+app.use('/api/journal-entries', journalEntryRouter);
 
 // Health check
 app.get('/api/health', (req: Request, res: Response) => {
