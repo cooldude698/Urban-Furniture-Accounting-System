@@ -24,79 +24,76 @@
 
 ```mermaid
 flowchart LR
-    subgraph SysArch [SYSTEM ARCHITECTURE]
+    subgraph SysArch [SYSTEM ARCHITECTURE — URBAN FURNITURE ERP]
         direction LR
 
         subgraph ActorsCluster [Users and Clients]
-            Users[Users and Portal Clients<br/>Internal Staff and Customer Portal]
+            Users[Users and Clients<br/>Staff: Admin, Accountant, Sales<br/>Customer Portal Users]
         end
 
-        subgraph GatewayCluster [Gateway and Web]
-            Gateway[Nginx Gateway / Web App<br/>Port 5173 / 80<br/>SSL Termination and Reverse Proxy]
+        subgraph GatewayCluster [Frontend Client Tier]
+            Gateway[React 18 Web App<br/>Vite Server :5173 / :80<br/>TailwindCSS and AppShell]
         end
 
         subgraph AppCluster [Application Core - Docker]
-            WebApp[Express REST API Server<br/>Node.js 20 - Express 5 - TypeScript<br/>Double-Entry Posting Engine<br/>RBAC and Pre-Commitment Budgets]
+            WebApp[Express REST API Server<br/>Node.js 20 - Port 5002<br/>Double-Entry Posting Engine<br/>Pre-Commitment Budgets and RBAC]
         end
 
         subgraph PaymentCluster [Payment Gateway]
-            Razorpay[Razorpay Payment Gateway<br/>Online UPI and Cards Checkout<br/>HMAC-SHA256 Signature Verification]
+            Razorpay[Razorpay Payment Gateway<br/>Online UPI and Cards Modal<br/>HMAC-SHA256 Signatures]
         end
 
-        subgraph StorageCluster [Storage - Docker]
+        subgraph StorageCluster [Storage Layer - Docker]
             direction TB
-            CloudStorage[Document and File Storage<br/>PDF Invoices and Receipts]
-            PostgresDB[PostgreSQL 16 DB - Port 5432<br/>General Ledger Double-Entry<br/>Commercial PO SO Bills Invoices<br/>Immutable Audit Log and Budgets]
-            RedisCache[In-Memory Cache and Session Store<br/>Stateless JWT Validation]
+            PostgresDB[PostgreSQL 16 DB - Port 5432<br/>General Ledger: journal_entries and lines<br/>Commercial: PO, SO, Bills, Invoices<br/>Analytic Budgets and Audit Log<br/>Trigger: check_entry_balanced]
+            DocStorage[Document Storage<br/>Invoice PDFs and Payment Vouchers]
         end
 
-        subgraph WorkerCluster [Background Services and Email Pipeline]
+        subgraph WorkerCluster [PDF and Email Delivery Engine]
             direction TB
-            BullQueue[BullMQ Asynchronous Dispatch<br/>Event-Driven Task Handling]
-            EmailService[Resend Email Service<br/>Transactional Receipt Delivery<br/>PDF Attachment to Personal Gmail]
-            PdfEngine[Chromium PDF Engine - Puppeteer<br/>Deterministic A4 Receipts]
+            PdfEngine[Chromium Puppeteer<br/>Deterministic A4 PDF Receipts]
+            EmailService[Resend Email API<br/>api.resend.com/emails<br/>Dispatches PDF to Client Gmail]
         end
 
-        subgraph ObservabilityCluster [Observability and Verification - Docker]
+        subgraph ObservabilityCluster [Audit and Invariant Verification]
             direction LR
-            Prometheus[Zero-Delta Invariant Verifier<br/>GET /api/verify<br/>Total Debit = Total Credit]
-            Grafana[Immutable Audit Trail<br/>audit_log Table]
-            Loki[Health and System Probes<br/>GET /api/health]
+            Verifier[Zero-Delta Verifier<br/>GET /api/verify<br/>Strict Total Dr = Total Cr = 0.00]
+            AuditTrail[Immutable Audit Trail<br/>audit_log Table<br/>User, Timestamp, Diff]
+            HealthProbes[Health Probes<br/>GET /api/health<br/>Docker Container Readiness]
         end
 
-        Users <-->|http2| Gateway
-        Gateway <-->|http/1.1| WebApp
+        Users <-->|http2 / HTTPS| Gateway
+        Gateway <-->|http/1.1 REST| WebApp
 
-        Razorpay -->|Order and Signatures| WebApp
+        Razorpay -->|Order and Signature Verification| WebApp
 
-        WebApp <-->|SQL| PostgresDB
-        WebApp <-->|Files| CloudStorage
-        WebApp <-->|Cache| RedisCache
+        WebApp <-->|pg / SQL Wire| PostgresDB
+        WebApp <-->|File I/O| DocStorage
 
-        WebApp -->|Event| BullQueue
-        BullQueue -->|Render| PdfEngine
-        PdfEngine -->|Attachment| EmailService
-        EmailService -->|Email Receipt| Users
+        WebApp -->|Render Event| PdfEngine
+        PdfEngine -->|Base64 Attachment| EmailService
+        EmailService -.->|Email Receipt| Users
 
-        WebApp -.->|Telemetry| ObservabilityCluster
-        PostgresDB -.->|Audit Check| Prometheus
+        WebApp -.->|Audit Check| Verifier
+        WebApp -.->|Mutation Audit| AuditTrail
+        WebApp -.->|Container Status| HealthProbes
     end
 ```
 
 </details>
-
 
 ### Architecture Subsystems at a Glance
 
 | Subsystem | Key Components | Protocols & Ports | Role in Urban Furniture ERP |
 | :--- | :--- | :--- | :--- |
 | **Actors / Users** | Staff (Admin, Accountant, Sales, Warehouse) & Customer Portal Clients | Browser / HTTPS | Operational ERP management and external customer self-service invoice settlement. |
-| **Gateway & Web** | Nginx Reverse Proxy / Vite Application Server | `HTTP/2` (`:5173`, `:80`, `:443`) | SSL termination, reverse proxying, static asset caching, and route protection. |
+| **Frontend Client** | React 18, Vite Bundler, TailwindCSS, AppShell | `HTTP/2` (`:5173`, `:80`) | Responsive user interface, double-entry modals, budget warning banners. |
 | **Core Web App & API** | Node.js 20, Express 5, TypeScript, Zod, Decimal.js | `HTTP/1.1 REST` (`:5000` / `:5002`) | Commercial workflows, double-entry posting engine, pre-commitment budget checks, and data scoping. |
-| **Payment Gateway** | Razorpay Payment Gateway API & Test Sandbox | HTTPS REST / Webhook | Online checkout, card/UPI tokenization, and deterministic HMAC-SHA256 signature verification. |
-| **Storage Subsystem** | PostgreSQL 16 DB, Local/Cloud Document Storage, Cache | Postgres Wire (`:5432`), Docker Volumes | Transactional ACID ledger, immutable audit trail, gapless numbering sequences, and PDF documents. |
-| **Email & PDF Pipeline** | Headless Chromium (Puppeteer) + Resend API (`api.resend.com`) | Async Queue / REST | Deterministic A4 payment receipt PDF generation and immediate delivery to client Gmail. |
-| **Observability** | Zero-Delta Invariant Verifier, Audit Trail, Health Probes | `/api/verify`, `/api/health` | Live verification of $\sum \text{Debit} \equiv \sum \text{Credit}$ down to the paisa, container health checks. |
+| **Payment Gateway** | Razorpay Payment Gateway API & Test Sandbox | HTTPS REST / Webhooks | Online checkout, card/UPI tokenization, and deterministic HMAC-SHA256 signature verification. |
+| **Storage Subsystem** | PostgreSQL 16 Alpine, Local Document Storage | Postgres Wire (`:5432`), Docker Volumes | Transactional ACID ledger, immutable audit trail, gapless numbering sequences, and PDF documents. |
+| **Email & PDF Pipeline** | Headless Chromium (Puppeteer) + Resend API (`api.resend.com`) | Native REST | Deterministic A4 payment receipt PDF generation and direct delivery to client Gmail. |
+| **Observability** | Zero-Delta Invariant Verifier, Audit Trail, Health Probes | `/api/verify`, `/api/health` | Live verification of $\sum \text{Debit} \equiv \sum \text{Credit} = 0.00$ down to the paisa, container health checks. |
+
 
 ---
 
