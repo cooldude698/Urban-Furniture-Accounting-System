@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -51,6 +51,7 @@ type SortOption = 'default' | 'price-asc' | 'price-desc' | 'name-asc';
 
 export const PortalCataloguePage: React.FC = () => {
   const navigate = useNavigate();
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const [products, setProducts] = useState<CatalogueProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -60,6 +61,22 @@ export const PortalCataloguePage: React.FC = () => {
   const [sortBy, setSortBy] = useState<SortOption>('default');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      } else if (e.key === '/' && document.activeElement !== searchInputRef.current) {
+        if (!['INPUT', 'TEXTAREA'].includes((document.activeElement as HTMLElement)?.tagName)) {
+          e.preventDefault();
+          searchInputRef.current?.focus();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     setLoading(true);
@@ -205,16 +222,16 @@ export const PortalCataloguePage: React.FC = () => {
             display: 'inline-flex',
             alignItems: 'center',
             gap: 8,
-            padding: '12px 24px',
+            padding: '10px 20px',
             backgroundColor: 'var(--brown-900)',
             color: 'var(--cream)',
-            borderRadius: 999,
+            borderRadius: 10,
             border: 'none',
             fontSize: 13,
             fontWeight: 700,
             fontFamily: 'var(--font-display)',
             cursor: 'pointer',
-            boxShadow: '0 4px 16px rgba(74, 58, 52, 0.2)',
+            boxShadow: '0 4px 16px rgba(74, 58, 52, 0.18)',
             transition: 'all 160ms ease',
           }}
           onMouseEnter={(e) => {
@@ -223,7 +240,7 @@ export const PortalCataloguePage: React.FC = () => {
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.transform = 'none';
-            e.currentTarget.style.boxShadow = '0 4px 16px rgba(74, 58, 52, 0.2)';
+            e.currentTarget.style.boxShadow = '0 4px 16px rgba(74, 58, 52, 0.18)';
           }}
         >
           <Compass size={16} />
@@ -237,7 +254,7 @@ export const PortalCataloguePage: React.FC = () => {
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 8,
+          gap: 6,
           overflowX: 'auto',
           paddingBottom: 4,
           scrollbarWidth: 'none',
@@ -255,17 +272,17 @@ export const PortalCataloguePage: React.FC = () => {
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 8,
-                padding: '9px 18px',
-                borderRadius: 999,
-                fontSize: 13,
+                gap: 7,
+                padding: '7px 15px',
+                borderRadius: 8,
+                fontSize: 12.5,
                 fontWeight: isSelected ? 700 : 500,
                 fontFamily: 'var(--font-display)',
                 backgroundColor: isSelected ? 'var(--brown-900)' : 'rgba(255, 255, 255, 0.85)',
                 color: isSelected ? 'var(--cream)' : 'var(--brown-900)',
                 border: '1px solid',
                 borderColor: isSelected ? 'var(--brown-900)' : 'rgba(208, 174, 146, 0.45)',
-                boxShadow: isSelected ? '0 4px 12px rgba(74, 58, 52, 0.2)' : '0 1px 3px rgba(74, 58, 52, 0.04)',
+                boxShadow: isSelected ? '0 2px 8px rgba(74, 58, 52, 0.18)' : '0 1px 3px rgba(74, 58, 52, 0.03)',
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 transition: 'all 150ms ease',
@@ -287,11 +304,11 @@ export const PortalCataloguePage: React.FC = () => {
               <span>{cat.label}</span>
               <span
                 style={{
-                  fontSize: 11,
+                  fontSize: 10.5,
                   fontFamily: 'var(--font-mono)',
-                  padding: '1px 6px',
-                  borderRadius: 999,
-                  backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.2)' : 'rgba(208, 174, 146, 0.3)',
+                  padding: '1px 5px',
+                  borderRadius: 4,
+                  backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.2)' : 'rgba(208, 174, 146, 0.25)',
                   color: isSelected ? 'var(--cream)' : 'var(--brown-700)',
                 }}
               >
@@ -313,7 +330,7 @@ export const PortalCataloguePage: React.FC = () => {
           backgroundColor: 'rgba(255, 255, 255, 0.85)',
           backdropFilter: 'blur(12px)',
           padding: '10px 16px',
-          borderRadius: 16,
+          borderRadius: 12,
           border: '1px solid rgba(208, 174, 146, 0.4)',
           boxShadow: '0 2px 8px rgba(74, 58, 52, 0.04)',
         }}
@@ -326,7 +343,7 @@ export const PortalCataloguePage: React.FC = () => {
             gap: 8,
             backgroundColor: '#FAF7F2',
             padding: '6px 14px',
-            borderRadius: 999,
+            borderRadius: 8,
             border: '1px solid rgba(208, 174, 146, 0.45)',
             flex: '1 1 280px',
             maxWidth: 420,
@@ -334,6 +351,7 @@ export const PortalCataloguePage: React.FC = () => {
         >
           <Search size={15} color="var(--brown-600)" />
           <input
+            ref={searchInputRef}
             type="text"
             placeholder="Search by piece name, wood species, SKU..."
             value={searchQuery}
@@ -351,9 +369,27 @@ export const PortalCataloguePage: React.FC = () => {
               width: '100%',
             }}
           />
-          {searchQuery && (
+          {!searchQuery ? (
+            <kbd
+              style={{
+                fontSize: 10,
+                fontFamily: 'var(--font-mono)',
+                backgroundColor: 'rgba(208, 174, 146, 0.25)',
+                color: 'var(--brown-600)',
+                padding: '2px 5px',
+                borderRadius: 4,
+                border: '1px solid rgba(208, 174, 146, 0.4)',
+                userSelect: 'none',
+              }}
+            >
+              ⌘K
+            </kbd>
+          ) : (
             <button
-              onClick={() => setSearchQuery('')}
+              onClick={() => {
+                setSearchQuery('');
+                searchInputRef.current?.focus();
+              }}
               style={{
                 background: 'none',
                 border: 'none',

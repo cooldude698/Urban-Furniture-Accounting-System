@@ -246,8 +246,8 @@ export const PortalDashboardPage: React.FC = () => {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 8,
-                padding: '12px 24px',
-                borderRadius: 999,
+                padding: '11px 22px',
+                borderRadius: 10,
                 backgroundColor: '#F9F2E4',
                 color: '#2E221D',
                 border: 'none',
@@ -255,7 +255,7 @@ export const PortalDashboardPage: React.FC = () => {
                 fontWeight: 700,
                 fontFamily: 'var(--font-display)',
                 cursor: 'pointer',
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.18)',
                 transition: 'all 160ms cubic-bezier(0.4, 0, 0.2, 1)',
               }}
               onMouseEnter={(e) => {
@@ -278,8 +278,8 @@ export const PortalDashboardPage: React.FC = () => {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 8,
-                padding: '12px 22px',
-                borderRadius: 999,
+                padding: '11px 20px',
+                borderRadius: 10,
                 backgroundColor: 'rgba(255, 255, 255, 0.08)',
                 color: '#FAF6F0',
                 border: '1px solid rgba(208, 174, 146, 0.4)',
@@ -592,15 +592,15 @@ export const PortalDashboardPage: React.FC = () => {
             </h2>
           </div>
 
-          {/* Room Pill Switcher */}
+          {/* Room Tab Switcher */}
           <div
             style={{
               display: 'flex',
-              gap: 6,
-              backgroundColor: 'rgba(249, 246, 240, 0.8)',
+              gap: 4,
+              backgroundColor: 'rgba(240, 234, 224, 0.65)',
               padding: 4,
-              borderRadius: 999,
-              border: '1px solid rgba(208, 174, 146, 0.35)',
+              borderRadius: 10,
+              border: '1px solid rgba(208, 174, 146, 0.45)',
             }}
           >
             {rooms.map((room) => {
@@ -615,7 +615,7 @@ export const PortalDashboardPage: React.FC = () => {
                     alignItems: 'center',
                     gap: 6,
                     padding: '7px 14px',
-                    borderRadius: 999,
+                    borderRadius: 8,
                     border: 'none',
                     fontSize: 12,
                     fontWeight: isSelected ? 700 : 500,
@@ -623,7 +623,7 @@ export const PortalDashboardPage: React.FC = () => {
                     backgroundColor: isSelected ? 'var(--brown-900)' : 'transparent',
                     color: isSelected ? 'var(--cream)' : 'var(--brown-800)',
                     cursor: 'pointer',
-                    boxShadow: isSelected ? '0 2px 6px rgba(74, 58, 52, 0.2)' : 'none',
+                    boxShadow: isSelected ? '0 2px 6px rgba(74, 58, 52, 0.18)' : 'none',
                     transition: 'all 140ms ease',
                   }}
                 >

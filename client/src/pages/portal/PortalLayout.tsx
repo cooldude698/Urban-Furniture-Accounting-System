@@ -1,7 +1,7 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate, Link } from 'react-router-dom';
 import { usePortalAuth } from './PortalAuthGuard';
-import { BrandLogo } from '../../components/ui/BrandLogo';
+import { ChairIcon } from '../../components/ui/BrandLogo';
 import {
   LayoutDashboard,
   Layers,
@@ -46,17 +46,17 @@ export const PortalLayout: React.FC = () => {
         fontFamily: 'var(--font-body)',
       }}
     >
-      {/* ── Unified Premium Header Navigation Bar ── */}
+      {/* ── Unified Luxury Header Navigation Bar ── */}
       <header
         style={{
           position: 'sticky',
           top: 0,
           zIndex: 50,
-          backgroundColor: 'rgba(255, 255, 255, 0.92)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          borderBottom: '1px solid rgba(208, 174, 146, 0.35)',
-          boxShadow: '0 4px 20px rgba(74, 58, 52, 0.05)',
+          backgroundColor: 'rgba(252, 250, 246, 0.88)',
+          backdropFilter: 'blur(20px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+          borderBottom: '1px solid rgba(214, 198, 180, 0.35)',
+          boxShadow: '0 4px 24px -2px rgba(44, 34, 30, 0.04)',
           transition: 'all 200ms ease',
         }}
       >
@@ -64,35 +64,53 @@ export const PortalLayout: React.FC = () => {
           style={{
             maxWidth: '92rem',
             margin: '0 auto',
-            padding: '0 28px',
-            height: 64,
+            padding: '0 32px',
+            height: 68,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: 20,
+            gap: 24,
           }}
         >
-          {/* Left: Brand Identity */}
+          {/* Left: Refined Architectural Brand Mark */}
           <Link
             to="/portal"
             style={{
               textDecoration: 'none',
               display: 'flex',
               alignItems: 'center',
-              gap: 12,
+              gap: 14,
               cursor: 'pointer',
+              flexShrink: 0,
             }}
           >
-            <BrandLogo size={34} variant="dark" badge={false} />
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div
+              style={{
+                width: 38,
+                height: 38,
+                borderRadius: 10,
+                backgroundColor: 'var(--brown-900, #261914)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 3px 10px rgba(38, 25, 20, 0.2)',
+                flexShrink: 0,
+                transition: 'transform 180ms ease',
+              }}
+            >
+              <ChairIcon size={22} color="#FBF9F5" />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span
                   style={{
                     fontFamily: 'var(--font-display)',
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: 800,
-                    letterSpacing: '-0.02em',
+                    letterSpacing: '0.06em',
                     color: 'var(--brown-900)',
+                    lineHeight: 1,
                   }}
                 >
                   URBAN FURNITURE
@@ -100,42 +118,45 @@ export const PortalLayout: React.FC = () => {
                 <span
                   style={{
                     fontSize: 9,
-                    fontFamily: 'var(--font-display)',
-                    fontWeight: 800,
-                    letterSpacing: '0.08em',
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 700,
+                    letterSpacing: '0.12em',
                     textTransform: 'uppercase',
-                    backgroundColor: 'var(--brown-900)',
-                    color: 'var(--cream)',
-                    padding: '2px 6px',
+                    color: '#8C6D53',
+                    backgroundColor: 'rgba(140, 109, 83, 0.12)',
+                    border: '1px solid rgba(140, 109, 83, 0.25)',
+                    padding: '2px 7px',
                     borderRadius: 4,
+                    lineHeight: 1.2,
                   }}
                 >
-                  PORTAL
+                  ATELIER
                 </span>
               </div>
               <div
                 style={{
-                  fontSize: 10,
+                  fontSize: 10.5,
                   fontFamily: 'var(--font-mono)',
-                  color: 'var(--brown-500)',
-                  letterSpacing: '0.04em',
+                  color: 'var(--brown-600)',
+                  letterSpacing: '0.03em',
                 }}
               >
-                Showroom &amp; Client Ledger
+                Client Showroom &amp; Ledger
               </div>
             </div>
           </Link>
 
-          {/* Center: Refined Segmented Pill Navigation */}
+          {/* Center: Sleek Minimalist Navigation Tabs */}
           <nav
             style={{
               display: 'flex',
               alignItems: 'center',
-              backgroundColor: 'rgba(235, 215, 190, 0.3)',
+              gap: 4,
+              backgroundColor: 'rgba(240, 234, 224, 0.55)',
               padding: '4px',
-              borderRadius: 999,
-              border: '1px solid rgba(208, 174, 146, 0.4)',
-              boxShadow: 'inset 0 1px 3px rgba(74, 58, 52, 0.04)',
+              borderRadius: 12,
+              border: '1px solid rgba(214, 198, 180, 0.5)',
+              boxShadow: 'inset 0 1px 2px rgba(0, 0, 0, 0.03)',
             }}
           >
             {/* Dashboard */}
@@ -146,16 +167,16 @@ export const PortalLayout: React.FC = () => {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 7,
-                padding: '7px 16px',
-                borderRadius: 999,
+                padding: '7px 15px',
+                borderRadius: 8,
                 fontSize: 13,
                 fontFamily: 'var(--font-display)',
                 fontWeight: isActive ? 700 : 500,
-                color: isActive ? '#FFFFFF' : 'var(--brown-900)',
+                color: isActive ? '#FFFFFF' : 'var(--brown-700)',
                 backgroundColor: isActive ? 'var(--brown-900)' : 'transparent',
                 textDecoration: 'none',
-                boxShadow: isActive ? '0 2px 8px rgba(74, 58, 52, 0.25)' : 'none',
-                transition: 'all 160ms cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: isActive ? '0 2px 8px rgba(38, 25, 20, 0.18)' : 'none',
+                transition: 'all 160ms cubic-bezier(0.16, 1, 0.3, 1)',
               })}
             >
               <LayoutDashboard size={14} />
@@ -169,46 +190,46 @@ export const PortalLayout: React.FC = () => {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 7,
-                padding: '7px 16px',
-                borderRadius: 999,
+                padding: '7px 15px',
+                borderRadius: 8,
                 fontSize: 13,
                 fontFamily: 'var(--font-display)',
                 fontWeight: isActive ? 700 : 500,
-                color: isActive ? '#FFFFFF' : 'var(--brown-900)',
+                color: isActive ? '#FFFFFF' : 'var(--brown-700)',
                 backgroundColor: isActive ? 'var(--brown-900)' : 'transparent',
                 textDecoration: 'none',
-                boxShadow: isActive ? '0 2px 8px rgba(74, 58, 52, 0.25)' : 'none',
-                transition: 'all 160ms cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: isActive ? '0 2px 8px rgba(38, 25, 20, 0.18)' : 'none',
+                transition: 'all 160ms cubic-bezier(0.16, 1, 0.3, 1)',
               })}
             >
               <Layers size={14} />
               <span>Furniture Catalogue</span>
             </NavLink>
 
-            {/* 3D Studio Planner */}
+            {/* 3D Studio */}
             <NavLink
               to="/portal/studio"
               style={({ isActive }) => ({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 7,
-                padding: '7px 16px',
-                borderRadius: 999,
+                padding: '7px 15px',
+                borderRadius: 8,
                 fontSize: 13,
                 fontFamily: 'var(--font-display)',
                 fontWeight: isActive ? 700 : 500,
-                color: isActive ? '#FFFFFF' : 'var(--brown-900)',
+                color: isActive ? '#FFFFFF' : 'var(--brown-700)',
                 backgroundColor: isActive ? 'var(--brown-900)' : 'transparent',
                 textDecoration: 'none',
-                boxShadow: isActive ? '0 2px 8px rgba(74, 58, 52, 0.25)' : 'none',
-                transition: 'all 160ms cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: isActive ? '0 2px 8px rgba(38, 25, 20, 0.18)' : 'none',
+                transition: 'all 160ms cubic-bezier(0.16, 1, 0.3, 1)',
               })}
             >
               <Sparkles size={14} />
               <span>3D Studio</span>
             </NavLink>
 
-            {/* Invoices (when authenticated) */}
+            {/* My Invoices (when authenticated) */}
             {user && (
               <NavLink
                 to="/portal/invoices"
@@ -216,16 +237,16 @@ export const PortalLayout: React.FC = () => {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 7,
-                  padding: '7px 16px',
-                  borderRadius: 999,
+                  padding: '7px 15px',
+                  borderRadius: 8,
                   fontSize: 13,
                   fontFamily: 'var(--font-display)',
                   fontWeight: isActive ? 700 : 500,
-                  color: isActive ? '#FFFFFF' : 'var(--brown-900)',
+                  color: isActive ? '#FFFFFF' : 'var(--brown-700)',
                   backgroundColor: isActive ? 'var(--brown-900)' : 'transparent',
                   textDecoration: 'none',
-                  boxShadow: isActive ? '0 2px 8px rgba(74, 58, 52, 0.25)' : 'none',
-                  transition: 'all 160ms cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: isActive ? '0 2px 8px rgba(38, 25, 20, 0.18)' : 'none',
+                  transition: 'all 160ms cubic-bezier(0.16, 1, 0.3, 1)',
                 })}
               >
                 <Receipt size={14} />
@@ -234,62 +255,64 @@ export const PortalLayout: React.FC = () => {
             )}
           </nav>
 
-          {/* Right: User Profile Capsule & Actions */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            {/* Back to ERP — for staff */}
+          {/* Right: Actions & User Session */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+            {/* Back to ERP for staff */}
             {isInternalStaff && (
               <a
                 href="/dashboard"
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 4,
+                  gap: 5,
                   padding: '6px 12px',
-                  borderRadius: 999,
+                  borderRadius: 8,
                   fontSize: 11,
                   fontWeight: 600,
                   fontFamily: 'var(--font-display)',
-                  color: 'var(--brown-700)',
-                  backgroundColor: 'rgba(235, 215, 190, 0.4)',
-                  border: '1px solid rgba(208, 174, 146, 0.5)',
+                  color: '#5C3D2E',
+                  backgroundColor: 'rgba(235, 215, 190, 0.35)',
+                  border: '1px solid rgba(208, 174, 146, 0.4)',
                   textDecoration: 'none',
                   transition: 'all 140ms ease',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = 'var(--brown-900)';
                   e.currentTarget.style.color = 'var(--cream)';
+                  e.currentTarget.style.borderColor = 'var(--brown-900)';
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(235, 215, 190, 0.4)';
-                  e.currentTarget.style.color = 'var(--brown-700)';
+                  e.currentTarget.style.backgroundColor = 'rgba(235, 215, 190, 0.35)';
+                  e.currentTarget.style.color = '#5C3D2E';
+                  e.currentTarget.style.borderColor = 'rgba(208, 174, 146, 0.4)';
                 }}
                 title="Switch to Internal Accounting ERP"
               >
-                <span>Internal ERP</span>
+                <span>Staff ERP</span>
                 <ArrowUpRight size={12} />
               </a>
             )}
 
             {user ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {/* Profile Pill */}
+                {/* Client Profile Cardlet */}
                 <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 9,
+                    gap: 10,
                     padding: '4px 12px 4px 4px',
-                    borderRadius: 999,
-                    backgroundColor: 'rgba(255, 255, 255, 0.85)',
-                    border: '1px solid rgba(208, 174, 146, 0.45)',
-                    boxShadow: '0 1px 3px rgba(74, 58, 52, 0.05)',
+                    borderRadius: 10,
+                    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+                    border: '1px solid rgba(214, 198, 180, 0.45)',
+                    boxShadow: '0 1px 4px rgba(44, 34, 30, 0.03)',
                   }}
                 >
                   <div
                     style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: '50%',
+                      width: 32,
+                      height: 32,
+                      borderRadius: 8,
                       backgroundColor: 'var(--brown-900)',
                       color: 'var(--cream)',
                       display: 'flex',
@@ -303,13 +326,14 @@ export const PortalLayout: React.FC = () => {
                   >
                     {initials}
                   </div>
-                  <div style={{ lineHeight: 1.1 }}>
+                  <div style={{ lineHeight: 1.15 }}>
                     <div
                       style={{
-                        fontSize: 12,
+                        fontSize: 12.5,
                         fontWeight: 700,
                         color: 'var(--brown-900)',
                         fontFamily: 'var(--font-display)',
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       {user.full_name}
@@ -319,8 +343,20 @@ export const PortalLayout: React.FC = () => {
                         fontSize: 10,
                         color: 'var(--brown-600)',
                         fontFamily: 'var(--font-mono)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
                       }}
                     >
+                      <span
+                        style={{
+                          width: 5,
+                          height: 5,
+                          borderRadius: '50%',
+                          backgroundColor: '#2E7D32',
+                          display: 'inline-block',
+                        }}
+                      />
                       Verified Client
                     </div>
                   </div>
@@ -336,9 +372,9 @@ export const PortalLayout: React.FC = () => {
                     justifyContent: 'center',
                     width: 34,
                     height: 34,
-                    borderRadius: '50%',
-                    backgroundColor: 'transparent',
-                    border: '1px solid rgba(208, 174, 146, 0.4)',
+                    borderRadius: 8,
+                    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+                    border: '1px solid rgba(214, 198, 180, 0.45)',
                     color: 'var(--brown-700)',
                     cursor: 'pointer',
                     transition: 'all 140ms ease',
@@ -349,9 +385,9 @@ export const PortalLayout: React.FC = () => {
                     e.currentTarget.style.borderColor = 'var(--danger)';
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.6)';
                     e.currentTarget.style.color = 'var(--brown-700)';
-                    e.currentTarget.style.borderColor = 'rgba(208, 174, 146, 0.4)';
+                    e.currentTarget.style.borderColor = 'rgba(214, 198, 180, 0.45)';
                   }}
                 >
                   <LogOut size={14} />
@@ -364,8 +400,8 @@ export const PortalLayout: React.FC = () => {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 6,
-                  padding: '8px 18px',
-                  borderRadius: 999,
+                  padding: '8px 16px',
+                  borderRadius: 8,
                   backgroundColor: 'var(--brown-900)',
                   color: 'var(--cream)',
                   border: 'none',
@@ -373,7 +409,7 @@ export const PortalLayout: React.FC = () => {
                   fontWeight: 700,
                   fontFamily: 'var(--font-display)',
                   cursor: 'pointer',
-                  boxShadow: '0 2px 6px rgba(74, 58, 52, 0.2)',
+                  boxShadow: '0 2px 6px rgba(74, 58, 52, 0.18)',
                   transition: 'all 140ms ease',
                 }}
                 onMouseEnter={(e) => {
@@ -382,7 +418,7 @@ export const PortalLayout: React.FC = () => {
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.transform = 'none';
-                  e.currentTarget.style.boxShadow = '0 2px 6px rgba(74, 58, 52, 0.2)';
+                  e.currentTarget.style.boxShadow = '0 2px 6px rgba(74, 58, 52, 0.18)';
                 }}
               >
                 <LogIn size={13} />

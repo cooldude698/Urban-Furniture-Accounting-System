@@ -30,11 +30,19 @@ function request(options, body) {
 
 async function setupPortalUser() {
   const hash = await argon2.hash('Portal@12345', { type: argon2.argon2id });
-  await pool.query("DELETE FROM users WHERE login_id = 'custdemo' OR email = 'custdemo@example.com'");
-  const res = await pool.query(
-    "INSERT INTO users (full_name, login_id, email, password_hash, role, contact_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, login_id, role, contact_id",
-    ['Portal Demo', 'custdemo', 'custdemo@example.com', hash, 'contact', 11]
-  );
+  const check = await pool.query("SELECT id FROM users WHERE login_id = 'custdemo'");
+  let res;
+  if (check.rows.length > 0) {
+    res = await pool.query(
+      "UPDATE users SET password_hash = $1, role = 'contact', contact_id = 11 WHERE login_id = 'custdemo' RETURNING id, login_id, role, contact_id",
+      [hash]
+    );
+  } else {
+    res = await pool.query(
+      "INSERT INTO users (full_name, login_id, email, password_hash, role, contact_id) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, login_id, role, contact_id",
+      ['Portal Demo', 'custdemo', 'custdemo@example.com', hash, 'contact', 11]
+    );
+  }
   console.log('Setup portal user in DB:', res.rows[0]);
   await pool.end();
 }

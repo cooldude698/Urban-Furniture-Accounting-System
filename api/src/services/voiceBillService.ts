@@ -84,18 +84,27 @@ export interface ChatMessageResponse {
 
 // Common Hindi to English furniture transliteration / keywords dictionary
 const HINDI_PRODUCT_KEYWORD_MAP: Record<string, string> = {
-  'टीक डेस्क': 'Teak Desk',
-  'टीक': 'Teak',
-  'डेस्क': 'Desk',
-  'ओक वुड': 'Oak Wood Planks',
-  'ओक': 'Oak',
-  'लकड़ी': 'Wood',
-  'तख्ता': 'Planks',
+  'टीवी यूनिट': 'Alder TV Unit',
+  'टीवी': 'TV Unit',
+  'डेस्क': 'Writing Desk',
   'कुर्सी': 'Chair',
-  'टेबल': 'Desk',
+  'चेयर': 'Chair',
+  'टेबल': 'Table',
+  'डाइनिंग टेबल': 'Dining Table',
+  'कॉफ़ी टेबल': 'Coffee Table',
   'मेज़': 'Desk',
   'सोफा': 'Sofa',
-  'अलमारी': 'Cabinet',
+  'अलमारी': 'Wardrobe',
+  'बुककेस': 'Bookcase',
+  'कैबिनेट': 'Cabinet',
+  'बेड': 'Bed',
+  'बिस्तर': 'Bed',
+  'स्टूल': 'Stool',
+  'लैंप': 'Lamp',
+  'लाइट': 'Light',
+  'ओक': 'Oak',
+  'टीक': 'Teak',
+  'वॉलनट': 'Walnut',
 };
 
 export class VoiceBillService {
@@ -223,14 +232,17 @@ export class VoiceBillService {
       const res = await pool.query(
         `SELECT id, name, sales_price::TEXT as sales_price, tax_rate::TEXT as tax_rate,
           GREATEST(
-            similarity(name, $1),
-            CASE WHEN LENGTH($1) >= 4 AND name ILIKE '%' || $1 || '%' THEN 0.85 ELSE 0 END,
-            CASE WHEN LENGTH($1) >= 4 AND $1 ILIKE '%' || name || '%' THEN 0.85 ELSE 0 END
+            CASE WHEN LOWER(TRIM(name)) = LOWER(TRIM($1)) THEN 1.0 ELSE 0 END,
+            CASE WHEN LOWER(REGEXP_REPLACE(TRIM(name), '[—–-]', ' ', 'g')) = LOWER(REGEXP_REPLACE(TRIM($1), '[—–-]', ' ', 'g')) THEN 1.0 ELSE 0 END,
+            CASE WHEN name ILIKE $1 THEN 0.98 ELSE 0 END,
+            CASE WHEN LENGTH($1) >= 2 AND name ILIKE '%' || $1 || '%' THEN 0.88 ELSE 0 END,
+            CASE WHEN LENGTH($1) >= 2 AND $1 ILIKE '%' || name || '%' THEN 0.88 ELSE 0 END,
+            COALESCE(similarity(name, $1), 0)
           ) as score
          FROM products
          WHERE is_archived = false
          ORDER BY score DESC
-         LIMIT 3;`,
+         LIMIT 5;`,
         [searchPhrase]
       );
 
@@ -249,7 +261,7 @@ export class VoiceBillService {
           salesPrice: r.sales_price,
         }));
 
-      // If top score > 0.45, auto-select
+      // If top score >= 0.45, auto-select
       if (topScore >= 0.45) {
         return {
           matchedProduct: {
@@ -279,7 +291,49 @@ export class VoiceBillService {
         candidates: [],
       };
     } catch (err) {
-      console.error('Error in matchProduct query:', err);
+      console.warn('SQL error in matchProduct, falling back to in-memory matcher:', err);
+      try {
+        const fallbackRes = await pool.query(
+          `SELECT id, name, sales_price::TEXT as sales_price, tax_rate::TEXT as tax_rate FROM products WHERE is_archived = false;`
+        );
+        const cleanTarget = searchPhrase.toLowerCase().replace(/[—–-]/g, ' ').replace(/[,.:;!?]/g, ' ').replace(/\s+/g, ' ').trim();
+        const scored = fallbackRes.rows.map((r: any) => {
+          const cleanName = r.name.toLowerCase().replace(/[—–-]/g, ' ').replace(/[,.:;!?]/g, ' ').replace(/\s+/g, ' ').trim();
+          let score = 0;
+          if (cleanName === cleanTarget) score = 1.0;
+          else if (cleanName.includes(cleanTarget) || cleanTarget.includes(cleanName)) score = 0.88;
+          else score = VoiceBillParser.trigramSimilarity(cleanName, cleanTarget);
+          return {
+            id: r.id,
+            name: r.name,
+            salesPrice: r.sales_price,
+            taxRate: r.tax_rate,
+            score,
+          };
+        });
+        scored.sort((a: any, b: any) => b.score - a.score);
+        if (scored.length > 0 && scored[0].score >= 0.45) {
+          const top = scored[0];
+          return {
+            matchedProduct: {
+              id: top.id,
+              name: top.name,
+              salesPrice: top.salesPrice,
+              taxRate: top.taxRate,
+            },
+            score: top.score,
+            candidates: scored.filter((r: any) => r.score >= 0.35).slice(0, 5),
+          };
+        } else if (scored.length > 0 && scored[0].score >= 0.35) {
+          return {
+            matchedProduct: null,
+            score: scored[0].score,
+            candidates: scored.filter((r: any) => r.score >= 0.35).slice(0, 5),
+          };
+        }
+      } catch (innerErr) {
+        console.error('Fatal error in fallback matcher:', innerErr);
+      }
       return { matchedProduct: null, score: 0, candidates: [] };
     }
   }
@@ -934,6 +988,15 @@ Output:`;
       }
     }
 
+    // 1. Fetch catalog product names early for slot matching and elimination pass
+    let knownProductNames: string[] = [];
+    try {
+      const prodRes = await pool.query(`SELECT name FROM products WHERE is_archived = false;`);
+      knownProductNames = prodRes.rows.map((r: any) => r.name);
+    } catch (err) {
+      console.warn('Failed to query products for parser:', err);
+    }
+
     // 0e. Conversational Context-Aware Slot Answering:
     // If the assistant previously asked a targeted question for a missing slot (e.g. "Please provide the customer name"):
     if (session.pendingSlot) {
@@ -1025,22 +1088,96 @@ Output:`;
           return this.checkNextStepOrConfirm(session, lang);
         }
       }
-    }
 
-    // 1. Fetch catalog product names for elimination pass
-    let knownProductNames: string[] = [];
-    try {
-      const prodRes = await pool.query(`SELECT name FROM products WHERE is_archived = false;`);
-      knownProductNames = prodRes.rows.map((r: any) => r.name);
-    } catch (err) {
-      console.warn('Failed to query products for parser:', err);
+      // Case E: Waiting for product (answering "Which product would you like to add to the bill?")
+      if (session.pendingSlot === 'product') {
+        const prodDet = VoiceBillParser.parse(text, knownProductNames, 'product');
+        let candidateName = prodDet.productName || trimmed;
+
+        candidateName = candidateName
+          .replace(/^(?:add|jo(?:d|r)o|dalo|खरीदना|चाहिए|जोड़ो|डालो|product|item|उत्पाद)[\s:=]+/i, '')
+          .trim();
+
+        if (candidateName.length >= 2) {
+          const matchRes = await this.matchProduct(candidateName);
+          if (matchRes.matchedProduct) {
+            session.ambiguousCandidates = undefined;
+            session.pendingSlot = undefined;
+
+            const existingSameItem = session.lineItems.find(
+              i => i.productId === matchRes.matchedProduct!.id
+            );
+
+            if (existingSameItem) {
+              if (prodDet.quantity && prodDet.quantity > 0) {
+                existingSameItem.qty = prodDet.quantity;
+                existingSameItem.isQtyAssumed = false;
+              }
+              if (prodDet.unitPrice && prodDet.unitPrice > 0) {
+                existingSameItem.unitPrice = prodDet.unitPrice;
+              }
+            } else {
+              const currentItem: DraftLineItem = {
+                id: `line_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                productName: matchRes.matchedProduct.name,
+                matchedName: matchRes.matchedProduct.name,
+                productId: matchRes.matchedProduct.id,
+                qty: prodDet.quantity || 0,
+                unitPrice: prodDet.unitPrice || parseFloat(matchRes.matchedProduct.salesPrice) || 0,
+                discountPercent: prodDet.discountPercent || 0,
+                taxRate: parseFloat(matchRes.matchedProduct.taxRate) || 0,
+                lineTotal: '0.00',
+                isQtyAssumed: prodDet.isQtyAssumed,
+                isPriceAssumed: prodDet.isPriceAssumed,
+                qtyNeedsReview: prodDet.qtyNeedsReview,
+                priceNeedsReview: prodDet.priceNeedsReview,
+                discountNeedsReview: prodDet.discountNeedsReview,
+                qtySource: prodDet.quantity ? 'deterministic' : undefined,
+                priceSource: 'deterministic',
+              };
+              session.lineItems.push(currentItem);
+            }
+
+            this.recalculateTotals(session);
+            return this.checkNextStepOrConfirm(session, lang);
+          } else if (matchRes.candidates && matchRes.candidates.length > 0) {
+            session.ambiguousCandidates = matchRes.candidates;
+            const candidateNames = matchRes.candidates.map(c => c.name).join(', ');
+            const reply =
+              lang === 'hi'
+                ? `आप कौन सा उत्पाद जोड़ना चाहते हैं — [${candidateNames}]?`
+                : `Which product did you mean — [${candidateNames}]?`;
+
+            return {
+              reply,
+              language: lang,
+              session,
+              readyForConfirm: false,
+              isConfirmed: false,
+              options: matchRes.candidates.map(c => c.name),
+            };
+          } else {
+            const reply =
+              lang === 'hi'
+                ? `माफ़ कीजिए, "${trimmed}" कैटलॉग में नहीं मिला। कृपया हमारे कैटलॉग से उत्पाद का नाम बताएं।`
+                : `Could not find "${trimmed}" in the product catalog. Please specify a product from our catalog.`;
+            return {
+              reply,
+              language: lang,
+              session,
+              readyForConfirm: false,
+              isConfirmed: false,
+            };
+          }
+        }
+      }
     }
 
     // 2. Call Ollama LLM Extraction (Model-first with live database catalog context)
     const llmResult = await this.callOllamaExtraction(text, false, knownProductNames);
 
     // 3. Run Deterministic Parser (Mandatory fallback & verification cross-check)
-    const detParsed: ParsedSlots = VoiceBillParser.parse(text, knownProductNames);
+    const detParsed: ParsedSlots = VoiceBillParser.parse(text, knownProductNames, session.pendingSlot);
 
     // 4. Hybrid Arbitration: Combine model predictions with deterministic parser
     const parsed: ParsedSlots = { ...detParsed };
