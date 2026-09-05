@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Decimal from 'decimal.js';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { formatINR } from '../../lib/money';
+import { loadRazorpayScript } from '../../lib/razorpay';
 
 /* ─── types ──────────────────────────────────────────────────────────── */
 interface InvoiceLine {
@@ -19,7 +20,7 @@ interface PaymentHistoryItem {
   paymentId: number;
   paymentNumber: string;
   paymentDate: string;
-  method: 'cash' | 'bank';
+  method: 'cash' | 'bank' | 'razorpay';
   direction: 'inbound' | 'outbound';
   amount: string;
   runningRemaining: string;
@@ -41,7 +42,7 @@ interface InvoiceDetail {
   payments: PaymentHistoryItem[];
 }
 
-type PayMethod = 'cash' | 'bank';
+type PayMethod = 'cash' | 'bank' | 'razorpay';
 type PayStep = 'form' | 'confirm' | 'success';
 
 /* ─── helpers ────────────────────────────────────────────────────────── */
@@ -91,10 +92,12 @@ function MethodToggle({ value, onChange }: { value: PayMethod; onChange: (m: Pay
   };
   return (
     <div style={{ display: 'flex', gap: 8 }}>
-      {btn('cash', '💵 Cash')}
+      {btn('razorpay', '⚡ Razorpay Online')}
       {btn('bank', '🏦 Bank Transfer')}
+      {btn('cash', '💵 Cash')}
     </div>
   );
+
 }
 
 /* ─── main component ─────────────────────────────────────────────────── */
@@ -168,6 +171,73 @@ export const PortalInvoiceDetail: React.FC = () => {
   const handlePayConfirm = async () => {
     setPaySubmitting(true);
     setPayError(null);
+
+    if (payMethod === 'razorpay') {
+      try {
+        const scriptLoaded = await loadRazorpayScript();
+        if (!scriptLoaded) throw new Error('Could not load Razorpay SDK');
+
+        const orderRes = await fetch(`/api/portal/invoices/${invoiceId}/razorpay/create-order`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: new Decimal(payAmount).toFixed(2) }),
+        });
+        const orderJson = await orderRes.json();
+        if (!orderRes.ok || orderJson.error) throw new Error(orderJson.error?.message || 'Failed to create Razorpay order');
+
+        const order = orderJson.data;
+        const rzpKey = (window as any).__VITE_RAZORPAY_KEY_ID__ || (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || 'rzp_test_TYL9FJAZxMYoFc';
+
+        const rzp = new (window as any).Razorpay({
+          key: rzpKey,
+          amount: order.amount,
+          currency: order.currency || 'INR',
+          name: 'Urban Furniture',
+          description: `Payment for Invoice ${invoice?.number ?? invoiceId}`,
+          order_id: order.id,
+          prefill: {
+            name: invoice?.customerName || '',
+          },
+          theme: { color: '#77574A' },
+          handler: async (response: any) => {
+            try {
+              const verifyRes = await fetch(`/api/portal/invoices/${invoiceId}/razorpay/verify-payment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  amount: new Decimal(payAmount).toFixed(2),
+                }),
+              });
+              const verifyJson = await verifyRes.json();
+              if (!verifyRes.ok || verifyJson.error) throw new Error(verifyJson.error?.message || 'Verification failed');
+
+              setPaySuccessMsg(`Payment ${response.razorpay_payment_id} verified & posted to General Ledger! PDF receipt emailed.`);
+              setPayStep('success');
+              setTimeout(() => { closePanel(); fetchInvoice(); }, 1800);
+            } catch (vErr: any) {
+              setPayError(vErr.message || 'Signature verification failed');
+              setPayStep('form');
+            }
+          },
+          modal: {
+            ondismiss: () => {
+              setPaySubmitting(false);
+            },
+          },
+        });
+        rzp.open();
+        return;
+      } catch (err: any) {
+        setPayError(err.message || 'Razorpay initiation failed');
+        setPayStep('form');
+        setPaySubmitting(false);
+        return;
+      }
+    }
+
     try {
       const res = await fetch(`/api/portal/invoices/${invoiceId}/pay`, {
         method: 'POST',
@@ -179,6 +249,7 @@ export const PortalInvoiceDetail: React.FC = () => {
       setPaySuccessMsg(`${formatINR(new Decimal(payAmount).toFixed(2))} via ${payMethod === 'bank' ? 'Bank Transfer' : 'Cash'} recorded successfully.`);
       setPayStep('success');
       setTimeout(() => { closePanel(); fetchInvoice(); }, 1800);
+
     } catch (err: any) {
       setPayError(err.message || 'Payment submission failed');
       setPayStep('form');
