@@ -214,7 +214,8 @@ export class VendorBillService {
   }
 
   static async create(input: CreateBillInput): Promise<VendorBillDTO> {
-    return await withTransaction(async (tx: PoolClient) => {
+    const createdBillId = await withTransaction(async (tx: PoolClient) => {
+
       const billNumber = await SequenceService.nextDocNumber('BILL', tx);
       const billDate = input.billDate || new Date().toISOString().split('T')[0];
       const dueDate = input.dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -301,14 +302,17 @@ export class VendorBillService {
           ]
         );
       }
-
-      const created = await this.getById(billId);
-      return created!;
+      return billId;
     });
+
+    const created = await this.getById(createdBillId);
+
+    return created!;
   }
 
+
   static async confirm(id: number): Promise<{ bill: VendorBillDTO; warning?: string }> {
-    return await withTransaction(async (tx: PoolClient) => {
+    const warning = await withTransaction(async (tx: PoolClient) => {
       const bill = await this.getById(id);
       if (!bill) throw new Error(`Vendor bill ${id} not found`);
       if (bill.status !== 'draft') throw new Error(`Bill #${bill.number} is already ${bill.status}`);
@@ -361,10 +365,13 @@ export class VendorBillService {
         [postResult.entryId, id]
       );
 
-      const updated = await this.getById(id);
-      return { bill: updated!, warning: budgetWarning };
+      return budgetWarning;
     });
+
+    const updated = await this.getById(id);
+    return { bill: updated!, warning };
   }
+
 
   static async cancel(id: number): Promise<VendorBillDTO> {
     const bill = await this.getById(id);

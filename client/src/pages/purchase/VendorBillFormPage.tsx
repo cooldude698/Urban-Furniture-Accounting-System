@@ -13,6 +13,7 @@ import { AnalyticAccount } from '@shared/schemas/analytic.schema';
 import { SmartButton } from '../../components/SmartButton';
 import { NonBlockingWarning } from '../../components/NonBlockingWarning';
 import { RegisterPaymentModal } from '../../components/purchase/RegisterPaymentModal';
+import { JournalEntryModal } from '../../components/purchase/JournalEntryModal';
 import { Money } from '../../components/Money';
 import { CheckCircle2, DollarSign, ShoppingCart, PieChart, Ban, Trash2, Plus, BookOpen, Clock } from 'lucide-react';
 import Decimal from 'decimal.js';
@@ -25,7 +26,6 @@ interface VendorBillFormPageProps {
   onViewPO?: (poId: number) => void;
   onViewJournalEntry?: (journalEntryId: number) => void;
 }
-
 
 export const VendorBillFormPage: React.FC<VendorBillFormPageProps> = ({
   billId,
@@ -52,6 +52,8 @@ export const VendorBillFormPage: React.FC<VendorBillFormPageProps> = ({
 
   const [payments, setPayments] = useState<any[]>([]);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState<boolean>(false);
+  const [isJournalModalOpen, setIsJournalModalOpen] = useState<boolean>(false);
+
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -325,8 +327,9 @@ export const VendorBillFormPage: React.FC<VendorBillFormPageProps> = ({
             count={bill?.journal_entry_id ? `#${bill.journal_entry_id}` : undefined}
             icon={BookOpen}
             visible={Boolean(bill?.journal_entry_id)}
-            onClick={() => bill?.journal_entry_id && onViewJournalEntry?.(bill.journal_entry_id)}
+            onClick={() => setIsJournalModalOpen(true)}
           />
+
 
           {/* Payments Smart button */}
           <SmartButton
@@ -748,7 +751,18 @@ export const VendorBillFormPage: React.FC<VendorBillFormPageProps> = ({
           }}
         />
       )}
+
+      {/* Journal Entry Double-Entry Modal */}
+      {bill?.journal_entry_id && (
+        <JournalEntryModal
+          journalEntryId={bill.journal_entry_id}
+          isOpen={isJournalModalOpen}
+          onClose={() => setIsJournalModalOpen(false)}
+          sourceDocNumber={bill.number}
+        />
+      )}
     </FormView>
   );
 };
+
 

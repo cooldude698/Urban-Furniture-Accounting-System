@@ -153,7 +153,8 @@ export class PurchaseOrderService {
   }
 
   static async create(input: CreatePOInput): Promise<PurchaseOrderDTO> {
-    return await withTransaction(async (tx: PoolClient) => {
+    const createdPoId = await withTransaction(async (tx: PoolClient) => {
+
       const poNumber = await SequenceService.nextDocNumber('PO', tx);
       const poDate = input.poDate || new Date().toISOString().split('T')[0];
 
@@ -191,11 +192,14 @@ export class PurchaseOrderService {
           [poId, line.lineNo, line.productId, line.analyticAccountId, line.qty, line.unitPrice, line.total]
         );
       }
-
-      const created = await this.getById(poId);
-      return created!;
+      return poId;
     });
+
+    const created = await this.getById(createdPoId);
+
+    return created!;
   }
+
 
   static async confirm(id: number): Promise<{ po: PurchaseOrderDTO; warning?: string }> {
     const po = await this.getById(id);
