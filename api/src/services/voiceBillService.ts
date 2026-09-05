@@ -1,5 +1,5 @@
 import { pool } from '../db/pool';
-import { VoiceBillParser, ParsedSlots, SupportedLanguage, CONVERSATIONAL_STOP_WORDS } from './voiceBillParser';
+import { VoiceBillParser, ParsedSlots, SupportedLanguage, CONVERSATIONAL_STOP_WORDS, PHONE_RELATED_WORDS } from './voiceBillParser';
 import { InvoiceService } from './invoiceService';
 import { PaymentService } from './paymentService';
 import { isIndianName } from '../data/indianNames';
@@ -673,8 +673,9 @@ Output:`;
     session.lastUpdateNote = undefined;
 
     // 0. Session Self-Healing & Cleanup:
-    // Remove any erroneously added line items where the product name is an Indian person name (e.g. "rahul", "aryan")
-    // or if productName equals customerName, or single non-product word with no productId
+    // Remove any erroneously added line items where the product name is an Indian person name (e.g. "rahul", "aryan"),
+    // or phone-related tokens ("phone", "phone number", "call", digits), or if productName equals customerName,
+    // or single non-product word with no productId
     let sessionNeedsRecalc = false;
     session.lineItems = session.lineItems.filter(item => {
       const pName = (item.productName || '').toLowerCase().trim();
@@ -682,8 +683,14 @@ Output:`;
       const isPerson =
         pWords.length > 0 &&
         (pWords.every(w => isIndianName(w)) ||
-         (session.customerName && pName === session.customerName.toLowerCase().trim()) ||
-         (!item.productId && pWords.length <= 2 && !/(?:desk|chair|table|sofa|planks|wood|bookshelf|cabinet|bed|furniture|stool|bench|drawer|shelf|board|wardrobe|stand|rack)/i.test(pName)));
+         (session.customerName && pName === session.customerName.toLowerCase().trim()));
+
+      const isPhoneOrGarbage =
+        !item.productId &&
+        (/(?:phone|mobile|contact|call|telephone|number|फ़ोन|फोन|मोबाइल|नंबर)/i.test(pName) ||
+         /\d{4,}/.test(pName) ||
+         pWords.every(w => PHONE_RELATED_WORDS.has(w) || /^\d+$/.test(w)) ||
+         !/(?:desk|chair|table|sofa|planks|wood|bookshelf|cabinet|bed|furniture|stool|bench|drawer|shelf|board|wardrobe|stand|rack|almirah|almiras|almarah|अलमारी|कुर्सी|मेज़|तख्ता|खाट)/i.test(pName));
 
       if (isPerson) {
         if (!session.customerName) {
@@ -691,6 +698,15 @@ Output:`;
         }
         sessionNeedsRecalc = true;
         return false; // Evict person name from line items!
+      }
+
+      if (isPhoneOrGarbage) {
+        const extractedPhone = VoiceBillParser.extractPhoneNumber(item.productName);
+        if (extractedPhone && !session.phone) {
+          session.phone = extractedPhone;
+        }
+        sessionNeedsRecalc = true;
+        return false; // Evict phone or non-furniture garbage from line items!
       }
 
       if (item.unitPrice >= 10000000) {
@@ -1046,12 +1062,27 @@ Output:`;
         slotSources.customerName = 'deterministic';
       }
 
-      // 2. PRODUCT: Accept LLM's line item product as-is (excluding standalone counter units)
+      // 2. PRODUCT: Accept LLM's line item product as-is (excluding standalone counter units and phone numbers)
       const countUnits = new Set(['piece', 'pieces', 'pcs', 'pc', 'unit', 'units', 'item', 'items', 'nos', 'no', 'पीस', 'नग', 'टुकड़ा', 'टुकड़े']);
       const llmItem = llmResult.line_items && llmResult.line_items.length > 0 ? llmResult.line_items[0] : null;
       if (llmItem && llmItem.product && llmItem.product.trim() !== '' && !countUnits.has(llmItem.product.trim().toLowerCase())) {
-        parsed.productName = llmItem.product.trim();
-        slotSources.productName = 'llm';
+        const candidatePName = llmItem.product.trim();
+        const isPhoneCandidate =
+          /(?:phone|mobile|contact|call|telephone|number|फ़ोन|फोन|मोबाइल|नंबर)/i.test(candidatePName) ||
+          /\d{5,}/.test(candidatePName) ||
+          Boolean(VoiceBillParser.extractPhoneNumber(candidatePName));
+
+        if (isPhoneCandidate) {
+          const ph = VoiceBillParser.extractPhoneNumber(candidatePName);
+          if (ph && !session.phone) {
+            session.phone = ph;
+            parsed.phone = ph;
+            slotSources.phone = 'llm';
+          }
+        } else {
+          parsed.productName = candidatePName;
+          slotSources.productName = 'llm';
+        }
       } else if (detParsed.productName && !countUnits.has(detParsed.productName.trim().toLowerCase())) {
         slotSources.productName = 'deterministic';
       }
@@ -1337,6 +1368,24 @@ Output:`;
 
     // 5. Handle Product Selection from candidates or parser
     if (parsed.productName) {
+      const pLower = parsed.productName.toLowerCase();
+      const isPhoneName =
+        /(?:phone|mobile|contact|call|telephone|number|फ़ोन|फोन|मोबाइल|नंबर)/i.test(pLower) ||
+        /\d{5,}/.test(pLower) ||
+        Boolean(VoiceBillParser.extractPhoneNumber(parsed.productName));
+
+      if (isPhoneName) {
+        const ph = VoiceBillParser.extractPhoneNumber(parsed.productName);
+        if (ph && !session.phone) {
+          session.phone = ph;
+          parsed.phone = ph;
+        }
+        delete parsed.productName;
+        delete slotSources.productName;
+      }
+    }
+
+    if (parsed.productName) {
       const matchRes = await this.matchProduct(parsed.productName);
 
       if (matchRes.matchedProduct) {
@@ -1433,26 +1482,29 @@ Output:`;
           options: matchRes.candidates.map(c => c.name),
         };
       } else {
-        // No match found in catalog: add as placeholder and prompt
-        let currentItem = session.lineItems[session.lineItems.length - 1];
-        if (!currentItem || currentItem.productId) {
-          currentItem = {
-            id: `line_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
-            productName: parsed.productName,
-            qty: parsed.quantity || 0,
-            unitPrice: parsed.unitPrice || 0,
-            discountPercent: parsed.discountPercent || 0,
-            taxRate: 0,
-            lineTotal: '0.00',
-            isQtyAssumed: parsed.isQtyAssumed,
-            isPriceAssumed: parsed.isPriceAssumed,
-            qtyNeedsReview: parsed.qtyNeedsReview,
-            priceNeedsReview: parsed.priceNeedsReview,
-            discountNeedsReview: parsed.discountNeedsReview,
-            qtySource: slotSources.qty,
-            priceSource: slotSources.unitPrice,
-          };
-          session.lineItems.push(currentItem);
+        // No match found in catalog: ONLY add as placeholder if it clearly looks like furniture goods!
+        const isFurnitureLike = /(?:desk|chair|table|sofa|planks|wood|bookshelf|cabinet|bed|furniture|stool|bench|drawer|shelf|board|wardrobe|stand|rack|almirah|almiras|अलमारी|कुर्सी|मेज़|तख्ता|खाट)/i.test(parsed.productName);
+        if (isFurnitureLike) {
+          let currentItem = session.lineItems[session.lineItems.length - 1];
+          if (!currentItem || currentItem.productId) {
+            currentItem = {
+              id: `line_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+              productName: parsed.productName,
+              qty: parsed.quantity || 0,
+              unitPrice: parsed.unitPrice || 0,
+              discountPercent: parsed.discountPercent || 0,
+              taxRate: 0,
+              lineTotal: '0.00',
+              isQtyAssumed: parsed.isQtyAssumed,
+              isPriceAssumed: parsed.isPriceAssumed,
+              qtyNeedsReview: parsed.qtyNeedsReview,
+              priceNeedsReview: parsed.priceNeedsReview,
+              discountNeedsReview: parsed.discountNeedsReview,
+              qtySource: slotSources.qty,
+              priceSource: slotSources.unitPrice,
+            };
+            session.lineItems.push(currentItem);
+          }
         }
       }
     } else {
@@ -1485,9 +1537,8 @@ Output:`;
    * Helper that evaluates the session, updates session.pendingSlot, and either prompts for the next missing slot or transitions to ready_for_confirm.
    */
   static checkNextStepOrConfirm(session: VoiceBillSession, lang: SupportedLanguage): ChatMessageResponse {
-    const line = session.lineItems[session.lineItems.length - 1];
-
-    if (!line || (!line.productId && !line.productName)) {
+    // 1. If no line items exist at all, ask which product to add
+    if (session.lineItems.length === 0) {
       session.pendingSlot = 'product';
       session.status = 'collecting';
       const reply =
@@ -1497,23 +1548,35 @@ Output:`;
       return { reply, language: lang, session, readyForConfirm: false, isConfirmed: false };
     }
 
-    if (!line.qty || line.qty <= 0 || line.isQtyAssumed) {
+    // 2. Prioritize asking for quantity of actual furniture goods/products in the bill
+    const goodsNeedingQty = session.lineItems.find(
+      item => item.productId && (!item.qty || item.qty <= 0 || item.isQtyAssumed)
+    ) || session.lineItems.find(
+      item => (!item.qty || item.qty <= 0 || item.isQtyAssumed)
+    );
+
+    if (goodsNeedingQty) {
       session.pendingSlot = 'quantity';
       session.status = 'collecting';
       const reply =
         lang === 'hi'
-          ? `कृपया ${line.matchedName || line.productName} की मात्रा बताएं।`
-          : `Please specify the quantity for ${line.matchedName || line.productName}.`;
+          ? `कृपया ${goodsNeedingQty.matchedName || goodsNeedingQty.productName} की मात्रा बताएं।`
+          : `Please specify the quantity for ${goodsNeedingQty.matchedName || goodsNeedingQty.productName}.`;
       return { reply, language: lang, session, readyForConfirm: false, isConfirmed: false };
     }
 
-    if (!line.unitPrice || line.unitPrice <= 0) {
+    // 3. Check if any line item needs price
+    const itemNeedingPrice = session.lineItems.find(
+      item => !item.unitPrice || item.unitPrice <= 0
+    );
+
+    if (itemNeedingPrice) {
       session.pendingSlot = 'unitPrice';
       session.status = 'collecting';
       const reply =
         lang === 'hi'
-          ? `कृपया ${line.matchedName || line.productName} की प्रति यूनिट कीमत (रुपये) बताएं।`
-          : `Please specify the unit price for ${line.matchedName || line.productName}.`;
+          ? `कृपया ${itemNeedingPrice.matchedName || itemNeedingPrice.productName} की प्रति यूनिट कीमत (रुपये) बताएं।`
+          : `Please specify the unit price for ${itemNeedingPrice.matchedName || itemNeedingPrice.productName}.`;
       return { reply, language: lang, session, readyForConfirm: false, isConfirmed: false };
     }
 

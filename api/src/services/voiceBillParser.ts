@@ -142,6 +142,11 @@ const ENGLISH_NUMBER_WORDS: Record<string, number> = {
   'lakh': 100000,
 };
 
+export const PHONE_RELATED_WORDS = new Set<string>([
+  'phone', 'mobile', 'cell', 'telephone', 'contact', 'call', 'number', 'no', 'num', 'mob', 'ph',
+  'फ़ोन', 'फोन', 'मोबाइल', 'नंबर', 'कॉल', 'सम्पर्क', 'संपर्क'
+]);
+
 export const CONVERSATIONAL_STOP_WORDS = new Set<string>([
   'hello', 'hi', 'hey', 'namaste', 'namaskar', 'pranam', 'kem', 'cho', 'halo',
   'good', 'morning', 'afternoon', 'evening', 'day', 'greetings', 'howdy',
@@ -157,11 +162,13 @@ export const CONVERSATIONAL_STOP_WORDS = new Set<string>([
   'please', 'plz', 'help', 'assist', 'support', 'thanks', 'thank', 'thx', 'welcome',
   'yes', 'no', 'ok', 'okay', 'fine', 'sure', 'alright',
   'have', 'has', 'had', 'available', 'avail',
+  'phone', 'mobile', 'cell', 'telephone', 'contact', 'call', 'number', 'mob', 'ph',
   // Hindi / Hinglish
   'नमस्ते', 'नमस्कार', 'प्रणाम', 'हेलो', 'हाय', 'सुप्रभात', 'शुभ', 'संध्या', 'केम', 'छो',
   'क्या', 'कैसे', 'कहाँ', 'कब', 'कौन', 'बताओ', 'दिखाओ', 'सामान', 'चीज़', 'चीज', 'चीजें',
   'बेचते', 'बेचना', 'मिलता', 'मिलते', 'खरीदना', 'चाहिए', 'उपलब्ध', 'लिस्ट',
   'धन्यवाद', 'शुक्रिया', 'मदद', 'सहायता', 'जी', 'भाई', 'साहब', 'दोस्त',
+  'फ़ोन', 'फोन', 'मोबाइल', 'नंबर', 'कॉल', 'सम्पर्क', 'संपर्क',
   'haan', 'nahi', 'kya', 'kaise', 'kaha', 'kab', 'batao', 'dikhao', 'saman', 'cheez',
   'bechte', 'milta', 'kharidna', 'shukriya', 'dhanyawad', 'madad'
 ]);
@@ -648,11 +655,20 @@ export class VoiceBillParser {
     ) {
       const inputWords = trimmedInput.toLowerCase().split(/[\s,.:;!?]+/).filter(w => w.length > 0);
       const isConversational = inputWords.some(w => CONVERSATIONAL_STOP_WORDS.has(w));
+      const hasPhoneKeyword = inputWords.some(w => PHONE_RELATED_WORDS.has(w)) ||
+        /(?:phone|mobile|cell|telephone|contact|call|number|no|mob|ph|फ़ोन|फोन|मोबाइल|नंबर)/i.test(trimmedInput) ||
+        /\d{4,}/.test(trimmedInput);
       const hasIndianName = inputWords.some(w => isIndianName(w));
+
       if (hasIndianName && !slots.customerName) {
         slots.customerName = this.capitalizeWords(trimmedInput);
         slots.isNameInferred = true;
-      } else if (!isConversational && !hasIndianName) {
+      } else if (hasPhoneKeyword) {
+        const ph = this.extractPhoneNumber(trimmedInput);
+        if (ph) {
+          slots.phone = ph;
+        }
+      } else if (!isConversational && !hasIndianName && !hasPhoneKeyword) {
         slots.productName = trimmedInput;
       }
     }
