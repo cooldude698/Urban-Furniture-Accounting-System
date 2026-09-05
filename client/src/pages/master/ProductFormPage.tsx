@@ -24,6 +24,8 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
   const [category, setCategory] = useState('');
   const [salesPrice, setSalesPrice] = useState('100.00');
   const [costPrice, setCostPrice] = useState('50.00');
+  const [imageUrl, setImageUrl] = useState('');
+  const [modelUrl, setModelUrl] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Category Many2one dropdown state
@@ -72,6 +74,8 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
           setCategoryQuery(p.category || '');
           setSalesPrice(p.sales_price || '0.00');
           setCostPrice(p.cost_price || '0.00');
+          setImageUrl(p.image_url || '');
+          setModelUrl(p.model_url || '');
         })
         .catch(err => setError(err.message))
         .finally(() => setLoading(false));
@@ -82,6 +86,8 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
       setCategoryQuery('');
       setSalesPrice('100.00');
       setCostPrice('50.00');
+      setImageUrl('');
+      setModelUrl('');
       setImagePreview(null);
       setError(null);
     }
@@ -139,6 +145,8 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
         sku: generatedSku,
         tax_rate: '18.00',
         min_stock_threshold: 5,
+        image_url: imageUrl.trim() || null,
+        model_url: modelUrl.trim() || null,
         is_archived: false,
       };
 
@@ -167,6 +175,8 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
       setCategoryQuery('');
       setSalesPrice('100.00');
       setCostPrice('50.00');
+      setImageUrl('');
+      setModelUrl('');
       setImagePreview(null);
       setError(null);
     }
@@ -409,6 +419,69 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
                       style={styles.priceUnderlineInput}
                     />
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Catalogue & Media Section */}
+            <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid rgba(208, 174, 146, 0.35)' }}>
+              <h3
+                style={{
+                  fontFamily: '"Montserrat", var(--font-display), sans-serif',
+                  fontSize: 15,
+                  fontWeight: 700,
+                  color: '#4A3A34',
+                  margin: '0 0 16px 0',
+                }}
+              >
+                Catalogue & Media
+              </h3>
+
+              {/* Thumbnail URL */}
+              <div style={styles.fieldRow}>
+                <label style={styles.fieldLabel}>Thumbnail URL</label>
+                <div style={styles.inputUnderlineWrapper}>
+                  <input
+                    type="text"
+                    value={imageUrl}
+                    onChange={e => setImageUrl(e.target.value)}
+                    placeholder="e.g. https://example.com/furniture-thumbnail.jpg"
+                    style={styles.underlineInput}
+                  />
+                </div>
+              </div>
+
+              {/* 3D Model URL */}
+              <div style={{ ...styles.fieldRow, marginTop: 14 }}>
+                <label style={styles.fieldLabel}>3D Model URL</label>
+                <div style={styles.inputUnderlineWrapper}>
+                  <input
+                    type="text"
+                    value={modelUrl}
+                    onChange={e => setModelUrl(e.target.value)}
+                    placeholder="e.g. https://example.com/furniture.glb"
+                    style={styles.underlineInput}
+                  />
+                  <div style={{ fontSize: 11, color: '#77574A', marginTop: 4, fontFamily: '"DM Sans", sans-serif' }}>
+                    Paste a public .glb or .gltf URL
+                  </div>
+                  {modelUrl.trim() !== '' && (
+                    <div
+                      style={{
+                        marginTop: 6,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        fontSize: 12,
+                        color: 'var(--posted, #5F7052)',
+                        fontWeight: 600,
+                        fontFamily: '"DM Sans", sans-serif',
+                      }}
+                    >
+                      <Check size={13} />
+                      Model will appear in customer portal 3D viewer
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
