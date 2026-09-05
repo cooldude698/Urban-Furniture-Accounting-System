@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FormView } from '../../components/FormView';
+import { FormView } from '../../components/ui/FormView';
 import { PurchaseOrdersApi } from '../../api/purchaseOrders.api';
 import { ContactsApi } from '../../api/contacts.api';
 import { ProductsApi } from '../../api/products.api';
