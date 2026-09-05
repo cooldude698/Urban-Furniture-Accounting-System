@@ -50,8 +50,7 @@ export const TemplateLibraryPage: React.FC = () => {
   // Load Categories & Templates
   useEffect(() => {
     // Ensure document scroll is reset and unlocked
-    document.body.style.overflow = '';
-    document.documentElement.style.overflow = '';
+    document.body.style.overflow = 'auto';
 
     setLoading(true);
     setError(null);
@@ -71,8 +70,7 @@ export const TemplateLibraryPage: React.FC = () => {
       .finally(() => setLoading(false));
 
     return () => {
-      document.body.style.overflow = '';
-      document.documentElement.style.overflow = '';
+      document.body.style.overflow = 'auto';
     };
   }, []);
 
@@ -510,34 +508,36 @@ export const TemplateLibraryPage: React.FC = () => {
       )}
 
       {/* Preview Modal */}
-      <TemplatePreviewModal
-        template={previewTemplate}
-        isOpen={isPreviewOpen}
-        onClose={() => {
-          setIsPreviewOpen(false);
-          document.body.style.overflow = '';
-          document.documentElement.style.overflow = '';
-        }}
-        onUseTemplate={tmpl => {
-          setIsPreviewOpen(false);
-          setCustomizeTemplate(tmpl);
-          setCustomizeSavedItem(null);
-          setIsCustomizeOpen(true);
-        }}
-      />
+      {isPreviewOpen && previewTemplate && (
+        <TemplatePreviewModal
+          template={previewTemplate}
+          isOpen={isPreviewOpen}
+          onClose={() => {
+            setIsPreviewOpen(false);
+            document.body.style.overflow = 'auto';
+          }}
+          onUseTemplate={tmpl => {
+            setIsPreviewOpen(false);
+            setCustomizeTemplate(tmpl);
+            setCustomizeSavedItem(null);
+            setIsCustomizeOpen(true);
+          }}
+        />
+      )}
 
       {/* Customize & Export Modal */}
-      <TemplateCustomizeModal
-        template={customizeTemplate}
-        savedItem={customizeSavedItem}
-        isOpen={isCustomizeOpen}
-        onClose={() => {
-          setIsCustomizeOpen(false);
-          document.body.style.overflow = '';
-          document.documentElement.style.overflow = '';
-        }}
-        onSavedSuccess={loadSavedTemplates}
-      />
+      {isCustomizeOpen && customizeTemplate && (
+        <TemplateCustomizeModal
+          template={customizeTemplate}
+          savedItem={customizeSavedItem}
+          isOpen={isCustomizeOpen}
+          onClose={() => {
+            setIsCustomizeOpen(false);
+            document.body.style.overflow = 'auto';
+          }}
+          onSavedSuccess={loadSavedTemplates}
+        />
+      )}
     </div>
   );
 };

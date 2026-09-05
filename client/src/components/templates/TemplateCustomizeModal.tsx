@@ -69,19 +69,23 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
 
   // Lock background scroll when modal is open, and reliably unlock when closed
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-      document.documentElement.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-      document.documentElement.style.overflow = '';
-    }
+    if (!isOpen) return;
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.body.style.overflow = '';
-      document.documentElement.style.overflow = '';
+      document.body.style.overflow = prevOverflow || 'auto';
+      window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen]);
+  }, [isOpen, onClose]);
 
   // Update rows when savedItem changes
   useEffect(() => {
@@ -93,8 +97,8 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
       setOpeningBalance(savedItem.configuration?.openingBalance || '0.00');
       setNotes(savedItem.configuration?.notes || '');
       setUseLiveErpData(savedItem.configuration?.useLiveErpData || false);
-      setRows(savedItem.customData?.rows || template.previewData?.rows || []);
-    } else {
+      setRows(savedItem.customData?.rows || template?.previewData?.rows || []);
+    } else if (template) {
       setTemplateName(template.name);
       setBusinessName('Urban Furniture Studio');
       setFinancialYear('2026-2027');
@@ -112,11 +116,11 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
     setUseLiveErpData(enabled);
     setStatusMsg(null);
     if (!enabled) {
-      setRows(template.previewData?.rows || []);
+      setRows(template?.previewData?.rows || []);
       return;
     }
 
-    if (!template.erpDataSource) {
+    if (!template?.erpDataSource) {
       setStatusMsg({ type: 'error', text: 'This template does not have direct ERP data binding.' });
       return;
     }
@@ -174,7 +178,10 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
   };
 
   // Balance Sheet Equation Check
-  const isBalanceSheet = template.slug.includes('balance-sheet') || /Assets\s*=\s*Liabilities/i.test(template.formulaNotes || '');
+  const isBalanceSheet = Boolean(
+    template?.slug?.includes('balance-sheet') ||
+    /Assets\s*=\s*Liabilities/i.test(template?.formulaNotes || '')
+  );
 
   const balanceStats = React.useMemo(() => {
     if (!isBalanceSheet) return null;
@@ -349,9 +356,15 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
   if (!isOpen || !template) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs p-3 sm:p-4 flex items-center justify-center animate-in fade-in duration-150">
+    <div
+      className="fixed inset-0 z-[9999] bg-black/75 backdrop-blur-xs p-2 sm:p-4 flex items-center justify-center animate-in fade-in duration-150"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
-        className="bg-white border border-black rounded-[12px] shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col overflow-hidden my-auto"
+        className="bg-white border-2 border-black rounded-[12px] shadow-2xl w-full max-w-6xl h-[92vh] max-h-[92vh] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Header - Crisp Black and White - Fixed at top */}
         <div className="px-6 py-4 border-b border-gray-200 bg-white flex items-center justify-between shrink-0">
@@ -680,6 +693,13 @@ export const TemplateCustomizeModal: React.FC<TemplateCustomizeModalProps> = ({
         {/* Action Footer - Crisp Black and White - Fixed at bottom */}
         <div className="px-6 py-3.5 border-t border-gray-200 bg-gray-50 flex flex-wrap items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-3.5 py-2 text-xs font-bold rounded-[6px] border border-gray-300 bg-white text-black hover:bg-gray-100 transition-colors shadow-2xs"
+            >
+              Close
+            </button>
             <button
               type="button"
               onClick={handleSaveToMyTemplates}
