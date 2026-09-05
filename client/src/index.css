@@ -209,3 +209,55 @@ body {
   white-space: nowrap;
   border: 0;
 }
+
+/* ── Professional Accounting Print Media Rules ─────────────────── */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 15mm 15mm 15mm;
+  }
+
+  body,
+  html,
+  #root {
+    background: #ffffff !important;
+    background-color: #ffffff !important;
+    color: #1a1a1a !important;
+    height: auto !important;
+    min-height: auto !important;
+  }
+
+  /* Completely hide all UI navigation, shell headers, buttons, toolbars, modals */
+  header,
+  nav,
+  .no-print,
+  button,
+  .print-hide {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    background: #ffffff !important;
+  }
+
+  /* Make financial document sheet fill page without borders/shadows */
+  .printable-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    background: #ffffff !important;
+  }
+
+  /* Prevent awkward page break splits inside tables and statement blocks */
+  .print-avoid-break {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+}

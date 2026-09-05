@@ -8,11 +8,7 @@ import LedgerDrilldownModal from './LedgerDrilldownModal';
 import {
   Printer,
   Calendar,
-  TrendingUp,
-  TrendingDown,
   RefreshCw,
-  ArrowUpRight,
-  Sparkles,
 } from 'lucide-react';
 
 export default function ProfitLossPage() {
@@ -36,7 +32,7 @@ export default function ProfitLossPage() {
   });
 
   const handlePrint = () => {
-    ReportsApi.downloadPdf('profit-loss', { from: fromDate, to: toDate });
+    window.print();
   };
 
   const setPreset = (preset: 'month' | 'quarter' | 'year' | 'fy26') => {
@@ -67,20 +63,21 @@ export default function ProfitLossPage() {
     : true;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 980, margin: '0 auto', width: '100%' }}>
-      {/* ── Top Control Bar (Clean Accounting Toolbar) ── */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 900, margin: '0 auto', width: '100%' }}>
+      {/* ── Top Control Bar (Hidden from Print) ── */}
       <div
+        className="no-print"
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: 12,
-          padding: '4px 0',
+          padding: '2px 0',
         }}
       >
         {/* Date Filter & Presets */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <div
             style={{
               display: 'flex',
@@ -93,7 +90,7 @@ export default function ProfitLossPage() {
               fontSize: 13,
             }}
           >
-            <Calendar size={14} style={{ color: 'var(--brown-700)' }} />
+            <Calendar size={13} style={{ color: 'var(--brown-700)' }} />
             <span style={{ fontWeight: 600, color: 'var(--brown-700)' }}>Period:</span>
             <input
               type="date"
@@ -134,7 +131,7 @@ export default function ProfitLossPage() {
                 background: 'var(--surface)',
                 border: '1px solid var(--brown-300)',
                 borderRadius: 'var(--radius-sm)',
-                padding: '5px 9px',
+                padding: '4px 8px',
                 fontSize: 11,
                 fontWeight: 600,
                 color: 'var(--brown-700)',
@@ -150,7 +147,7 @@ export default function ProfitLossPage() {
                 background: 'var(--surface)',
                 border: '1px solid var(--brown-300)',
                 borderRadius: 'var(--radius-sm)',
-                padding: '5px 9px',
+                padding: '4px 8px',
                 fontSize: 11,
                 fontWeight: 600,
                 color: 'var(--brown-700)',
@@ -166,7 +163,7 @@ export default function ProfitLossPage() {
                 background: 'var(--surface)',
                 border: '1px solid var(--brown-300)',
                 borderRadius: 'var(--radius-sm)',
-                padding: '5px 9px',
+                padding: '4px 8px',
                 fontSize: 11,
                 fontWeight: 600,
                 color: 'var(--brown-700)',
@@ -186,8 +183,8 @@ export default function ProfitLossPage() {
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 6,
-              padding: '6px 12px',
+              gap: 5,
+              padding: '5px 10px',
               fontSize: 12,
               fontWeight: 600,
               color: 'var(--brown-700)',
@@ -198,7 +195,7 @@ export default function ProfitLossPage() {
             }}
             title="Refresh statement"
           >
-            <RefreshCw size={13} />
+            <RefreshCw size={12} />
             <span>Refresh</span>
           </button>
 
@@ -221,36 +218,37 @@ export default function ProfitLossPage() {
             }}
           >
             <Printer size={13} />
-            <span>Print / PDF</span>
+            <span>Print Profit & Loss</span>
           </button>
         </div>
       </div>
 
-      {/* ── Financial Statement Document Sheet (Standard Accounting Presentation) ── */}
+      {/* ── Financial Statement Document Sheet (Pure Printable Document) ── */}
       <div
+        className="printable-sheet print-avoid-break"
         style={{
           background: 'var(--surface)',
           borderRadius: 'var(--radius-md)',
-          boxShadow: '0 2px 8px rgba(74, 58, 52, 0.06)',
-          border: '1px solid rgba(208, 174, 146, 0.45)',
-          padding: '36px 44px',
+          boxShadow: '0 1px 4px rgba(74, 58, 52, 0.05)',
+          border: '1px solid rgba(208, 174, 146, 0.4)',
+          padding: '32px 36px',
         }}
       >
         {/* Document Formal Header */}
         <div
           style={{
             textAlign: 'center',
-            borderBottom: '2px solid var(--brown-900)',
-            paddingBottom: 20,
-            marginBottom: 24,
+            borderBottom: '1.5px solid var(--brown-900)',
+            paddingBottom: 14,
+            marginBottom: 20,
           }}
         >
           <span
             style={{
               fontFamily: 'var(--font-body)',
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: 700,
-              letterSpacing: '0.12em',
+              letterSpacing: '0.1em',
               color: 'var(--brown-500)',
               textTransform: 'uppercase',
             }}
@@ -260,10 +258,10 @@ export default function ProfitLossPage() {
           <h1
             style={{
               fontFamily: 'var(--font-display)',
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: 700,
               color: 'var(--brown-900)',
-              margin: '6px 0 4px 0',
+              margin: '4px 0 2px 0',
             }}
           >
             Statement of Profit & Loss
@@ -271,7 +269,7 @@ export default function ProfitLossPage() {
           <p
             style={{
               fontFamily: 'var(--font-body)',
-              fontSize: 13,
+              fontSize: 12,
               color: 'var(--brown-700)',
               margin: 0,
             }}
@@ -280,45 +278,45 @@ export default function ProfitLossPage() {
           </p>
           <span
             style={{
-              fontSize: 11,
+              fontSize: 10,
               fontStyle: 'italic',
               color: 'var(--brown-500)',
-              marginTop: 4,
+              marginTop: 2,
               display: 'inline-block',
             }}
           >
-            (All figures in Indian Rupees ₹ · Click any account to drill down into general ledger)
+            (All amounts in INR ₹ · Double-entry financial statement)
           </span>
         </div>
 
         {/* ── Statement Content ── */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {/* 1. Operating Revenue / Income */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* 1. Revenue & Operating Income */}
           <div>
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '6px 0',
+                padding: '4px 0',
                 borderBottom: '1px solid var(--brown-900)',
-                marginBottom: 8,
+                marginBottom: 6,
               }}
             >
               <h2
                 style={{
                   fontFamily: 'var(--font-display)',
-                  fontSize: 14,
+                  fontSize: 12,
                   fontWeight: 700,
                   textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
+                  letterSpacing: '0.06em',
                   color: 'var(--brown-900)',
                   margin: 0,
                 }}
               >
                 I. Revenue & Operating Income
               </h2>
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--brown-500)', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--brown-500)', textTransform: 'uppercase' }}>
                 Amount (₹)
               </span>
             </div>
@@ -332,8 +330,8 @@ export default function ProfitLossPage() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '8px 12px',
-                      borderBottom: '1px solid rgba(208, 174, 146, 0.2)',
+                      padding: '6px 4px',
+                      borderBottom: '1px solid rgba(208, 174, 146, 0.15)',
                       fontSize: 13,
                     }}
                   >
@@ -350,25 +348,24 @@ export default function ProfitLossPage() {
                         border: 'none',
                         color: 'var(--brown-900)',
                         cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
                         fontWeight: 500,
                         padding: 0,
                         textAlign: 'left',
+                        fontSize: 13,
                       }}
                       title="Click to drill down into ledger entries"
+                      onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
+                      onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
                     >
-                      <span>{acc.accountName}</span>
-                      <ArrowUpRight size={13} style={{ color: 'var(--brown-400)' }} />
+                      {acc.accountName}
                     </button>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--brown-900)' }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--brown-900)' }}>
                       <Money value={acc.total} />
                     </div>
                   </div>
                 ))
               ) : (
-                <div style={{ padding: '12px', fontSize: 13, color: 'var(--brown-500)', fontStyle: 'italic' }}>
+                <div style={{ padding: '8px', fontSize: 12, color: 'var(--brown-500)', fontStyle: 'italic' }}>
                   No income entries recorded in this period.
                 </div>
               )}
@@ -379,13 +376,12 @@ export default function ProfitLossPage() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '10px 12px',
-                  background: 'rgba(235, 215, 190, 0.2)',
+                  padding: '8px 4px',
                   borderTop: '1px solid var(--brown-400)',
                   borderBottom: '1px solid var(--brown-400)',
                   fontWeight: 700,
                   fontSize: 13,
-                  marginTop: 4,
+                  marginTop: 2,
                 }}
               >
                 <span style={{ color: 'var(--brown-900)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
@@ -398,32 +394,32 @@ export default function ProfitLossPage() {
             </div>
           </div>
 
-          {/* 2. Operating & Other Expenses */}
+          {/* 2. Cost of Goods & Operating Expenses */}
           <div>
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '6px 0',
+                padding: '4px 0',
                 borderBottom: '1px solid var(--brown-900)',
-                marginBottom: 8,
+                marginBottom: 6,
               }}
             >
               <h2
                 style={{
                   fontFamily: 'var(--font-display)',
-                  fontSize: 14,
+                  fontSize: 12,
                   fontWeight: 700,
                   textTransform: 'uppercase',
-                  letterSpacing: '0.05em',
+                  letterSpacing: '0.06em',
                   color: 'var(--brown-900)',
                   margin: 0,
                 }}
               >
                 II. Cost of Goods & Operating Expenses
               </h2>
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--brown-500)', textTransform: 'uppercase' }}>
+              <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--brown-500)', textTransform: 'uppercase' }}>
                 Amount (₹)
               </span>
             </div>
@@ -437,8 +433,8 @@ export default function ProfitLossPage() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '8px 12px',
-                      borderBottom: '1px solid rgba(208, 174, 146, 0.2)',
+                      padding: '6px 4px',
+                      borderBottom: '1px solid rgba(208, 174, 146, 0.15)',
                       fontSize: 13,
                     }}
                   >
@@ -455,37 +451,24 @@ export default function ProfitLossPage() {
                         border: 'none',
                         color: 'var(--brown-900)',
                         cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
                         fontWeight: 500,
                         padding: 0,
                         textAlign: 'left',
+                        fontSize: 13,
                       }}
                       title="Click to drill down into ledger entries"
+                      onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
+                      onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
                     >
-                      <span>{acc.accountName}</span>
-                      <span
-                        style={{
-                          fontSize: 10,
-                          background: 'rgba(235, 215, 190, 0.4)',
-                          color: 'var(--brown-700)',
-                          padding: '2px 6px',
-                          borderRadius: 4,
-                          textTransform: 'uppercase',
-                        }}
-                      >
-                        {acc.type.replace('_', ' ')}
-                      </span>
-                      <ArrowUpRight size={13} style={{ color: 'var(--brown-400)' }} />
+                      {acc.accountName}
                     </button>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--brown-900)' }}>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--brown-900)' }}>
                       <Money value={acc.total} />
                     </div>
                   </div>
                 ))
               ) : (
-                <div style={{ padding: '12px', fontSize: 13, color: 'var(--brown-500)', fontStyle: 'italic' }}>
+                <div style={{ padding: '8px', fontSize: 12, color: 'var(--brown-500)', fontStyle: 'italic' }}>
                   No expense entries recorded in this period.
                 </div>
               )}
@@ -496,13 +479,12 @@ export default function ProfitLossPage() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '10px 12px',
-                  background: 'rgba(235, 215, 190, 0.2)',
+                  padding: '8px 4px',
                   borderTop: '1px solid var(--brown-400)',
                   borderBottom: '1px solid var(--brown-400)',
                   fontWeight: 700,
                   fontSize: 13,
-                  marginTop: 4,
+                  marginTop: 2,
                 }}
               >
                 <span style={{ color: 'var(--brown-900)', textTransform: 'uppercase', letterSpacing: '0.02em' }}>
@@ -518,45 +500,34 @@ export default function ProfitLossPage() {
           {/* 3. Net Profit / (Loss) Bottom Accounting Line */}
           <div
             style={{
-              marginTop: 12,
-              padding: '16px 20px',
-              background: isNetProfitPositive ? 'var(--posted-bg)' : 'var(--danger-bg)',
-              border: `1px solid ${isNetProfitPositive ? 'rgba(95, 112, 82, 0.4)' : 'rgba(158, 74, 56, 0.4)'}`,
-              borderTop: '2px solid var(--brown-900)',
-              borderBottom: '4px double var(--brown-900)',
+              padding: '10px 4px',
+              borderTop: '1.5px solid var(--brown-900)',
+              borderBottom: '3px double var(--brown-900)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              borderRadius: 'var(--radius-sm)',
             }}
           >
             <div>
-              <div
+              <span
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  fontSize: 15,
+                  fontSize: 13,
                   fontWeight: 700,
-                  color: isNetProfitPositive ? 'var(--posted)' : 'var(--danger)',
+                  color: 'var(--brown-900)',
                   textTransform: 'uppercase',
                   letterSpacing: '0.04em',
                 }}
               >
-                {isNetProfitPositive ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
-                <span>Net {isNetProfitPositive ? 'Profit' : 'Loss'} for the Period (A − B)</span>
-              </div>
-              <span style={{ fontSize: 11, color: 'var(--brown-700)', marginTop: 2, display: 'block' }}>
-                Recognized net profit flows directly to Balance Sheet Equity reserves.
+                Net {isNetProfitPositive ? 'Profit' : 'Loss'} for the Period (A − B)
               </span>
             </div>
 
             <div
               style={{
                 fontFamily: 'var(--font-mono)',
-                fontSize: 22,
+                fontSize: 16,
                 fontWeight: 700,
-                color: isNetProfitPositive ? 'var(--posted)' : 'var(--danger)',
+                color: 'var(--brown-900)',
               }}
             >
               <Money value={report?.netProfit || '0.00'} />
@@ -565,7 +536,7 @@ export default function ProfitLossPage() {
         </div>
       </div>
 
-      {/* ── 4-Level Drilldown Modal ── */}
+      {/* ── 4-Level Drilldown Modal (Hidden from Print) ── */}
       {selectedDrillAccount && (
         <LedgerDrilldownModal
           accountId={selectedDrillAccount.id}

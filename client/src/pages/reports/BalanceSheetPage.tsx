@@ -11,9 +11,6 @@ import {
   CheckCircle2,
   AlertCircle,
   RefreshCw,
-  ArrowUpRight,
-  ShieldCheck,
-  Layers,
 } from 'lucide-react';
 
 export default function BalanceSheetPage() {
@@ -36,7 +33,7 @@ export default function BalanceSheetPage() {
   });
 
   const handlePrint = () => {
-    ReportsApi.downloadPdf('balance-sheet', { asOf: asOfDate });
+    window.print();
   };
 
   const setPreset = (preset: 'today' | 'month-end' | 'q-end' | 'fy26') => {
@@ -59,20 +56,21 @@ export default function BalanceSheetPage() {
   const isBalanced = report?.isBalanced ?? true;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 1100, margin: '0 auto', width: '100%' }}>
-      {/* ── Top Control Bar (Clean Accounting Toolbar) ── */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 1000, margin: '0 auto', width: '100%' }}>
+      {/* ── Top Control Bar (Hidden from Print) ── */}
       <div
+        className="no-print"
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: 12,
-          padding: '4px 0',
+          padding: '2px 0',
         }}
       >
         {/* Single As-Of Date Filter & Presets */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <div
             style={{
               display: 'flex',
@@ -85,8 +83,8 @@ export default function BalanceSheetPage() {
               fontSize: 13,
             }}
           >
-            <Calendar size={14} style={{ color: 'var(--brown-700)' }} />
-            <span style={{ fontWeight: 600, color: 'var(--brown-700)' }}>As of Date:</span>
+            <Calendar size={13} style={{ color: 'var(--brown-700)' }} />
+            <span style={{ fontWeight: 600, color: 'var(--brown-700)' }}>As of:</span>
             <input
               type="date"
               value={asOfDate}
@@ -111,7 +109,7 @@ export default function BalanceSheetPage() {
                 background: 'var(--surface)',
                 border: '1px solid var(--brown-300)',
                 borderRadius: 'var(--radius-sm)',
-                padding: '5px 9px',
+                padding: '4px 8px',
                 fontSize: 11,
                 fontWeight: 600,
                 color: 'var(--brown-700)',
@@ -127,7 +125,7 @@ export default function BalanceSheetPage() {
                 background: 'var(--surface)',
                 border: '1px solid var(--brown-300)',
                 borderRadius: 'var(--radius-sm)',
-                padding: '5px 9px',
+                padding: '4px 8px',
                 fontSize: 11,
                 fontWeight: 600,
                 color: 'var(--brown-700)',
@@ -143,7 +141,7 @@ export default function BalanceSheetPage() {
                 background: 'var(--surface)',
                 border: '1px solid var(--brown-300)',
                 borderRadius: 'var(--radius-sm)',
-                padding: '5px 9px',
+                padding: '4px 8px',
                 fontSize: 11,
                 fontWeight: 600,
                 color: 'var(--brown-700)',
@@ -163,8 +161,8 @@ export default function BalanceSheetPage() {
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 6,
-              padding: '6px 12px',
+              gap: 5,
+              padding: '5px 10px',
               fontSize: 12,
               fontWeight: 600,
               color: 'var(--brown-700)',
@@ -175,7 +173,7 @@ export default function BalanceSheetPage() {
             }}
             title="Refresh statement"
           >
-            <RefreshCw size={13} />
+            <RefreshCw size={12} />
             <span>Refresh</span>
           </button>
 
@@ -198,36 +196,37 @@ export default function BalanceSheetPage() {
             }}
           >
             <Printer size={13} />
-            <span>Print / PDF</span>
+            <span>Print Balance Sheet</span>
           </button>
         </div>
       </div>
 
-      {/* ── Financial Statement Document Sheet (Standard Accounting Presentation) ── */}
+      {/* ── Financial Statement Document Sheet (Pure Printable Document) ── */}
       <div
+        className="printable-sheet print-avoid-break"
         style={{
           background: 'var(--surface)',
           borderRadius: 'var(--radius-md)',
-          boxShadow: '0 2px 8px rgba(74, 58, 52, 0.06)',
-          border: '1px solid rgba(208, 174, 146, 0.45)',
-          padding: '36px 44px',
+          boxShadow: '0 1px 4px rgba(74, 58, 52, 0.05)',
+          border: '1px solid rgba(208, 174, 146, 0.4)',
+          padding: '32px 36px',
         }}
       >
         {/* Document Formal Header */}
         <div
           style={{
             textAlign: 'center',
-            borderBottom: '2px solid var(--brown-900)',
-            paddingBottom: 20,
-            marginBottom: 20,
+            borderBottom: '1.5px solid var(--brown-900)',
+            paddingBottom: 14,
+            marginBottom: 16,
           }}
         >
           <span
             style={{
               fontFamily: 'var(--font-body)',
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: 700,
-              letterSpacing: '0.12em',
+              letterSpacing: '0.1em',
               color: 'var(--brown-500)',
               textTransform: 'uppercase',
             }}
@@ -237,10 +236,10 @@ export default function BalanceSheetPage() {
           <h1
             style={{
               fontFamily: 'var(--font-display)',
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: 700,
               color: 'var(--brown-900)',
-              margin: '6px 0 4px 0',
+              margin: '4px 0 2px 0',
             }}
           >
             Balance Sheet
@@ -248,84 +247,55 @@ export default function BalanceSheetPage() {
           <p
             style={{
               fontFamily: 'var(--font-body)',
-              fontSize: 13,
+              fontSize: 12,
               color: 'var(--brown-700)',
               margin: 0,
             }}
           >
-            Cumulative Financial Position as of {asOfDate}
+            As of {asOfDate}
           </p>
           <span
             style={{
-              fontSize: 11,
+              fontSize: 10,
               fontStyle: 'italic',
               color: 'var(--brown-500)',
-              marginTop: 4,
+              marginTop: 2,
               display: 'inline-block',
             }}
           >
-            (All figures in Indian Rupees ₹ · Click any account to drill down into general ledger)
+            (All amounts in INR ₹ · Double-entry financial statement)
           </span>
         </div>
 
-        {/* Equilibrium Status Indicator */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '8px 14px',
-            background: isBalanced ? 'rgba(95, 112, 82, 0.08)' : 'var(--danger-bg)',
-            border: `1px solid ${isBalanced ? 'rgba(95, 112, 82, 0.3)' : 'var(--danger)'}`,
-            borderRadius: 'var(--radius-sm)',
-            marginBottom: 24,
-            fontSize: 12,
-            fontWeight: 600,
-            color: isBalanced ? 'var(--posted)' : 'var(--danger)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {isBalanced ? <CheckCircle2 size={15} /> : <AlertCircle size={15} />}
-            <span>
-              {isBalanced
-                ? 'Balance Sheet in Equilibrium (Assets = Liabilities + Total Equity)'
-                : 'Warning: Balance Sheet Unbalanced — check unposted transactions'}
-            </span>
-          </div>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700 }}>
-            {report?.totalAssets ? `₹${Number(report.totalAssets).toLocaleString('en-IN')}` : '—'}
-          </span>
-        </div>
-
-        {/* ── 2-Column Side-by-Side Statement Structure ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, alignItems: 'stretch' }}>
+        {/* ── 2-Column Side-by-Side Statement ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 28, alignItems: 'stretch' }}>
           {/* ── LEFT COLUMN: ASSETS ── */}
-          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderRight: '1px solid rgba(208, 174, 146, 0.3)', paddingRight: 24 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', borderRight: '1px solid rgba(208, 174, 146, 0.25)', paddingRight: 20 }}>
             <div>
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '6px 0',
+                  padding: '4px 0',
                   borderBottom: '1px solid var(--brown-900)',
-                  marginBottom: 10,
+                  marginBottom: 8,
                 }}
               >
                 <h2
                   style={{
                     fontFamily: 'var(--font-display)',
-                    fontSize: 14,
+                    fontSize: 12,
                     fontWeight: 700,
                     textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
+                    letterSpacing: '0.06em',
                     color: 'var(--brown-900)',
                     margin: 0,
                   }}
                 >
                   Assets
                 </h2>
-                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--brown-500)', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--brown-500)', textTransform: 'uppercase' }}>
                   Amount (₹)
                 </span>
               </div>
@@ -339,8 +309,8 @@ export default function BalanceSheetPage() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        padding: '8px 8px',
-                        borderBottom: '1px solid rgba(208, 174, 146, 0.2)',
+                        padding: '6px 4px',
+                        borderBottom: '1px solid rgba(208, 174, 146, 0.15)',
                         fontSize: 13,
                       }}
                     >
@@ -357,62 +327,48 @@ export default function BalanceSheetPage() {
                           border: 'none',
                           color: 'var(--brown-900)',
                           cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 6,
                           fontWeight: 500,
                           padding: 0,
                           textAlign: 'left',
+                          fontSize: 13,
                         }}
                         title="Click to drill down into ledger entries"
+                        onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
+                        onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
                       >
-                        <span>{acc.accountName}</span>
-                        <span
-                          style={{
-                            fontSize: 10,
-                            background: 'rgba(235, 215, 190, 0.4)',
-                            color: 'var(--brown-700)',
-                            padding: '2px 6px',
-                            borderRadius: 4,
-                            textTransform: 'uppercase',
-                          }}
-                        >
-                          {acc.type}
-                        </span>
-                        <ArrowUpRight size={13} style={{ color: 'var(--brown-400)' }} />
+                        {acc.accountName}
                       </button>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--brown-900)' }}>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--brown-900)' }}>
                         <Money value={acc.balance} />
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div style={{ padding: '12px', fontSize: 13, color: 'var(--brown-500)', fontStyle: 'italic' }}>
-                    No asset balances recorded.
+                  <div style={{ padding: '8px', fontSize: 12, color: 'var(--brown-500)', fontStyle: 'italic' }}>
+                    No asset accounts recorded.
                   </div>
                 )}
               </div>
             </div>
 
-            {/* Total Assets with Double Bottom Border */}
+            {/* Total Assets */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '12px 10px',
-                background: 'rgba(235, 215, 190, 0.2)',
+                padding: '8px 4px',
                 borderTop: '1px solid var(--brown-900)',
-                borderBottom: '4px double var(--brown-900)',
+                borderBottom: '3px double var(--brown-900)',
                 fontWeight: 700,
-                fontSize: 14,
-                marginTop: 24,
+                fontSize: 13,
+                marginTop: 20,
               }}
             >
-              <span style={{ color: 'var(--brown-900)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+              <span style={{ color: 'var(--brown-900)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Total Assets
               </span>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 16, color: 'var(--brown-900)' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--brown-900)' }}>
                 <Money value={report?.totalAssets || '0.00'} />
               </div>
             </div>
@@ -421,36 +377,40 @@ export default function BalanceSheetPage() {
           {/* ── RIGHT COLUMN: LIABILITIES & EQUITY ── */}
           <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <div>
-              {/* 1. Liabilities Section */}
+              {/* Liabilities Header */}
               <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '6px 0',
+                  padding: '4px 0',
                   borderBottom: '1px solid var(--brown-900)',
-                  marginBottom: 10,
+                  marginBottom: 8,
                 }}
               >
                 <h2
                   style={{
                     fontFamily: 'var(--font-display)',
-                    fontSize: 14,
+                    fontSize: 12,
                     fontWeight: 700,
                     textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
+                    letterSpacing: '0.06em',
                     color: 'var(--brown-900)',
                     margin: 0,
                   }}
                 >
-                  Liabilities
+                  Liabilities & Equity
                 </h2>
-                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--brown-500)', textTransform: 'uppercase' }}>
+                <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--brown-500)', textTransform: 'uppercase' }}>
                   Amount (₹)
                 </span>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 16 }}>
+              {/* 1. Liabilities List */}
+              <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 12 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--brown-500)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+                  Current Liabilities
+                </span>
                 {report?.liabilities && report.liabilities.length > 0 ? (
                   report.liabilities.map((acc) => (
                     <div
@@ -459,8 +419,8 @@ export default function BalanceSheetPage() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        padding: '8px 8px',
-                        borderBottom: '1px solid rgba(208, 174, 146, 0.2)',
+                        padding: '5px 4px',
+                        borderBottom: '1px solid rgba(208, 174, 146, 0.15)',
                         fontSize: 13,
                       }}
                     >
@@ -477,36 +437,35 @@ export default function BalanceSheetPage() {
                           border: 'none',
                           color: 'var(--brown-900)',
                           cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 6,
                           fontWeight: 500,
                           padding: 0,
                           textAlign: 'left',
+                          fontSize: 13,
                         }}
                         title="Click to drill down into ledger entries"
+                        onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
+                        onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
                       >
-                        <span>{acc.accountName}</span>
-                        <ArrowUpRight size={13} style={{ color: 'var(--brown-400)' }} />
+                        {acc.accountName}
                       </button>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--brown-900)' }}>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--brown-900)' }}>
                         <Money value={acc.balance} />
                       </div>
                     </div>
                   ))
                 ) : (
-                  <div style={{ padding: '8px', fontSize: 12, color: 'var(--brown-500)', fontStyle: 'italic' }}>
+                  <div style={{ padding: '4px', fontSize: 12, color: 'var(--brown-500)', fontStyle: 'italic' }}>
                     No liabilities recorded.
                   </div>
                 )}
 
-                {/* Subtotal: Total Liabilities */}
+                {/* Subtotal Liabilities */}
                 <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '8px 8px',
+                    padding: '6px 4px',
                     borderTop: '1px solid var(--brown-300)',
                     fontWeight: 600,
                     fontSize: 12,
@@ -520,37 +479,11 @@ export default function BalanceSheetPage() {
                 </div>
               </div>
 
-              {/* 2. Capital & Equity Section */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '6px 0',
-                  borderBottom: '1px solid var(--brown-900)',
-                  marginBottom: 10,
-                  marginTop: 10,
-                }}
-              >
-                <h2
-                  style={{
-                    fontFamily: 'var(--font-display)',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                    color: 'var(--brown-900)',
-                    margin: 0,
-                  }}
-                >
-                  Capital & Equity
-                </h2>
-                <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--brown-500)', textTransform: 'uppercase' }}>
-                  Amount (₹)
-                </span>
-              </div>
-
+              {/* 2. Capital & Equity List */}
               <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--brown-500)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+                  Capital & Reserves
+                </span>
                 {report?.capital && report.capital.length > 0 ? (
                   report.capital.map((acc) => (
                     <div
@@ -559,8 +492,8 @@ export default function BalanceSheetPage() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        padding: '8px 8px',
-                        borderBottom: '1px solid rgba(208, 174, 146, 0.2)',
+                        padding: '5px 4px',
+                        borderBottom: '1px solid rgba(208, 174, 146, 0.15)',
                         fontSize: 13,
                       }}
                     >
@@ -577,57 +510,50 @@ export default function BalanceSheetPage() {
                           border: 'none',
                           color: 'var(--brown-900)',
                           cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 6,
                           fontWeight: 500,
                           padding: 0,
                           textAlign: 'left',
+                          fontSize: 13,
                         }}
                         title="Click to drill down into ledger entries"
+                        onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
+                        onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
                       >
-                        <span>{acc.accountName}</span>
-                        <ArrowUpRight size={13} style={{ color: 'var(--brown-400)' }} />
+                        {acc.accountName}
                       </button>
-                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: 'var(--brown-900)' }}>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--brown-900)' }}>
                         <Money value={acc.balance} />
                       </div>
                     </div>
                   ))
                 ) : null}
 
-                {/* Current Period Net Profit row flowed into equity */}
+                {/* Flowed Current Period Profit */}
                 <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '8px 8px',
-                    borderBottom: '1px solid rgba(208, 174, 146, 0.2)',
+                    padding: '5px 4px',
+                    borderBottom: '1px solid rgba(208, 174, 146, 0.15)',
                     fontSize: 13,
-                    background: 'rgba(95, 112, 82, 0.05)',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontWeight: 600, color: 'var(--posted)' }}>
-                      Current Period Net Profit
-                    </span>
-                    <span style={{ fontSize: 10, color: 'var(--brown-500)', fontStyle: 'italic' }}>
-                      (Flowed from P&L)
-                    </span>
-                  </div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: 'var(--posted)' }}>
+                  <span style={{ color: 'var(--brown-900)' }}>
+                    Current Period Profit (P&L)
+                  </span>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--brown-900)' }}>
                     <Money value={report?.currentPeriodProfit || '0.00'} />
                   </div>
                 </div>
 
-                {/* Subtotal: Total Equity */}
+                {/* Subtotal Equity */}
                 <div
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '8px 8px',
+                    padding: '6px 4px',
                     borderTop: '1px solid var(--brown-300)',
                     fontWeight: 600,
                     fontSize: 12,
@@ -642,25 +568,24 @@ export default function BalanceSheetPage() {
               </div>
             </div>
 
-            {/* Total Liabilities & Equity with Double Bottom Border */}
+            {/* Total Liabilities & Equity */}
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                padding: '12px 10px',
-                background: 'rgba(235, 215, 190, 0.2)',
+                padding: '8px 4px',
                 borderTop: '1px solid var(--brown-900)',
-                borderBottom: '4px double var(--brown-900)',
+                borderBottom: '3px double var(--brown-900)',
                 fontWeight: 700,
-                fontSize: 14,
-                marginTop: 24,
+                fontSize: 13,
+                marginTop: 20,
               }}
             >
-              <span style={{ color: 'var(--brown-900)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+              <span style={{ color: 'var(--brown-900)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Total Liabilities & Equity
               </span>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 16, color: 'var(--brown-900)' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--brown-900)' }}>
                 <Money value={report?.totalEquity && report?.totalLiabilities ? new Decimal(report.totalLiabilities).plus(report.totalEquity).toFixed(2) : (report?.totalAssets || '0.00')} />
               </div>
             </div>
@@ -668,7 +593,7 @@ export default function BalanceSheetPage() {
         </div>
       </div>
 
-      {/* ── 4-Level Drilldown Modal ── */}
+      {/* ── 4-Level Drilldown Modal (Hidden from Print) ── */}
       {selectedDrillAccount && (
         <LedgerDrilldownModal
           accountId={selectedDrillAccount.id}

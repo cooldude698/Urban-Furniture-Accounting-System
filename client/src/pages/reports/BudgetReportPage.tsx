@@ -17,16 +17,11 @@ import {
   RefreshCw,
   X,
   ArrowUpRight,
-  TrendingUp,
-  AlertCircle,
-  CheckCircle2,
 } from 'lucide-react';
 
 const PALETTE = {
   achieved: '#5F7052', // --posted
   remaining: '#C08A3E', // --warning
-  overrun: '#9E4A38', // --danger
-  neutral: '#EBD7BE',
 };
 
 export default function BudgetReportPage() {
@@ -60,7 +55,7 @@ export default function BudgetReportPage() {
   });
 
   const handlePrint = () => {
-    ReportsApi.downloadPdf('budget', { budgetId: String(selectedBudgetId) });
+    window.print();
   };
 
   const handleDrillDown = async (lineId: number) => {
@@ -76,7 +71,6 @@ export default function BudgetReportPage() {
     }
   };
 
-  const committedNum = parseFloat(report?.totals?.committed || '0');
   const achievedNum = parseFloat(report?.totals?.achieved || '0');
   const toAchieveNum = parseFloat(report?.totals?.toAchieve || '0');
   const achievedPct = report?.totals?.achievedPct || 0;
@@ -89,23 +83,24 @@ export default function BudgetReportPage() {
       color: PALETTE.achieved,
     },
     {
-      name: 'Remaining to Achieve',
+      name: 'Remaining',
       value: Math.max(0, toAchieveNum),
       color: PALETTE.remaining,
     },
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 1100, margin: '0 auto', width: '100%' }}>
-      {/* ── Top Control Bar (Clean Accounting Toolbar) ── */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 1000, margin: '0 auto', width: '100%' }}>
+      {/* ── Top Control Bar (Hidden from Print) ── */}
       <div
+        className="no-print"
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: 12,
-          padding: '4px 0',
+          padding: '2px 0',
         }}
       >
         {/* Budget Selector */}
@@ -117,12 +112,12 @@ export default function BudgetReportPage() {
               gap: 8,
               background: 'var(--surface)',
               border: '1px solid var(--brown-300)',
-              padding: '5px 12px',
+              padding: '4px 10px',
               borderRadius: 'var(--radius-sm)',
               fontSize: 13,
             }}
           >
-            <FileBarChart size={14} style={{ color: 'var(--brown-700)' }} />
+            <FileBarChart size={13} style={{ color: 'var(--brown-700)' }} />
             <label htmlFor="budgetSelector" style={{ fontWeight: 600, color: 'var(--brown-700)' }}>
               Analytical Budget:
             </label>
@@ -165,8 +160,8 @@ export default function BudgetReportPage() {
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 6,
-              padding: '6px 12px',
+              gap: 5,
+              padding: '5px 10px',
               fontSize: 12,
               fontWeight: 600,
               color: 'var(--brown-700)',
@@ -175,9 +170,9 @@ export default function BudgetReportPage() {
               borderRadius: 'var(--radius-sm)',
               cursor: 'pointer',
             }}
-            title="Refresh budget performance"
+            title="Refresh report"
           >
-            <RefreshCw size={13} />
+            <RefreshCw size={12} />
             <span>Refresh</span>
           </button>
 
@@ -200,36 +195,37 @@ export default function BudgetReportPage() {
             }}
           >
             <Printer size={13} />
-            <span>Print / PDF</span>
+            <span>Print Budget Report</span>
           </button>
         </div>
       </div>
 
-      {/* ── Financial Statement Document Sheet (Standard Accounting Presentation) ── */}
+      {/* ── Financial Statement Document Sheet (Pure Printable Document) ── */}
       <div
+        className="printable-sheet print-avoid-break"
         style={{
           background: 'var(--surface)',
           borderRadius: 'var(--radius-md)',
-          boxShadow: '0 2px 8px rgba(74, 58, 52, 0.06)',
-          border: '1px solid rgba(208, 174, 146, 0.45)',
-          padding: '36px 44px',
+          boxShadow: '0 1px 4px rgba(74, 58, 52, 0.05)',
+          border: '1px solid rgba(208, 174, 146, 0.4)',
+          padding: '32px 36px',
         }}
       >
         {/* Document Formal Header */}
         <div
           style={{
             textAlign: 'center',
-            borderBottom: '2px solid var(--brown-900)',
-            paddingBottom: 20,
-            marginBottom: 24,
+            borderBottom: '1.5px solid var(--brown-900)',
+            paddingBottom: 14,
+            marginBottom: 20,
           }}
         >
           <span
             style={{
               fontFamily: 'var(--font-body)',
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: 700,
-              letterSpacing: '0.12em',
+              letterSpacing: '0.1em',
               color: 'var(--brown-500)',
               textTransform: 'uppercase',
             }}
@@ -239,10 +235,10 @@ export default function BudgetReportPage() {
           <h1
             style={{
               fontFamily: 'var(--font-display)',
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: 700,
               color: 'var(--brown-900)',
-              margin: '6px 0 4px 0',
+              margin: '4px 0 2px 0',
             }}
           >
             {report?.budgetName || 'Analytical Budget Performance Report'}
@@ -250,95 +246,92 @@ export default function BudgetReportPage() {
           <p
             style={{
               fontFamily: 'var(--font-body)',
-              fontSize: 13,
+              fontSize: 12,
               color: 'var(--brown-700)',
               margin: 0,
             }}
           >
             {report?.periodStart && report?.periodEnd
               ? `Period: ${String(report.periodStart).split('T')[0]} to ${String(report.periodEnd).split('T')[0]}`
-              : 'Cumulative Analytical Commitment & Achievement Tracking'}
+              : 'Analytical Commitment & Achievement Tracking'}
           </p>
           <span
             style={{
-              fontSize: 11,
+              fontSize: 10,
               fontStyle: 'italic',
               color: 'var(--brown-500)',
-              marginTop: 4,
+              marginTop: 2,
               display: 'inline-block',
             }}
           >
-            (Amounts in Indian Rupees ₹ · Click any achieved amount to inspect source invoices and bills)
+            (All amounts in INR ₹ · Click any achieved amount to inspect source documents)
           </span>
         </div>
 
-        {/* ── Summary KPI Cards Strip ── */}
+        {/* ── Summary KPI Strip ── */}
         <div
           style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: 16,
-            marginBottom: 28,
+            gap: 12,
+            marginBottom: 20,
           }}
         >
           <div
             style={{
-              background: 'rgba(235, 215, 190, 0.15)',
-              border: '1px solid rgba(208, 174, 146, 0.4)',
+              border: '1px solid rgba(208, 174, 146, 0.3)',
               borderRadius: 'var(--radius-sm)',
-              padding: '14px 16px',
+              padding: '10px 12px',
             }}
           >
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--brown-700)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--brown-500)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Committed Budget
             </span>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 700, color: 'var(--brown-900)', marginTop: 4 }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 700, color: 'var(--brown-900)', marginTop: 2 }}>
               <Money value={report?.totals?.committed || '0.00'} />
             </div>
           </div>
 
           <div
             style={{
-              background: 'rgba(95, 112, 82, 0.08)',
-              border: '1px solid rgba(95, 112, 82, 0.3)',
+              border: '1px solid rgba(208, 174, 146, 0.3)',
               borderRadius: 'var(--radius-sm)',
-              padding: '14px 16px',
+              padding: '10px 12px',
             }}
           >
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--posted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--posted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Achieved to Date
             </span>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 700, color: 'var(--posted)', marginTop: 4 }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 700, color: 'var(--posted)', marginTop: 2 }}>
               <Money value={report?.totals?.achieved || '0.00'} />
             </div>
           </div>
 
           <div
             style={{
-              background: toAchieveNum >= 0 ? 'rgba(192, 138, 62, 0.08)' : 'rgba(95, 112, 82, 0.08)',
-              border: `1px solid ${toAchieveNum >= 0 ? 'rgba(192, 138, 62, 0.3)' : 'rgba(95, 112, 82, 0.3)'}`,
+              border: '1px solid rgba(208, 174, 146, 0.3)',
               borderRadius: 'var(--radius-sm)',
-              padding: '14px 16px',
+              padding: '10px 12px',
             }}
           >
             <span
               style={{
-                fontSize: 11,
+                fontSize: 10,
                 fontWeight: 700,
                 color: toAchieveNum >= 0 ? 'var(--warning)' : 'var(--posted)',
                 textTransform: 'uppercase',
                 letterSpacing: '0.04em',
               }}
             >
-              {toAchieveNum >= 0 ? 'Remaining to Achieve' : 'Target Surpassed By'}
+              {toAchieveNum >= 0 ? 'Remaining' : 'Target Surpassed'}
             </span>
             <div
               style={{
                 fontFamily: 'var(--font-mono)',
-                fontSize: 18,
+                fontSize: 15,
                 fontWeight: 700,
                 color: toAchieveNum >= 0 ? 'var(--warning)' : 'var(--posted)',
-                marginTop: 4,
+                marginTop: 2,
               }}
             >
               <Money value={Math.abs(toAchieveNum).toFixed(2)} />
@@ -347,46 +340,45 @@ export default function BudgetReportPage() {
 
           <div
             style={{
-              background: 'rgba(235, 215, 190, 0.15)',
-              border: '1px solid rgba(208, 174, 146, 0.4)',
+              border: '1px solid rgba(208, 174, 146, 0.3)',
               borderRadius: 'var(--radius-sm)',
-              padding: '14px 16px',
+              padding: '10px 12px',
             }}
           >
-            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--brown-700)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--brown-500)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Progress Rate
             </span>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 700, color: 'var(--brown-900)', marginTop: 4 }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 15, fontWeight: 700, color: 'var(--brown-900)', marginTop: 2 }}>
               {achievedPct.toFixed(1)}%
             </div>
           </div>
         </div>
 
-        {/* ── Visualizer & Analytic Account Meters ── */}
+        {/* ── Visual Progress Breakdown (Hidden in print if needed or cleanly rendered) ── */}
         <div
+          className="print-avoid-break"
           style={{
             display: 'grid',
-            gridTemplateColumns: '260px 1fr',
-            gap: 32,
+            gridTemplateColumns: '180px 1fr',
+            gap: 24,
             alignItems: 'center',
-            background: 'rgba(249, 242, 228, 0.35)',
-            border: '1px solid rgba(208, 174, 146, 0.3)',
+            border: '1px solid rgba(208, 174, 146, 0.25)',
             borderRadius: 'var(--radius-sm)',
-            padding: '20px 24px',
-            marginBottom: 28,
+            padding: '14px 18px',
+            marginBottom: 20,
           }}
         >
-          {/* Donut Chart with Centered Metric */}
-          <div style={{ position: 'relative', width: 220, height: 180, margin: '0 auto' }}>
+          {/* Donut Chart with Center Metric */}
+          <div style={{ position: 'relative', width: 140, height: 140, margin: '0 auto' }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={pieData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={55}
-                  outerRadius={75}
-                  paddingAngle={3}
+                  innerRadius={42}
+                  outerRadius={58}
+                  paddingAngle={2}
                   dataKey="value"
                 >
                   {pieData.map((entry, index) => (
@@ -395,11 +387,10 @@ export default function BudgetReportPage() {
                 </Pie>
                 <Tooltip
                   formatter={(val: any) => [`₹${Number(val).toLocaleString('en-IN')}`, '']}
-                  contentStyle={{ background: 'var(--surface)', border: '1px solid var(--brown-300)', borderRadius: 'var(--radius-sm)', fontSize: 12 }}
+                  contentStyle={{ background: 'var(--surface)', border: '1px solid var(--brown-300)', borderRadius: 'var(--radius-sm)', fontSize: 11 }}
                 />
               </PieChart>
             </ResponsiveContainer>
-            {/* Center Donut Label */}
             <div
               style={{
                 position: 'absolute',
@@ -410,160 +401,131 @@ export default function BudgetReportPage() {
                 pointerEvents: 'none',
               }}
             >
-              <span style={{ fontSize: 11, color: 'var(--brown-700)', textTransform: 'uppercase', fontWeight: 600 }}>
-                Achieved
-              </span>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 16, fontWeight: 700, color: 'var(--brown-900)' }}>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700, color: 'var(--brown-900)' }}>
                 {achievedPct.toFixed(0)}%
               </div>
             </div>
           </div>
 
-          {/* Per-Analytic Account Progress Meters */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 700, textTransform: 'uppercase', color: 'var(--brown-900)', margin: 0 }}>
-              Analytic Account Performance Breakdown
-            </h3>
+          {/* Per-Analytic Progress Meters */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--brown-700)' }}>
+              Analytic Account Progress Breakdown
+            </span>
             {report?.lines && report.lines.length > 0 ? (
               report.lines.map((line) => {
                 const pct = Math.min(100, Math.max(0, line.achievedPct || 0));
                 return (
-                  <div key={line.budgetLineId} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <div key={line.budgetLineId} style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
-                      <span style={{ fontWeight: 600, color: 'var(--brown-900)' }}>
+                      <span style={{ color: 'var(--brown-900)', fontWeight: 500 }}>
                         {line.analyticAccountName}
                       </span>
-                      <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--brown-700)', fontWeight: 600 }}>
-                        <Money value={line.achievedAmount} /> / <Money value={line.committedAmount} /> ({(line.achievedPct || 0).toFixed(1)}%)
+                      <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--brown-700)', fontSize: 11 }}>
+                        <Money value={line.achievedAmount} /> / <Money value={line.committedAmount} /> ({(line.achievedPct || 0).toFixed(0)}%)
                       </span>
                     </div>
-                    {/* Progress Bar Container */}
-                    <div style={{ width: '100%', height: 6, background: 'rgba(208, 174, 146, 0.3)', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ width: '100%', height: 4, background: 'rgba(208, 174, 146, 0.25)', borderRadius: 2, overflow: 'hidden' }}>
                       <div
                         style={{
                           width: `${pct}%`,
                           height: '100%',
                           background: (line.achievedPct || 0) >= 100 ? 'var(--posted)' : 'var(--brown-700)',
-                          borderRadius: 3,
-                          transition: 'width 300ms ease',
+                          borderRadius: 2,
                         }}
                       />
                     </div>
                   </div>
                 );
               })
-            ) : (
-              <div style={{ fontSize: 12, color: 'var(--brown-500)', fontStyle: 'italic' }}>
-                No analytic accounts defined for this budget.
-              </div>
-            )}
+            ) : null}
           </div>
         </div>
 
-        {/* ── Analytic Budget Breakdown Table ── */}
+        {/* ── Detailed Table ── */}
         <div>
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              padding: '6px 0',
+              padding: '4px 0',
               borderBottom: '1px solid var(--brown-900)',
-              marginBottom: 8,
+              marginBottom: 6,
             }}
           >
             <h2
               style={{
                 fontFamily: 'var(--font-display)',
-                fontSize: 14,
+                fontSize: 12,
                 fontWeight: 700,
                 textTransform: 'uppercase',
-                letterSpacing: '0.05em',
+                letterSpacing: '0.06em',
                 color: 'var(--brown-900)',
                 margin: 0,
               }}
             >
-              Detailed Analytic Lines
+              Analytic Budget Lines
             </h2>
-            <span style={{ fontSize: 11, color: 'var(--brown-500)' }}>
-              Click achieved amount to view source invoices/bills
-            </span>
           </div>
 
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
-              <tr style={{ background: 'rgba(235, 215, 190, 0.2)', height: 36, borderBottom: '1px solid var(--brown-300)' }}>
-                <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 700, color: 'var(--brown-700)', textTransform: 'uppercase' }}>Analytic Account</th>
-                <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 700, color: 'var(--brown-700)', textTransform: 'uppercase', width: 90 }}>Type</th>
-                <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 700, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>Committed</th>
-                <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 700, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>Achieved to Date</th>
-                <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 700, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>Progress %</th>
-                <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 700, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>Remaining Amount</th>
+              <tr style={{ background: 'rgba(235, 215, 190, 0.15)', height: 32, borderBottom: '1px solid var(--brown-300)' }}>
+                <th style={{ padding: '0 8px', fontSize: 10, fontWeight: 700, color: 'var(--brown-700)', textTransform: 'uppercase' }}>Analytic Account</th>
+                <th style={{ padding: '0 8px', fontSize: 10, fontWeight: 700, color: 'var(--brown-700)', textTransform: 'uppercase', width: 80 }}>Type</th>
+                <th style={{ padding: '0 8px', fontSize: 10, fontWeight: 700, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>Committed</th>
+                <th style={{ padding: '0 8px', fontSize: 10, fontWeight: 700, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>Achieved</th>
+                <th style={{ padding: '0 8px', fontSize: 10, fontWeight: 700, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>%</th>
+                <th style={{ padding: '0 8px', fontSize: 10, fontWeight: 700, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>Remaining</th>
               </tr>
             </thead>
             <tbody>
               {report?.lines && report.lines.length > 0 ? (
                 report.lines.map((line) => (
-                  <tr key={line.budgetLineId} style={{ height: 42, borderBottom: '1px solid rgba(208, 174, 146, 0.2)', fontSize: 13 }}>
-                    <td style={{ padding: '0 12px', fontWeight: 600, color: 'var(--brown-900)' }}>
+                  <tr key={line.budgetLineId} style={{ height: 36, borderBottom: '1px solid rgba(208, 174, 146, 0.15)', fontSize: 13 }}>
+                    <td style={{ padding: '0 8px', color: 'var(--brown-900)', fontWeight: 500 }}>
                       {line.analyticAccountName}
                     </td>
-                    <td style={{ padding: '0 12px' }}>
-                      <span
-                        style={{
-                          fontSize: 10,
-                          background: 'rgba(235, 215, 190, 0.4)',
-                          color: 'var(--brown-700)',
-                          padding: '2px 6px',
-                          borderRadius: 4,
-                          textTransform: 'uppercase',
-                        }}
-                      >
-                        {line.analyticType}
-                      </span>
+                    <td style={{ padding: '0 8px', fontSize: 11, color: 'var(--brown-600)', textTransform: 'capitalize' }}>
+                      {line.analyticType}
                     </td>
-                    <td style={{ padding: '0 12px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                    <td style={{ padding: '0 8px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
                       <Money value={line.committedAmount} />
                     </td>
-                    <td style={{ padding: '0 12px', textAlign: 'right' }}>
+                    <td style={{ padding: '0 8px', textAlign: 'right' }}>
                       <button
                         type="button"
                         onClick={() => handleDrillDown(line.budgetLineId)}
                         style={{
                           background: 'transparent',
                           border: 'none',
-                          color: 'var(--posted)',
-                          fontWeight: 700,
+                          color: 'var(--brown-900)',
                           cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4,
-                          padding: '2px 6px',
-                          borderRadius: 4,
+                          fontWeight: 500,
                           fontFamily: 'var(--font-mono)',
                           fontSize: 13,
-                          transition: 'background 120ms ease',
+                          padding: 0,
                         }}
                         title="Click to drill down into source documents"
-                        onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(95, 112, 82, 0.12)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                        onMouseEnter={(e) => (e.currentTarget.style.textDecoration = 'underline')}
+                        onMouseLeave={(e) => (e.currentTarget.style.textDecoration = 'none')}
                       >
                         <Money value={line.achievedAmount} />
-                        <ArrowUpRight size={13} />
                       </button>
                     </td>
-                    <td style={{ padding: '0 12px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                    <td style={{ padding: '0 8px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
                       {(line.achievedPct || 0).toFixed(1)}%
                     </td>
-                    <td style={{ padding: '0 12px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                    <td style={{ padding: '0 8px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
                       <Money value={line.amountToAchieve} />
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} style={{ padding: 24, textAlign: 'center', color: 'var(--brown-500)', fontSize: 13 }}>
-                    {isLoading ? 'Loading budget progress...' : 'No budget line records found.'}
+                  <td colSpan={6} style={{ padding: 16, textAlign: 'center', color: 'var(--brown-500)', fontSize: 12 }}>
+                    No budget lines recorded.
                   </td>
                 </tr>
               )}
@@ -571,26 +533,25 @@ export default function BudgetReportPage() {
             <tfoot>
               <tr
                 style={{
-                  background: 'rgba(235, 215, 190, 0.25)',
-                  height: 44,
+                  height: 38,
                   fontWeight: 700,
                   borderTop: '1px solid var(--brown-900)',
-                  borderBottom: '4px double var(--brown-900)',
+                  borderBottom: '3px double var(--brown-900)',
                 }}
               >
-                <td colSpan={2} style={{ padding: '0 12px', fontSize: 12, textTransform: 'uppercase', color: 'var(--brown-900)' }}>
-                  Total Budget Summary
+                <td colSpan={2} style={{ padding: '0 8px', fontSize: 11, textTransform: 'uppercase', color: 'var(--brown-900)' }}>
+                  Total
                 </td>
-                <td style={{ padding: '0 12px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                <td style={{ padding: '0 8px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
                   <Money value={report?.totals?.committed || '0.00'} />
                 </td>
-                <td style={{ padding: '0 12px', textAlign: 'right', color: 'var(--posted)', fontFamily: 'var(--font-mono)' }}>
+                <td style={{ padding: '0 8px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
                   <Money value={report?.totals?.achieved || '0.00'} />
                 </td>
-                <td style={{ padding: '0 12px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                <td style={{ padding: '0 8px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
                   {(report?.totals?.achievedPct || 0).toFixed(1)}%
                 </td>
-                <td style={{ padding: '0 12px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                <td style={{ padding: '0 8px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
                   <Money value={report?.totals?.toAchieve || '0.00'} />
                 </td>
               </tr>
@@ -599,9 +560,10 @@ export default function BudgetReportPage() {
         </div>
       </div>
 
-      {/* ── Drill-Down Document Inspection Modal ── */}
+      {/* ── Drill-Down Document Inspection Modal (Hidden from Print) ── */}
       {drillDownLineId !== null && (
         <div
+          className="no-print"
           style={{
             position: 'fixed',
             inset: 0,
@@ -635,7 +597,7 @@ export default function BudgetReportPage() {
             {/* Modal Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(208, 174, 146, 0.4)', paddingBottom: 14, marginBottom: 16 }}>
               <div>
-                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 700, color: 'var(--brown-900)', margin: 0 }}>
+                <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 700, color: 'var(--brown-900)', margin: 0 }}>
                   Source Documents for {drillDownData?.line?.analytic_account_name || 'Budget Line'}
                 </h3>
                 <span style={{ fontSize: 12, color: 'var(--brown-700)' }}>
@@ -657,42 +619,42 @@ export default function BudgetReportPage() {
                   borderRadius: 4,
                 }}
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
             {/* Modal Body */}
             {isDrillDownLoading ? (
-              <div style={{ padding: 40, textAlign: 'center', color: 'var(--brown-700)', fontSize: 13 }}>
+              <div style={{ padding: 32, textAlign: 'center', color: 'var(--brown-700)', fontSize: 13 }}>
                 Loading source documents...
               </div>
             ) : drillDownData?.documents && drillDownData.documents.length > 0 ? (
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
                 <thead>
-                  <tr style={{ background: 'rgba(249, 242, 228, 0.6)', height: 36, borderBottom: '1px solid var(--brown-300)' }}>
-                    <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase' }}>Document</th>
-                    <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase' }}>Date</th>
-                    <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase' }}>Partner</th>
-                    <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>Doc Total</th>
-                    <th style={{ padding: '0 12px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>Line Amount</th>
+                  <tr style={{ background: 'rgba(249, 242, 228, 0.6)', height: 34, borderBottom: '1px solid var(--brown-300)' }}>
+                    <th style={{ padding: '0 10px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase' }}>Document</th>
+                    <th style={{ padding: '0 10px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase' }}>Date</th>
+                    <th style={{ padding: '0 10px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase' }}>Partner</th>
+                    <th style={{ padding: '0 10px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>Doc Total</th>
+                    <th style={{ padding: '0 10px', fontSize: 11, fontWeight: 600, color: 'var(--brown-700)', textTransform: 'uppercase', textAlign: 'right' }}>Line Amount</th>
                   </tr>
                 </thead>
                 <tbody>
                   {drillDownData.documents.map((doc: any, i: number) => (
-                    <tr key={i} style={{ height: 40, borderBottom: '1px solid rgba(208, 174, 146, 0.2)' }}>
-                      <td style={{ padding: '0 12px', fontWeight: 600, color: 'var(--brown-900)' }}>
+                    <tr key={i} style={{ height: 38, borderBottom: '1px solid rgba(208, 174, 146, 0.2)' }}>
+                      <td style={{ padding: '0 10px', fontWeight: 600, color: 'var(--brown-900)' }}>
                         {doc.number}
                       </td>
-                      <td style={{ padding: '0 12px', color: 'var(--brown-700)' }}>
+                      <td style={{ padding: '0 10px', color: 'var(--brown-700)' }}>
                         {doc.date ? String(doc.date).split('T')[0] : '—'}
                       </td>
-                      <td style={{ padding: '0 12px', color: 'var(--brown-900)' }}>
+                      <td style={{ padding: '0 10px', color: 'var(--brown-900)' }}>
                         {doc.partner_name || '—'}
                       </td>
-                      <td style={{ padding: '0 12px', textAlign: 'right' }}>
+                      <td style={{ padding: '0 10px', textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
                         <Money value={doc.document_total || '0.00'} />
                       </td>
-                      <td style={{ padding: '0 12px', textAlign: 'right', fontWeight: 700, color: 'var(--posted)' }}>
+                      <td style={{ padding: '0 10px', textAlign: 'right', fontWeight: 700, color: 'var(--posted)', fontFamily: 'var(--font-mono)' }}>
                         <Money value={doc.line_amount || '0.00'} />
                       </td>
                     </tr>
@@ -700,7 +662,7 @@ export default function BudgetReportPage() {
                 </tbody>
               </table>
             ) : (
-              <div style={{ padding: 32, textAlign: 'center', color: 'var(--brown-700)', fontSize: 13 }}>
+              <div style={{ padding: 24, textAlign: 'center', color: 'var(--brown-700)', fontSize: 13 }}>
                 No posted documents found contributing to this budget line yet.
               </div>
             )}
