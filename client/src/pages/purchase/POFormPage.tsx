@@ -10,8 +10,11 @@ import { Product } from '@shared/schemas/product.schema';
 import { AnalyticAccount } from '@shared/schemas/analytic.schema';
 import { LineItemGrid, EditableLineItem } from '../../components/LineItemGrid';
 import { NonBlockingWarning } from '../../components/NonBlockingWarning';
+import { SmartButton } from '../../components/SmartButton';
+import { VendorBillsApi } from '../../api/vendorBills.api';
 import { CheckCircle2, FileText, Ban, ShoppingBag } from 'lucide-react';
 import Decimal from 'decimal.js';
+
 
 interface POFormPageProps {
   poId?: number | null;
@@ -42,6 +45,8 @@ export const POFormPage: React.FC<POFormPageProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warningMessage, setWarningMessage] = useState<string | null>(null);
+  const [linkedBillsCount, setLinkedBillsCount] = useState<number>(0);
+  const [firstLinkedBillId, setFirstLinkedBillId] = useState<number | null>(null);
 
   useEffect(() => {
     // Fetch master dropdowns
@@ -89,7 +94,17 @@ export const POFormPage: React.FC<POFormPageProps> = ({
         })
         .catch(err => setError(err.message))
         .finally(() => setLoading(false));
+
+      // Check linked vendor bills
+      VendorBillsApi.getAll().then(allBills => {
+        const matching = allBills.filter(b => (b.po_id || (b as any).poId) === poId);
+        setLinkedBillsCount(matching.length);
+        if (matching.length > 0) {
+          setFirstLinkedBillId(matching[0].id!);
+        }
+      }).catch(console.error);
     }
+
   }, [poId]);
 
   const handleSave = async () => {
@@ -223,7 +238,20 @@ export const POFormPage: React.FC<POFormPageProps> = ({
       loading={loading}
       error={error}
       extraButtons={
-        <>
+        <div className="flex items-center gap-2">
+          {/* Vendor Bills Smart Button */}
+          <SmartButton
+            label="Vendor Bills"
+            count={linkedBillsCount > 0 ? String(linkedBillsCount) : undefined}
+            icon={FileText}
+            visible={Boolean(poId && linkedBillsCount > 0)}
+            onClick={() => {
+              if (firstLinkedBillId && onCreateBillSuccess) {
+                onCreateBillSuccess(firstLinkedBillId);
+              }
+            }}
+          />
+
           {/* Confirm Button */}
           {isDraft && !isNew && (
             <button
@@ -236,6 +264,7 @@ export const POFormPage: React.FC<POFormPageProps> = ({
               Confirm
             </button>
           )}
+
 
           {/* Create Bill Button (Enabled ONLY when PO is Confirmed) */}
           {isConfirmed && (
@@ -262,8 +291,9 @@ export const POFormPage: React.FC<POFormPageProps> = ({
               Cancel
             </button>
           )}
-        </>
+        </div>
       }
+
     >
       <div className="space-y-6">
         {/* Over-Budget / Price Warning Banner */}

@@ -38,6 +38,7 @@ export const VendorBillSchema = z.object({
   total_amount: z.string().default('0.00'),
   tax_amount: z.string().default('0.00'),
   grand_total: z.string().default('0.00'),
+  total: z.string().optional(),
   amount_paid: z.string().default('0.00'),
   amount_due: z.string().default('0.00'),
   payment_status: PaymentStatusEnum.default('not_paid'),
