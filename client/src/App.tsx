@@ -115,6 +115,7 @@ export function App() {
           <Route path="coa/new" element={<AccountFormRoute />} />
           <Route path="coa/:id" element={<AccountFormRoute />} />
           <Route path="budgets" element={<BudgetListPage />} />
+          <Route path="budgets/kanban" element={<BudgetListPage initialView="kanban" />} />
           <Route path="budgets/new" element={<BudgetFormPage />} />
           <Route path="budgets/:id" element={<BudgetFormPage />} />
           <Route path="contacts" element={<ContactListRoute />} />

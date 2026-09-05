@@ -1,25 +1,32 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Decimal from 'decimal.js';
 import { BudgetApi, Budget } from '../../api/budget.api';
 import {
-  Plus,
   Search,
-  List as ListIcon,
-  PieChart as PieIcon,
   X,
   ExternalLink,
 } from 'lucide-react';
 
-export default function BudgetListPage() {
+interface BudgetListPageProps {
+  initialView?: 'list' | 'kanban';
+}
+
+export default function BudgetListPage({ initialView }: BudgetListPageProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Determine initial view from prop or query param or path
+  const isKanbanPath = location.pathname.endsWith('/kanban') || location.search.includes('view=kanban');
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>(
+    initialView || (isKanbanPath ? 'kanban' : 'list')
+  );
 
   // Search & view states
   const [searchTerm, setSearchTerm] = useState('');
   const [hoveredBtn, setHoveredBtn] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'split' | 'list'>('split');
-  const [selectedBudgetId, setSelectedBudgetId] = useState<number | null>(3); // Default to January 2026 (id: 3) or 1
+  const [selectedBudgetId, setSelectedBudgetId] = useState<number | null>(3); // Default to January 2026 (id: 3)
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const { data: budgets = [], isLoading } = useQuery<Budget[]>({
@@ -27,7 +34,7 @@ export default function BudgetListPage() {
     queryFn: BudgetApi.getAll,
   });
 
-  // Date formatting helper
+  // Date formatting helper: DD/MM/YYYY
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '—';
     if (dateStr.includes('/')) return dateStr;
@@ -73,7 +80,6 @@ export default function BudgetListPage() {
   // Aggregate financial metrics for the selected budget's pie chart
   const chartMetrics = useMemo(() => {
     if (!selectedBudget || !selectedBudget.lines || selectedBudget.lines.length === 0) {
-      // Default to January 2026 wireframe values: 200000 committed, 10000 achieved (5%)
       return {
         committed: 200000,
         achieved: 10000,
@@ -111,7 +117,7 @@ export default function BudgetListPage() {
     };
   }, [selectedBudget]);
 
-  const handleRowClick = (budget: Budget) => {
+  const handleCardClick = (budget: Budget) => {
     navigate(`/account/budgets/${budget.id}`);
   };
 
@@ -150,14 +156,18 @@ export default function BudgetListPage() {
   return (
     <div style={styles.page}>
       <div style={styles.container}>
-        {/* Wireframe Title: Budget Report (List View) */}
-        <h1 style={styles.heading}>Budget Report (List View)</h1>
+        {/* Wireframe Header Title: Changes based on View Mode */}
+        <h1 style={styles.heading}>
+          {viewMode === 'kanban'
+            ? 'Budget Report (Kanban View)'
+            : 'Budget Report (List View)'}
+        </h1>
 
-        {/* Outer Layout: Card on Left + Big Achieved Pie Chart on Right */}
+        {/* Outer Layout: Card Container */}
         <div style={styles.contentLayout}>
-          {/* Main Card with List View */}
+          {/* Main Rounded Outer Card */}
           <div style={styles.card}>
-            {/* Top Bar: [New] [Search ________] [Back] [List/Pie Icons] */}
+            {/* Top Bar: [New] [Search ________] [Back] [List/Kanban Icons] */}
             <div style={styles.topBar}>
               {/* New Button */}
               <button
@@ -200,8 +210,9 @@ export default function BudgetListPage() {
                   Back
                 </button>
 
-                {/* View Switcher Icons matching wireframe */}
+                {/* View Switcher Icons: List Icon and Kanban Icon (with red square) */}
                 <div style={styles.viewIconsContainer}>
+                  {/* List View Icon */}
                   <button
                     type="button"
                     title="List View"
@@ -211,137 +222,198 @@ export default function BudgetListPage() {
                       ...(viewMode === 'list' ? styles.iconBtnActive : {}),
                     }}
                   >
-                    <ListIcon size={16} />
+                    <svg width="18" height="18" viewBox="0 0 18 18">
+                      <rect x="2" y="3" width="14" height="2.2" rx="1" fill="#382A24" />
+                      <rect x="2" y="7.9" width="14" height="2.2" rx="1" fill="#382A24" />
+                      <rect x="2" y="12.8" width="14" height="2.2" rx="1" fill="#382A24" />
+                    </svg>
                   </button>
+
+                  {/* Kanban View Icon (with Red accent square matching wireframe) */}
                   <button
                     type="button"
-                    title="Split Chart View"
-                    onClick={() => setViewMode('split')}
+                    title="Kanban View"
+                    onClick={() => setViewMode('kanban')}
                     style={{
                       ...styles.iconBtn,
-                      ...(viewMode === 'split' ? styles.iconBtnActive : {}),
+                      ...(viewMode === 'kanban' ? styles.iconBtnActive : {}),
                     }}
                   >
-                    <PieIcon size={16} />
+                    <svg width="18" height="18" viewBox="0 0 18 18">
+                      {/* Top-right red square as shown in the wireframe */}
+                      <rect x="10" y="2" width="6" height="6" rx="1.2" fill="#DC2626" />
+                      <rect x="2" y="2" width="6" height="6" rx="1.2" fill="#77574A" opacity="0.6" />
+                      <rect x="2" y="10" width="6" height="6" rx="1.2" fill="#77574A" opacity="0.6" />
+                      <rect x="10" y="10" width="6" height="6" rx="1.2" fill="#77574A" opacity="0.6" />
+                    </svg>
                   </button>
                 </div>
               </div>
             </div>
 
-            {/* Table: Budget | Start Date | End Date | Status | Pie Chart */}
-            <div style={styles.tableWrapper}>
-              <table style={styles.table}>
-                <thead>
-                  <tr style={styles.headerRow}>
-                    <th style={{ ...styles.th, width: '28%' }}>Budget</th>
-                    <th style={{ ...styles.th, width: '22%', textAlign: 'center' }}>Start Date</th>
-                    <th style={{ ...styles.th, width: '22%', textAlign: 'center' }}>End Date</th>
-                    <th style={{ ...styles.th, width: '16%', textAlign: 'center' }}>Status</th>
-                    <th style={{ ...styles.th, width: '12%', textAlign: 'center' }}>Pie Chart</th>
-                  </tr>
-                </thead>
-                <tbody>
+            {/* ── CONDITIONAL RENDERING: KANBAN VIEW VS LIST VIEW ── */}
+            {viewMode === 'kanban' ? (
+              /* ── KANBAN VIEW ── */
+              <div style={styles.kanbanContainer}>
+                <div style={styles.kanbanGrid}>
                   {isLoading ? (
-                    <tr>
-                      <td colSpan={5} style={styles.emptyTd}>
-                        Loading budgets...
-                      </td>
-                    </tr>
+                    <div style={styles.emptyNotice}>Loading budget cards...</div>
                   ) : filteredBudgets.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} style={styles.emptyTd}>
-                        No budgets found. Click <strong>New</strong> to create one.
-                      </td>
-                    </tr>
+                    <div style={styles.emptyNotice}>No budgets found.</div>
                   ) : (
-                    filteredBudgets.map((b) => {
-                      const isSelected = selectedBudget?.id === b.id;
-                      return (
-                        <tr
-                          key={b.id}
-                          onClick={() => handleRowClick(b)}
-                          style={{
-                            ...styles.bodyRow,
-                            ...(isSelected && viewMode === 'split' ? styles.bodyRowSelected : {}),
-                          }}
-                        >
-                          <td style={styles.tdBudgetName}>{b.name}</td>
-                          <td style={styles.tdDate}>{formatDate(b.period_start)}</td>
-                          <td style={styles.tdDate}>{formatDate(b.period_end)}</td>
-                          <td style={styles.tdStatus}>
-                            <span style={styles.statusText}>{formatStatus(b.status)}</span>
-                          </td>
-                          <td style={styles.tdPie}>
-                            {/* Clickable mini pie chart icon from wireframe */}
-                            <button
-                              type="button"
-                              title="Click to view Achieved Pie Chart"
-                              onClick={(e) => handlePieIconClick(e, b)}
-                              style={styles.miniPieBtn}
-                            >
-                              <svg width="28" height="28" viewBox="0 0 28 28">
-                                <defs>
-                                  <pattern
-                                    id={`mini-hatch-blue-${b.id}`}
-                                    width="4"
-                                    height="4"
-                                    patternUnits="userSpaceOnUse"
-                                  >
-                                    <path d="M 0,0 L 4,4 M 4,0 L 0,4" stroke="#0284C7" strokeWidth="0.8" />
-                                  </pattern>
-                                  <pattern
-                                    id={`mini-hatch-red-${b.id}`}
-                                    width="4"
-                                    height="4"
-                                    patternUnits="userSpaceOnUse"
-                                  >
-                                    <path d="M 0,0 L 4,4 M 4,0 L 0,4" stroke="#DC2626" strokeWidth="0.8" />
-                                  </pattern>
-                                </defs>
-                                <circle cx="14" cy="14" r="12" fill="#FFFFFF" stroke="#382A24" strokeWidth="1.5" />
-                                {/* Quadrant 1: Sky blue hatch */}
-                                <path d="M 14,14 L 14,2 A 12,12 0 0,1 26,14 Z" fill="#BAE6FD" />
-                                <path
-                                  d="M 14,14 L 14,2 A 12,12 0 0,1 26,14 Z"
-                                  fill={`url(#mini-hatch-blue-${b.id})`}
-                                  stroke="#382A24"
-                                  strokeWidth="1"
-                                />
-                                {/* Quadrant 2: Coral red hatch */}
-                                <path d="M 14,14 L 26,14 A 12,12 0 0,1 14,26 Z" fill="#FECACA" />
-                                <path
-                                  d="M 14,14 L 26,14 A 12,12 0 0,1 14,26 Z"
-                                  fill={`url(#mini-hatch-red-${b.id})`}
-                                  stroke="#382A24"
-                                  strokeWidth="1"
-                                />
-                                {/* Quadrant 3: Purple hatch / tint */}
-                                <path d="M 14,14 L 14,26 A 12,12 0 0,1 2,14 Z" fill="#E9D5FF" />
-                                <path d="M 14,14 L 14,26 A 12,12 0 0,1 2,14 Z" stroke="#382A24" strokeWidth="1" />
-                                {/* Quadrant 4: Soft yellow tint */}
-                                <path d="M 14,14 L 2,14 A 12,12 0 0,1 14,2 Z" fill="#FEF08A" />
-                                <path d="M 14,14 L 2,14 A 12,12 0 0,1 14,2 Z" stroke="#382A24" strokeWidth="1" />
-                                <line x1="14" y1="2" x2="14" y2="26" stroke="#382A24" strokeWidth="1.2" />
-                                <line x1="2" y1="14" x2="26" y2="14" stroke="#382A24" strokeWidth="1.2" />
-                              </svg>
-                            </button>
+                    filteredBudgets.map((b) => (
+                      <div
+                        key={b.id}
+                        onClick={() => handleCardClick(b)}
+                        style={styles.kanbanCard}
+                      >
+                        {/* Budget Name */}
+                        <div style={styles.cardTitle}>{b.name}</div>
+
+                        {/* Dates matching wireframe: Start Date ... End Date */}
+                        <div style={styles.cardRow}>
+                          <span style={styles.cardLabel}>Start Date</span>
+                          <span style={styles.cardValue}>{formatDate(b.period_start)}</span>
+                        </div>
+
+                        <div style={styles.cardRow}>
+                          <span style={styles.cardLabel}>End Date</span>
+                          <span style={styles.cardValue}>{formatDate(b.period_end)}</span>
+                        </div>
+
+                        {/* Status Tag */}
+                        <div style={styles.cardFooter}>
+                          <span style={styles.cardStatusBadge}>{formatStatus(b.status)}</span>
+                          {b.lines && b.lines.length > 0 && (
+                            <span style={styles.cardLineCount}>
+                              {b.lines.length} {b.lines.length === 1 ? 'line' : 'lines'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Wireframe Annotation: Open Form View on Click */}
+                <div style={styles.annotationNote}>
+                  <span>Open Form View on Click</span>
+                </div>
+              </div>
+            ) : (
+              /* ── LIST VIEW ── */
+              <div style={styles.listContainer}>
+                <div style={styles.tableWrapper}>
+                  <table style={styles.table}>
+                    <thead>
+                      <tr style={styles.headerRow}>
+                        <th style={{ ...styles.th, width: '28%' }}>Budget</th>
+                        <th style={{ ...styles.th, width: '22%', textAlign: 'center' }}>Start Date</th>
+                        <th style={{ ...styles.th, width: '22%', textAlign: 'center' }}>End Date</th>
+                        <th style={{ ...styles.th, width: '16%', textAlign: 'center' }}>Status</th>
+                        <th style={{ ...styles.th, width: '12%', textAlign: 'center' }}>Pie Chart</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {isLoading ? (
+                        <tr>
+                          <td colSpan={5} style={styles.emptyTd}>
+                            Loading budgets...
                           </td>
                         </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                      ) : filteredBudgets.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} style={styles.emptyTd}>
+                            No budgets found. Click <strong>New</strong> to create one.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredBudgets.map((b) => {
+                          const isSelected = selectedBudget?.id === b.id;
+                          return (
+                            <tr
+                              key={b.id}
+                              onClick={() => handleCardClick(b)}
+                              style={{
+                                ...styles.bodyRow,
+                                ...(isSelected ? styles.bodyRowSelected : {}),
+                              }}
+                            >
+                              <td style={styles.tdBudgetName}>{b.name}</td>
+                              <td style={styles.tdDate}>{formatDate(b.period_start)}</td>
+                              <td style={styles.tdDate}>{formatDate(b.period_end)}</td>
+                              <td style={styles.tdStatus}>
+                                <span style={styles.statusText}>{formatStatus(b.status)}</span>
+                              </td>
+                              <td style={styles.tdPie}>
+                                {/* Clickable mini pie chart icon from wireframe */}
+                                <button
+                                  type="button"
+                                  title="Click to view Achieved Pie Chart"
+                                  onClick={(e) => handlePieIconClick(e, b)}
+                                  style={styles.miniPieBtn}
+                                >
+                                  <svg width="28" height="28" viewBox="0 0 28 28">
+                                    <defs>
+                                      <pattern
+                                        id={`mini-hatch-blue-${b.id}`}
+                                        width="4"
+                                        height="4"
+                                        patternUnits="userSpaceOnUse"
+                                      >
+                                        <path d="M 0,0 L 4,4 M 4,0 L 0,4" stroke="#0284C7" strokeWidth="0.8" />
+                                      </pattern>
+                                      <pattern
+                                        id={`mini-hatch-red-${b.id}`}
+                                        width="4"
+                                        height="4"
+                                        patternUnits="userSpaceOnUse"
+                                      >
+                                        <path d="M 0,0 L 4,4 M 4,0 L 0,4" stroke="#DC2626" strokeWidth="0.8" />
+                                      </pattern>
+                                    </defs>
+                                    <circle cx="14" cy="14" r="12" fill="#FFFFFF" stroke="#382A24" strokeWidth="1.5" />
+                                    <path d="M 14,14 L 14,2 A 12,12 0 0,1 26,14 Z" fill="#BAE6FD" />
+                                    <path
+                                      d="M 14,14 L 14,2 A 12,12 0 0,1 26,14 Z"
+                                      fill={`url(#mini-hatch-blue-${b.id})`}
+                                      stroke="#382A24"
+                                      strokeWidth="1"
+                                    />
+                                    <path d="M 14,14 L 26,14 A 12,12 0 0,1 14,26 Z" fill="#FECACA" />
+                                    <path
+                                      d="M 14,14 L 26,14 A 12,12 0 0,1 14,26 Z"
+                                      fill={`url(#mini-hatch-red-${b.id})`}
+                                      stroke="#382A24"
+                                      strokeWidth="1"
+                                    />
+                                    <path d="M 14,14 L 14,26 A 12,12 0 0,1 2,14 Z" fill="#E9D5FF" />
+                                    <path d="M 14,14 L 14,26 A 12,12 0 0,1 2,14 Z" stroke="#382A24" strokeWidth="1" />
+                                    <path d="M 14,14 L 2,14 A 12,12 0 0,1 14,2 Z" fill="#FEF08A" />
+                                    <path d="M 14,14 L 2,14 A 12,12 0 0,1 14,2 Z" stroke="#382A24" strokeWidth="1" />
+                                    <line x1="14" y1="2" x2="14" y2="26" stroke="#382A24" strokeWidth="1.2" />
+                                    <line x1="2" y1="14" x2="26" y2="14" stroke="#382A24" strokeWidth="1.2" />
+                                  </svg>
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
 
-            {/* Wireframe Annotation: Open Form View on Click */}
-            <div style={styles.annotationNote}>
-              <span>Open Form View on Click</span>
-            </div>
+                {/* Wireframe Annotation: Open Form View on Click */}
+                <div style={styles.annotationNote}>
+                  <span>Open Form View on Click</span>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* ── Large "Achieved" Pie Chart (Matching Wireframe Hand-drawn Slices) ── */}
-          {viewMode === 'split' && (
+          {/* ── Large "Achieved" Pie Chart (In List View Split Layout) ── */}
+          {viewMode === 'list' && (
             <div style={styles.pieSection}>
               {/* Pie Chart Title */}
               <div style={styles.pieHeader}>
@@ -353,7 +425,7 @@ export default function BudgetListPage() {
 
               {/* Hand-drawn style cross-hatched SVG Pie Chart */}
               <div style={styles.svgWrapper}>
-                <svg width="280" height="280" viewBox="0 0 280 280">
+                <svg width="260" height="260" viewBox="0 0 280 280">
                   <defs>
                     {/* Sky blue cross-hatch pattern */}
                     <pattern
@@ -381,7 +453,6 @@ export default function BudgetListPage() {
                   </defs>
 
                   {/* Slice 1: Achieved (Sky Blue with Cross-Hatch) */}
-                  {/* Offset slightly top-left for exploded hand-drawn effect */}
                   <g>
                     <path
                       d={renderSlicePath(140, 140, 115, 0, chartMetrics.achievedPct > 5 ? chartMetrics.achievedPct : 55, 6)}
@@ -397,7 +468,6 @@ export default function BudgetListPage() {
                   </g>
 
                   {/* Slice 2: Remaining / Amount to Achieve (Coral Red with Cross-Hatch) */}
-                  {/* Offset slightly bottom-right */}
                   <g>
                     <path
                       d={renderSlicePath(140, 140, 115, chartMetrics.achievedPct > 5 ? chartMetrics.achievedPct : 55, 100, 6)}
@@ -452,7 +522,7 @@ export default function BudgetListPage() {
         </div>
       </div>
 
-      {/* ── Optional Modal for Mobile / Direct Pie Icon Click ── */}
+      {/* ── Modal for Direct Mini Pie Icon Click ── */}
       {isModalOpen && selectedBudget && (
         <div style={styles.modalOverlay} onClick={() => setIsModalOpen(false)}>
           <div style={styles.modalCard} onClick={(e) => e.stopPropagation()}>
@@ -682,10 +752,9 @@ const styles = {
   } as React.CSSProperties,
 
   iconBtn: {
-    padding: '6px 8px',
+    padding: '6px 9px',
     background: 'transparent',
     border: 'none',
-    color: '#77574A',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
@@ -695,7 +764,102 @@ const styles = {
 
   iconBtnActive: {
     background: '#EAE2D7',
+  } as React.CSSProperties,
+
+  // Kanban Specific Styles
+  kanbanContainer: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 20,
+    minHeight: 280,
+  } as React.CSSProperties,
+
+  kanbanGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+    gap: 20,
+    width: '100%',
+  } as React.CSSProperties,
+
+  kanbanCard: {
+    background: '#FFFFFF',
+    border: '1.5px solid #4A3A34',
+    borderRadius: 20,
+    padding: '20px 24px',
+    cursor: 'pointer',
+    transition: 'all 150ms ease',
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 12,
+    boxShadow: '0 2px 8px rgba(74, 58, 52, 0.04)',
+  } as React.CSSProperties,
+
+  cardTitle: {
+    fontFamily: '"Montserrat", var(--font-display), sans-serif',
+    fontWeight: 700,
+    fontSize: 18,
     color: '#382A24',
+    letterSpacing: '-0.01em',
+  } as React.CSSProperties,
+
+  cardRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    fontSize: 14,
+    color: '#382A24',
+    fontFamily: '"DM Sans", sans-serif',
+  } as React.CSSProperties,
+
+  cardLabel: {
+    fontWeight: 600,
+    color: '#382A24',
+  } as React.CSSProperties,
+
+  cardValue: {
+    fontWeight: 500,
+    color: '#382A24',
+  } as React.CSSProperties,
+
+  cardFooter: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 4,
+    paddingTop: 10,
+    borderTop: '1px dashed #E4D5C7',
+  } as React.CSSProperties,
+
+  cardStatusBadge: {
+    fontSize: 11.5,
+    fontWeight: 700,
+    fontFamily: '"Montserrat", sans-serif',
+    color: '#5C453A',
+    background: '#F2EBE3',
+    padding: '3px 9px',
+    borderRadius: 6,
+    textTransform: 'uppercase' as const,
+  } as React.CSSProperties,
+
+  cardLineCount: {
+    fontSize: 12,
+    color: '#77574A',
+    fontStyle: 'italic',
+  } as React.CSSProperties,
+
+  emptyNotice: {
+    padding: 36,
+    textAlign: 'center' as const,
+    color: '#77574A',
+    fontSize: 14,
+    gridColumn: '1 / -1',
+  } as React.CSSProperties,
+
+  // List View Specific Styles
+  listContainer: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 16,
   } as React.CSSProperties,
 
   tableWrapper: {
