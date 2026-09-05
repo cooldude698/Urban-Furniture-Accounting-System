@@ -16,11 +16,25 @@ export interface InviteContactInput {
   email: string;
   fullName: string;
   loginId: string;
+  password?: string;
 }
 
 export class PortalService {
   /**
-   * Generates a secure invite token for a customer contact.
+   * Fetch contact user details if already invited/created
+   */
+  static async getContactUser(contactId: number) {
+    const res = await pool.query(
+      `SELECT id, login_id, email, full_name, role, invite_token, invite_token_expires_at, (password_hash IS NOT NULL) AS has_password
+       FROM users
+       WHERE contact_id = $1`,
+      [contactId]
+    );
+    return res.rows[0] || null;
+  }
+
+  /**
+   * Generates a secure invite token (or direct password user) for a contact.
    * Only admin/accountant can invite contacts. Contacts cannot self-signup.
    */
   static async inviteContact(input: InviteContactInput) {
@@ -35,13 +49,19 @@ export class PortalService {
       throw new Error('Login ID must be between 6 and 12 characters long');
     }
 
+    // Optional direct password hash
+    let passwordHash: string | null = null;
+    if (input.password && input.password.length >= 8) {
+      passwordHash = await argon2.hash(input.password, { type: argon2.argon2id });
+    }
+
     // 3. Generate secure token
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
     // 4. Check if user already exists for this contact
     const existing = await pool.query(
-      'SELECT id FROM users WHERE contact_id = $1 OR login_id = $2 OR email = $3',
+      'SELECT id, password_hash FROM users WHERE contact_id = $1 OR login_id = $2 OR email = $3',
       [input.contactId, input.loginId, input.email]
     );
 
@@ -49,22 +69,24 @@ export class PortalService {
     if (existing.rows.length > 0) {
       // Update existing record with new token
       userId = existing.rows[0].id;
+      const finalHash = passwordHash || existing.rows[0].password_hash;
       await pool.query(
         `UPDATE users
          SET invite_token = $1,
              invite_token_expires_at = $2,
              role = 'contact',
-             contact_id = $3
-         WHERE id = $4`,
-        [token, expiresAt, input.contactId, userId]
+             contact_id = $3,
+             password_hash = $4
+         WHERE id = $5`,
+        [token, expiresAt, input.contactId, finalHash, userId]
       );
     } else {
       // Insert new contact user
       const userRes = await pool.query<{ id: number }>(
-        `INSERT INTO users (login_id, email, full_name, role, contact_id, invite_token, invite_token_expires_at)
-         VALUES ($1, $2, $3, 'contact', $4, $5, $6)
+        `INSERT INTO users (login_id, email, full_name, password_hash, role, contact_id, invite_token, invite_token_expires_at)
+         VALUES ($1, $2, $3, $4, 'contact', $5, $6, $7)
          RETURNING id`,
-        [input.loginId, input.email, input.fullName, input.contactId, token, expiresAt]
+        [input.loginId, input.email, input.fullName, passwordHash, input.contactId, token, expiresAt]
       );
       userId = userRes.rows[0].id;
     }
@@ -77,6 +99,7 @@ export class PortalService {
       inviteToken: token,
       inviteUrl: `/portal/accept-invite?token=${token}`,
       expiresAt: expiresAt.toISOString(),
+      hasPassword: Boolean(passwordHash),
     };
   }
 
@@ -317,6 +340,171 @@ export class PortalService {
         allocations: [
           {
             invoiceId,
+            amount: payAmt.toFixed(2),
+          },
+        ],
+      },
+      user.id
+    );
+  }
+
+  /**
+   * Fetch vendor's own bills via contact_id
+   */
+  static async getPortalBills(user: UserPayload) {
+    const contactId = user.contact_id || -1;
+
+    const res = await pool.query(
+      `SELECT 
+         vb.id,
+         vb.number,
+         vb.bill_reference AS "billReference",
+         vb.bill_date AS "billDate",
+         vb.due_date AS "dueDate",
+         vbs.total::text,
+         vbs.amount_paid::text AS "amountPaid",
+         vbs.amount_due::text AS "amountDue",
+         vbs.payment_status AS "paymentStatus"
+       FROM vendor_bills vb
+       JOIN v_bill_status vbs ON vbs.bill_id = vb.id
+       WHERE vb.vendor_id = $1 AND vb.status = 'confirmed'
+       ORDER BY vb.bill_date DESC, vb.id DESC`,
+      [contactId]
+    );
+
+    return res.rows.map(r => ({
+      ...r,
+      billDate: r.billDate ? new Date(r.billDate).toISOString().split('T')[0] : '',
+      dueDate: r.dueDate ? new Date(r.dueDate).toISOString().split('T')[0] : '',
+    }));
+  }
+
+  /**
+   * Fetch specific vendor bill detail with lines and payment history
+   */
+  static async getPortalBillById(billId: number, user: UserPayload) {
+    const contactId = user.contact_id || -1;
+
+    const billRes = await pool.query(
+      `SELECT 
+         vb.id,
+         vb.number,
+         vb.bill_reference AS "billReference",
+         vb.bill_date AS "billDate",
+         vb.due_date AS "dueDate",
+         vb.subtotal::text,
+         vb.tax_total::text AS "taxTotal",
+         vbs.total::text,
+         vbs.amount_paid::text AS "amountPaid",
+         vbs.amount_due::text AS "amountDue",
+         vbs.payment_status AS "paymentStatus"
+       FROM vendor_bills vb
+       JOIN v_bill_status vbs ON vbs.bill_id = vb.id
+       WHERE vb.id = $1 AND vb.vendor_id = $2`,
+      [billId, contactId]
+    );
+
+    if (billRes.rows.length === 0) {
+      return null;
+    }
+
+    const bill = billRes.rows[0];
+
+    const linesRes = await pool.query(
+      `SELECT 
+         vbl.line_no AS "lineNo",
+         p.name AS "productName",
+         vbl.qty::text,
+         vbl.unit_price::text AS "unitPrice",
+         vbl.tax_rate::text AS "taxRate",
+         vbl.total::text
+       FROM vendor_bill_lines vbl
+       JOIN products p ON p.id = vbl.product_id
+       WHERE vbl.bill_id = $1
+       ORDER BY vbl.line_no ASC`,
+      [billId]
+    );
+
+    const paymentsRes = await pool.query(
+      `SELECT 
+         pa.id AS "allocationId",
+         p.number AS "paymentNumber",
+         p.payment_date AS "paymentDate",
+         p.method,
+         p.direction,
+         pa.amount::text
+       FROM payment_allocations pa
+       JOIN payments p ON p.id = pa.payment_id
+       WHERE pa.bill_id = $1
+       ORDER BY p.payment_date DESC, pa.id DESC`,
+      [billId]
+    );
+
+    const payments = paymentsRes.rows.map(p => ({
+      ...p,
+      paymentDate: p.paymentDate ? new Date(p.paymentDate).toISOString().split('T')[0] : '',
+    }));
+
+    return {
+      id: bill.id,
+      number: bill.number,
+      billReference: bill.billReference,
+      billDate: bill.billDate ? new Date(bill.billDate).toISOString().split('T')[0] : '',
+      dueDate: bill.dueDate ? new Date(bill.dueDate).toISOString().split('T')[0] : '',
+      subtotal: bill.subtotal,
+      taxTotal: bill.taxTotal,
+      total: bill.total,
+      amountPaid: bill.amountPaid,
+      amountDue: bill.amountDue,
+      paymentStatus: bill.paymentStatus,
+      lines: linesRes.rows,
+      payments,
+    };
+  }
+
+  /**
+   * Record manual payment against vendor bill from portal
+   */
+  static async recordPortalBillPayment(
+    billId: number,
+    user: UserPayload,
+    method: 'cash' | 'bank',
+    amount: string | number
+  ) {
+    const contactId = user.contact_id || -1;
+
+    const billRes = await pool.query(
+      `SELECT vb.id, vbs.amount_due
+       FROM vendor_bills vb
+       JOIN v_bill_status vbs ON vbs.bill_id = vb.id
+       WHERE vb.id = $1 AND vb.vendor_id = $2`,
+      [billId, contactId]
+    );
+
+    if (billRes.rows.length === 0) {
+      throw new Error('Bill not found or unauthorized');
+    }
+
+    const due = new Decimal(billRes.rows[0].amount_due);
+    const payAmt = new Decimal(amount);
+
+    if (payAmt.lte(0)) {
+      throw new Error('Payment amount must be greater than zero');
+    }
+
+    if (payAmt.gt(due)) {
+      throw new Error(`Cannot pay ${payAmt.toFixed(2)}. Current amount due is ${due.toFixed(2)}`);
+    }
+
+    return PaymentService.createPayment(
+      {
+        direction: 'outbound',
+        partnerId: contactId,
+        method,
+        amount: payAmt.toFixed(2),
+        allocations: [
+          {
+            billId,
             amount: payAmt.toFixed(2),
           },
         ],

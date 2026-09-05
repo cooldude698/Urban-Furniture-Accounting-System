@@ -13,6 +13,7 @@ const InviteContactSchema = z.object({
   email: z.string().email('Valid email is required'),
   fullName: z.string().min(2, 'Full name is required'),
   loginId: z.string().min(6).max(12, 'Login ID must be between 6 and 12 characters'),
+  password: z.string().min(8, 'Password must be at least 8 characters long').optional(),
 });
 
 const AcceptInviteSchema = z.object({
@@ -118,8 +119,8 @@ portalRouter.get('/invoices/:id', requireAuth, requirePortalContact, async (req:
   }
 });
 
-// 7. POST /api/portal/invoices/:id/payments - Record manual payment (Cash / Bank)
-portalRouter.post('/invoices/:id/payments', requireAuth, requirePortalContact, async (req: AuthenticatedRequest, res: Response) => {
+// 7. POST /api/portal/invoices/:id/payments & /pay - Record manual payment (Cash / Bank)
+portalRouter.post(['/invoices/:id/payments', '/invoices/:id/pay'], requireAuth, requirePortalContact, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const invId = parseInt(String(req.params.id), 10);
     if (isNaN(invId)) {
@@ -143,3 +144,73 @@ portalRouter.post('/invoices/:id/payments', requireAuth, requirePortalContact, a
     return sendError(res, 'PAYMENT_ERROR', err.message || 'Failed to record payment', 400);
   }
 });
+
+// 8. GET /api/portal/contact-user/:contactId - Check if contact has portal user
+portalRouter.get('/contact-user/:contactId', requireAuth, requireInternalUser, async (req: Request, res: Response) => {
+  try {
+    const contactId = parseInt(String(req.params.contactId), 10);
+    if (isNaN(contactId)) {
+      return sendError(res, 'INVALID_ID', 'Contact ID must be a number', 400);
+    }
+    const user = await PortalService.getContactUser(contactId);
+    return sendSuccess(res, user);
+  } catch (err: any) {
+    return sendError(res, 'SERVER_ERROR', err.message, 500);
+  }
+});
+
+// 9. GET /api/portal/bills - Contact's OWN vendor bills only
+portalRouter.get('/bills', requireAuth, requirePortalContact, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const bills = await PortalService.getPortalBills(req.user!);
+    return sendSuccess(res, bills);
+  } catch (err: any) {
+    return sendError(res, 'SERVER_ERROR', err.message, 500);
+  }
+});
+
+// 10. GET /api/portal/bills/:id - Specific vendor bill with lines & payments
+portalRouter.get('/bills/:id', requireAuth, requirePortalContact, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const billId = parseInt(String(req.params.id), 10);
+    if (isNaN(billId)) {
+      return sendError(res, 'INVALID_ID', 'Bill ID must be a number', 400);
+    }
+
+    const bill = await PortalService.getPortalBillById(billId, req.user!);
+    if (!bill) {
+      return sendError(res, 'NOT_FOUND', `Bill #${billId} not found or unauthorized`, 404);
+    }
+
+    return sendSuccess(res, bill);
+  } catch (err: any) {
+    return sendError(res, 'SERVER_ERROR', err.message, 500);
+  }
+});
+
+// 11. POST /api/portal/bills/:id/payments & /pay - Record payment on vendor bill from portal
+portalRouter.post(['/bills/:id/payments', '/bills/:id/pay'], requireAuth, requirePortalContact, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const billId = parseInt(String(req.params.id), 10);
+    if (isNaN(billId)) {
+      return sendError(res, 'INVALID_ID', 'Bill ID must be a number', 400);
+    }
+
+    const parse = RecordPaymentSchema.safeParse(req.body);
+    if (!parse.success) {
+      return sendError(res, 'VALIDATION_ERROR', 'Method (cash|bank) and positive amount required', 400);
+    }
+
+    const payment = await PortalService.recordPortalBillPayment(
+      billId,
+      req.user!,
+      parse.data.method,
+      parse.data.amount
+    );
+
+    return sendSuccess(res, payment, 201);
+  } catch (err: any) {
+    return sendError(res, 'PAYMENT_ERROR', err.message || 'Failed to record bill payment', 400);
+  }
+});
+

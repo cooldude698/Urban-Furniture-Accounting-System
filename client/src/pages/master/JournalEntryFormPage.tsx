@@ -33,6 +33,7 @@ export const JournalEntryFormPage: React.FC<JournalEntryFormPageProps> = ({
 
   const [entryDate, setEntryDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [journalId, setJournalId] = useState<number | ''>('');
+  const [reference, setReference] = useState('');
   const [lines, setLines] = useState<JournalLineItem[]>([
     { account_id: '', partner_id: '', debit: '', credit: '' },
     { account_id: '', partner_id: '', debit: '', credit: '' },
@@ -65,6 +66,7 @@ export const JournalEntryFormPage: React.FC<JournalEntryFormPageProps> = ({
             const data = json.data;
             setEntryDate(data.entryDate || data.entry_date || '');
             setJournalId(data.journalId || data.journal_id || '');
+            setReference(data.reference || '');
             if (data.lines && data.lines.length > 0) {
               setLines(
                 data.lines.map((l: any) => ({
@@ -185,6 +187,7 @@ export const JournalEntryFormPage: React.FC<JournalEntryFormPageProps> = ({
       const payload = {
         journal_id: Number(journalId),
         entry_date: entryDate,
+        reference: reference.trim() || undefined,
         lines: validLines,
       };
 
@@ -334,6 +337,20 @@ export const JournalEntryFormPage: React.FC<JournalEntryFormPageProps> = ({
                   </select>
                   <ChevronDown size={16} style={styles.selectArrow} />
                 </div>
+              </div>
+            </div>
+
+            {/* Reference */}
+            <div style={styles.fieldRow}>
+              <label style={styles.fieldLabel}>Reference</label>
+              <div style={styles.inputUnderlineWrapper}>
+                <input
+                  type="text"
+                  value={reference}
+                  onChange={e => setReference(e.target.value)}
+                  placeholder="e.g. Reference / Memo"
+                  style={styles.underlineInput}
+                />
               </div>
             </div>
           </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ContactsApi } from '../../api/contacts.api';
 import { Contact, CreateContactInput, ContactType } from '@shared/schemas/contact.schema';
-import { Upload, ShoppingCart, Receipt, BookOpen, Archive, CheckCircle } from 'lucide-react';
+import { Upload, ShoppingCart, Receipt, BookOpen, Archive, CheckCircle, ShieldCheck, Key, Copy } from 'lucide-react';
 import { SmartButton } from '../../components/SmartButton';
 
 interface ContactFormPageProps {
@@ -57,6 +57,20 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
+  // Portal User Access State
+  const [portalUser, setPortalUser] = useState<{
+    id: number;
+    login_id: string;
+    email: string;
+    has_password: boolean;
+    invite_token?: string;
+  } | null>(null);
+  const [enablePortal, setEnablePortal] = useState(false);
+  const [portalLoginId, setPortalLoginId] = useState('');
+  const [portalPassword, setPortalPassword] = useState('');
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
   // Button hover states
   const [hoveredBtn, setHoveredBtn] = useState<string | null>(null);
 
@@ -89,11 +103,31 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
         })
         .catch(err => setError(err.message))
         .finally(() => setLoading(false));
+
+      // Fetch linked portal user
+      fetch(`/api/portal/contact-user/${contactId}`, { credentials: 'include' })
+        .then(r => r.json())
+        .then(json => {
+          if (json.data) {
+            setPortalUser(json.data);
+            setEnablePortal(true);
+            setPortalLoginId(json.data.login_id);
+          } else {
+            setPortalUser(null);
+            setEnablePortal(false);
+            setPortalLoginId('');
+          }
+        })
+        .catch(() => setPortalUser(null));
     } else {
       setContact(null);
       setCounts(null);
       setSelectedFile(null);
       setImagePreview(null);
+      setPortalUser(null);
+      setEnablePortal(false);
+      setPortalLoginId('');
+      setPortalPassword('');
       setFormData({
         name: '',
         type: 'customer',
@@ -147,8 +181,63 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
       setCountry('India');
       setSelectedFile(null);
       setImagePreview(null);
+      setPortalUser(null);
+      setEnablePortal(false);
+      setPortalLoginId('');
+      setPortalPassword('');
       setError(null);
       setSuccessMsg(null);
+    }
+  };
+
+  const handleCreatePortalUser = async (targetContactId: number) => {
+    if (!formData.email) {
+      setError('Contact Email is required to create a Portal User.');
+      return;
+    }
+    const cleanLogin = (
+      portalLoginId.trim() ||
+      formData.email.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '') ||
+      `user${targetContactId}`
+    )
+      .padEnd(6, '0')
+      .slice(0, 12);
+
+    setPortalLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/portal/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          contactId: targetContactId,
+          email: formData.email.trim(),
+          fullName: formData.name.trim(),
+          loginId: cleanLogin,
+          password: portalPassword.length >= 8 ? portalPassword : undefined,
+        }),
+      });
+      const json = await res.json();
+      if (json.error) {
+        throw new Error(json.error.message || 'Failed to create portal user');
+      }
+      setPortalUser({
+        id: json.data.userId,
+        login_id: json.data.loginId,
+        email: json.data.email,
+        has_password: Boolean(json.data.hasPassword),
+        invite_token: json.data.inviteToken,
+      });
+      setSuccessMsg(
+        json.data.hasPassword
+          ? `Portal User active! Login ID: ${json.data.loginId}`
+          : `Portal User created! Token: ${json.data.inviteToken}`
+      );
+    } catch (err: any) {
+      setError(err.message || 'Failed to create portal user');
+    } finally {
+      setPortalLoading(false);
     }
   };
 
@@ -168,6 +257,11 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
         saved = await ContactsApi.create(formData);
       } else {
         saved = await ContactsApi.update(contactId!, formData);
+      }
+
+      // If portal access is enabled and not yet created, create portal user
+      if (enablePortal && !portalUser && saved.id) {
+        await handleCreatePortalUser(saved.id);
       }
 
       setSuccessMsg('Contact saved successfully.');
@@ -447,6 +541,132 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
                 />
               </div>
             </div>
+          </div>
+
+          {/* ── Contact Portal User Access Section ── */}
+          <div style={styles.portalSection}>
+            <div style={styles.portalHeaderRow}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <ShieldCheck size={18} color="#77574A" />
+                <span style={styles.portalSectionTitle}>Contact Portal User Access</span>
+              </div>
+              {portalUser && (
+                <span style={styles.portalActiveBadge}>
+                  <CheckCircle size={12} style={{ marginRight: 4 }} />
+                  Portal Access Active
+                </span>
+              )}
+            </div>
+
+            {portalUser ? (
+              <div style={styles.portalInfoBox}>
+                <div style={styles.portalFieldRow}>
+                  <span style={styles.portalFieldLabel}>Login ID:</span>
+                  <span style={styles.portalFieldValue}>{portalUser.login_id}</span>
+                </div>
+                <div style={styles.portalFieldRow}>
+                  <span style={styles.portalFieldLabel}>Email:</span>
+                  <span style={styles.portalFieldValue}>{portalUser.email}</span>
+                </div>
+                <div style={styles.portalFieldRow}>
+                  <span style={styles.portalFieldLabel}>Status:</span>
+                  <span
+                    style={{
+                      ...styles.portalFieldValue,
+                      color: portalUser.has_password ? '#16A34A' : '#D97706',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {portalUser.has_password ? 'Active (Password Configured)' : 'Invited (Pending Password Setup)'}
+                  </span>
+                </div>
+                {portalUser.invite_token && !portalUser.has_password && (
+                  <div style={styles.inviteUrlBox}>
+                    <span style={{ fontSize: 12, color: '#5C453A' }}>
+                      Invite URL:{' '}
+                      <code style={{ background: '#EFE6D8', padding: '2px 6px', borderRadius: 4 }}>
+                        {`/portal/accept-invite?token=${portalUser.invite_token}`}
+                      </code>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(`${window.location.origin}/portal/accept-invite?token=${portalUser.invite_token}`);
+                        setCopiedLink(true);
+                        setTimeout(() => setCopiedLink(false), 2000);
+                      }}
+                      style={styles.copyBtn}
+                    >
+                      <Copy size={11} style={{ marginRight: 4 }} />
+                      {copiedLink ? 'Copied!' : 'Copy Link'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div style={styles.portalSetupBox}>
+                <label style={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    checked={enablePortal}
+                    onChange={e => {
+                      setEnablePortal(e.target.checked);
+                      if (e.target.checked && !portalLoginId && formData.email) {
+                        const autoLogin = formData.email.split('@')[0].replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 12);
+                        setPortalLoginId(autoLogin.padEnd(6, '0'));
+                      }
+                    }}
+                    style={{ marginRight: 8, accentColor: '#77574A' }}
+                  />
+                  <span>Create / Enable Customer & Vendor Portal Access for this Contact</span>
+                </label>
+
+                {enablePortal && (
+                  <div style={styles.portalInputsGrid}>
+                    <div style={styles.portalInputRow}>
+                      <label style={styles.portalInputLabel}>Login ID (6-12 chars):</label>
+                      <input
+                        type="text"
+                        value={portalLoginId}
+                        onChange={e => setPortalLoginId(e.target.value)}
+                        placeholder="e.g. rahul01"
+                        maxLength={12}
+                        style={styles.centerLineInput}
+                      />
+                    </div>
+                    <div style={styles.portalInputRow}>
+                      <label style={styles.portalInputLabel}>Set Password (Optional, ≥ 8 chars):</label>
+                      <input
+                        type="password"
+                        value={portalPassword}
+                        onChange={e => setPortalPassword(e.target.value)}
+                        placeholder="Leave blank to generate an invitation link"
+                        style={styles.centerLineInput}
+                      />
+                    </div>
+
+                    {!isNew && contactId && (
+                      <div style={{ marginTop: 10 }}>
+                        <button
+                          type="button"
+                          onClick={() => handleCreatePortalUser(contactId)}
+                          disabled={portalLoading}
+                          style={styles.createPortalBtn}
+                        >
+                          <Key size={13} style={{ marginRight: 6 }} />
+                          {portalLoading ? 'Creating Portal User...' : 'Create Portal User Now'}
+                        </button>
+                      </div>
+                    )}
+                    {isNew && (
+                      <div style={{ marginTop: 6, fontSize: 12, color: '#77574A', fontStyle: 'italic' }}>
+                        Portal user credentials will be created and linked automatically when clicking Confirm.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Existing Contact Smart Actions & Details */}
@@ -865,6 +1085,139 @@ const styles = {
     fontWeight: 600,
     cursor: 'pointer',
     transition: 'all 120ms ease',
+  } as React.CSSProperties,
+
+  portalSection: {
+    marginTop: 28,
+    padding: '18px 20px',
+    background: 'rgba(235, 215, 190, 0.25)',
+    borderRadius: 14,
+    border: '1px solid #D2B79F',
+  } as React.CSSProperties,
+
+  portalHeaderRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  } as React.CSSProperties,
+
+  portalSectionTitle: {
+    fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
+    fontWeight: 700,
+    fontSize: 14.5,
+    color: '#382A24',
+  } as React.CSSProperties,
+
+  portalActiveBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    fontSize: 11.5,
+    fontWeight: 700,
+    color: '#16A34A',
+    background: 'rgba(22, 163, 74, 0.1)',
+    padding: '3px 10px',
+    borderRadius: 20,
+    border: '1px solid rgba(22, 163, 74, 0.25)',
+  } as React.CSSProperties,
+
+  portalInfoBox: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 8,
+    fontSize: 13,
+  } as React.CSSProperties,
+
+  portalFieldRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+  } as React.CSSProperties,
+
+  portalFieldLabel: {
+    width: 120,
+    color: '#77574A',
+    fontWeight: 600,
+  } as React.CSSProperties,
+
+  portalFieldValue: {
+    color: '#382A24',
+    fontFamily: 'var(--font-mono, monospace)',
+    fontWeight: 500,
+  } as React.CSSProperties,
+
+  inviteUrlBox: {
+    marginTop: 8,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    background: '#FFFFFF',
+    padding: '8px 12px',
+    borderRadius: 8,
+    border: '1px solid #E4D5C7',
+  } as React.CSSProperties,
+
+  copyBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '4px 10px',
+    borderRadius: 6,
+    background: '#77574A',
+    color: '#FFFFFF',
+    border: 'none',
+    fontSize: 11,
+    fontWeight: 600,
+    cursor: 'pointer',
+  } as React.CSSProperties,
+
+  portalSetupBox: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 12,
+  } as React.CSSProperties,
+
+  checkboxLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    fontSize: 13.5,
+    fontWeight: 600,
+    color: '#382A24',
+    cursor: 'pointer',
+  } as React.CSSProperties,
+
+  portalInputsGrid: {
+    display: 'flex',
+    flexDirection: 'column' as const,
+    gap: 10,
+    paddingLeft: 24,
+  } as React.CSSProperties,
+
+  portalInputRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+  } as React.CSSProperties,
+
+  portalInputLabel: {
+    width: 220,
+    fontSize: 12.5,
+    color: '#77574A',
+    fontWeight: 500,
+  } as React.CSSProperties,
+
+  createPortalBtn: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '6px 14px',
+    borderRadius: 8,
+    background: '#77574A',
+    color: '#FFFFFF',
+    border: 'none',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+    transition: 'background 120ms ease',
   } as React.CSSProperties,
 };
 
