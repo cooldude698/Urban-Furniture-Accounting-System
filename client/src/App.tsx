@@ -57,9 +57,13 @@ import BalanceSheetPage from './pages/reports/BalanceSheetPage';
 import ProfitLossPage from './pages/reports/ProfitLossPage';
 import BudgetReportPage from './pages/reports/BudgetReportPage';
 import VerifyPage from './pages/reports/VerifyPage';
+import IntegrityPage from './pages/IntegrityPage';
 
 // Customer Portal
 import PortalApp from './pages/portal/PortalApp';
+
+// Live Monitor (full-screen, no shell)
+import MonitorPage from './pages/MonitorPage';
 
 export function App() {
   return (
@@ -72,6 +76,9 @@ export function App() {
 
       {/* ── Customer Portal (Restricted Surface — no shell) ── */}
       <Route path="/portal/*" element={<PortalApp />} />
+
+      {/* ── Live Ledger Monitor (full-screen dark board — no shell) ── */}
+      <Route path="/monitor" element={<MonitorPage />} />
 
       {/* ── Kitchen sink (no shell — full-page design system preview) ── */}
       <Route path="/kitchen-sink" element={<KitchenSink />} />
@@ -151,6 +158,9 @@ export function App() {
 
         {/* ── System Ledger Audit (/verify) ── */}
         <Route path="verify" element={<VerifyPage />} />
+
+        {/* ── System Integrity Report (/integrity) ── */}
+        <Route path="integrity" element={<IntegrityPage />} />
       </Route>
 
       {/* ── Fallback ── */}
