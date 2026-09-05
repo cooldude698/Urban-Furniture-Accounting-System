@@ -30,6 +30,8 @@ interface DraftLineItem {
   lineTotal: string;
   isPriceAssumed?: boolean;
   isQtyAssumed?: boolean;
+  qtySource?: 'model' | 'deterministic';
+  priceSource?: 'model' | 'deterministic';
 }
 
 interface VoiceBillSession {
@@ -52,6 +54,14 @@ interface VoiceBillSession {
   isPriceAssumed?: boolean;
   isQtyAssumed?: boolean;
   confidenceNotes?: { en: string[]; hi: string[] };
+  slotSources?: {
+    customerName?: 'model' | 'deterministic';
+    phone?: 'model' | 'deterministic';
+    productName?: 'model' | 'deterministic';
+    qty?: 'model' | 'deterministic';
+    unitPrice?: 'model' | 'deterministic';
+    discountPercent?: 'model' | 'deterministic';
+  };
 }
 
 interface ChatMessage {
@@ -445,7 +455,7 @@ export const VoiceBillPage: React.FC = () => {
                     <span className="text-brown-900 font-bold text-sm">
                       {session.customerName || '—'}
                     </span>
-                    {session.isNameInferred && (
+                    {(session.isNameInferred || session.slotSources?.customerName === 'deterministic') && (
                       <button
                         type="button"
                         onClick={() => {
@@ -485,41 +495,46 @@ export const VoiceBillPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-brown-200">
-                    {session.lineItems.map((item, idx) => (
-                      <tr key={item.id || idx} className="hover:bg-cream/40">
-                        <td className="py-2.5 px-3 font-medium text-brown-900">
-                          {item.matchedName || item.productName}
-                        </td>
-                        <td className="py-2.5 px-3 text-right font-mono">
-                          <div>{item.qty}</div>
-                          {(item.isQtyAssumed || session.isQtyAssumed) && (
-                            <span
-                              className="inline-block text-[10px] text-amber-800 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 font-sans font-medium"
-                              title="Quantity assumed from input"
-                            >
-                              (assumed — please confirm)
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-3 text-right font-mono">
-                          <div>₹{item.unitPrice.toFixed(2)}</div>
-                          {(item.isPriceAssumed || session.isPriceAssumed) && (
-                            <span
-                              className="inline-block text-[10px] text-amber-800 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 font-sans font-medium"
-                              title="Price assumed from input"
-                            >
-                              (assumed — please confirm)
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-2.5 px-3 text-right font-mono">
-                          {item.discountPercent > 0 ? `${item.discountPercent}%` : '0%'}
-                        </td>
-                        <td className="py-2.5 px-3 text-right font-mono font-bold text-brown-900">
-                          ₹{item.lineTotal}
-                        </td>
-                      </tr>
-                    ))}
+                    {session.lineItems.map((item, idx) => {
+                      const isQtyFallback = item.isQtyAssumed || session.isQtyAssumed || item.qtySource === 'deterministic';
+                      const isPriceFallback = item.isPriceAssumed || session.isPriceAssumed || item.priceSource === 'deterministic';
+
+                      return (
+                        <tr key={item.id || idx} className="hover:bg-cream/40">
+                          <td className="py-2.5 px-3 font-medium text-brown-900">
+                            {item.matchedName || item.productName}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono">
+                            <div>{item.qty}</div>
+                            {isQtyFallback && (
+                              <span
+                                className="inline-block text-[10px] text-amber-800 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 font-sans font-medium"
+                                title="Quantity assumed / fallback — please confirm"
+                              >
+                                (assumed — please confirm)
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono">
+                            <div>₹{item.unitPrice.toFixed(2)}</div>
+                            {isPriceFallback && (
+                              <span
+                                className="inline-block text-[10px] text-amber-800 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 font-sans font-medium"
+                                title="Price assumed / fallback — please confirm"
+                              >
+                                (assumed — please confirm)
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono">
+                            {item.discountPercent > 0 ? `${item.discountPercent}%` : '0%'}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold text-brown-900">
+                            ₹{item.lineTotal}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
