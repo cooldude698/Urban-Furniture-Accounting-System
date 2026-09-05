@@ -13,6 +13,8 @@ export interface ProductInput {
   mrp?: string;
   tax_rate: string;
   stock_qty?: string;
+  lead_time_days?: number;
+  safety_stock?: string;
   model_url?: string;
   image_url?: string;
 }
@@ -28,6 +30,8 @@ export interface ProductDTO {
   mrp: string | null;
   tax_rate: string;
   stock_qty: string;
+  lead_time_days: number;
+  safety_stock: string;
   model_url: string | null;
   image_url: string | null;
   is_archived: boolean;
@@ -106,8 +110,8 @@ export class ProductService {
     return withTransaction(async (tx) => {
       const res = await tx.query(
         `INSERT INTO products
-          (sku, name, type, category, sales_price, cost_price, mrp, tax_rate, stock_qty, model_url, image_url)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          (sku, name, type, category, sales_price, cost_price, mrp, tax_rate, stock_qty, lead_time_days, safety_stock, model_url, image_url)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
          RETURNING *`,
         [
           sku,
@@ -119,6 +123,8 @@ export class ProductService {
           input.mrp || null,
           input.tax_rate,
           input.stock_qty || '0',
+          input.lead_time_days !== undefined ? input.lead_time_days : 14,
+          input.safety_stock !== undefined ? input.safety_stock : '0',
           input.model_url || null,
           input.image_url || null,
         ]
@@ -170,6 +176,14 @@ export class ProductService {
     if (input.stock_qty !== undefined) {
       values.push(input.stock_qty);
       fields.push(`stock_qty = $${values.length}`);
+    }
+    if (input.lead_time_days !== undefined) {
+      values.push(input.lead_time_days);
+      fields.push(`lead_time_days = $${values.length}`);
+    }
+    if (input.safety_stock !== undefined) {
+      values.push(input.safety_stock);
+      fields.push(`safety_stock = $${values.length}`);
     }
     if (input.model_url !== undefined) {
       values.push(input.model_url || null);
@@ -391,6 +405,8 @@ export class ProductService {
       mrp: row.mrp !== null ? String(row.mrp) : null,
       tax_rate: String(row.tax_rate),
       stock_qty: String(row.stock_qty),
+      lead_time_days: row.lead_time_days !== null && row.lead_time_days !== undefined ? Number(row.lead_time_days) : 14,
+      safety_stock: row.safety_stock !== null && row.safety_stock !== undefined ? String(row.safety_stock) : '0',
       model_url: row.model_url || null,
       image_url: row.image_url || null,
       is_archived: row.is_archived,

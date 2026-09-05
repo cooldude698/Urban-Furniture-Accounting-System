@@ -45,6 +45,8 @@ CREATE TABLE products (
   stock_qty     DECIMAL(12,2) NOT NULL DEFAULT 0, -- cache only; v_stock_on_hand is the truth
   model_url     TEXT,
   image_url     TEXT,
+  lead_time_days INT NOT NULL DEFAULT 14,
+  safety_stock  DECIMAL(14,3) NOT NULL DEFAULT 0,
   is_archived   BOOLEAN NOT NULL DEFAULT false,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()

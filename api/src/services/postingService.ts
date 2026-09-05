@@ -491,10 +491,10 @@ export class PostingService {
 
     await AuditService.log(
       {
-        tableName: 'payments',
-        recordId: payment.id,
-        action: 'pay',
-        afterData: { journalEntryId: entryId },
+        tableName: 'journal_entries',
+        recordId: entryId,
+        action: 'post',
+        afterData: { paymentId: payment.id, status: 'posted' },
       },
       tx
     );

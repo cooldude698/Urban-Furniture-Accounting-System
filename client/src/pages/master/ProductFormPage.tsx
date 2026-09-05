@@ -24,6 +24,8 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
   const [category, setCategory] = useState('');
   const [salesPrice, setSalesPrice] = useState('100.00');
   const [costPrice, setCostPrice] = useState('50.00');
+  const [leadTimeDays, setLeadTimeDays] = useState('14');
+  const [safetyStock, setSafetyStock] = useState('2');
   const [imageUrl, setImageUrl] = useState('');
   const [modelUrl, setModelUrl] = useState('');
   const [sku, setSku] = useState('');
@@ -126,6 +128,8 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
           setSku(p.sku || '');
           setSalesPrice(p.sales_price || '0.00');
           setCostPrice(p.cost_price || '0.00');
+          setLeadTimeDays(p.lead_time_days !== undefined ? String(p.lead_time_days) : '14');
+          setSafetyStock(p.safety_stock !== undefined ? String(p.safety_stock) : '2');
           setImageUrl(p.image_url || '');
           setModelUrl(p.model_url || '');
         })
@@ -139,6 +143,8 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
       setSku('');
       setSalesPrice('100.00');
       setCostPrice('50.00');
+      setLeadTimeDays('14');
+      setSafetyStock('2');
       setImageUrl('');
       setModelUrl('');
       setImagePreview(null);
@@ -199,6 +205,8 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
         sku: finalSku,
         tax_rate: '18.00',
         min_stock_threshold: 5,
+        lead_time_days: parseInt(leadTimeDays || '14', 10) || 14,
+        safety_stock: safetyStock.trim() || '0',
         image_url: imageUrl.trim() || null,
         model_url: modelUrl.trim() || null,
         is_archived: false,
@@ -504,6 +512,53 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
                       onChange={e => setCostPrice(e.target.value)}
                       placeholder="50.00"
                       style={styles.priceUnderlineInput}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Inventory & Procurement Section */}
+            <div style={{ marginTop: 28, paddingTop: 20, borderTop: '1px solid rgba(208, 174, 146, 0.35)' }}>
+              <h3
+                style={{
+                  fontFamily: '"Montserrat", var(--font-display), sans-serif',
+                  fontSize: 15,
+                  fontWeight: 700,
+                  color: '#4A3A34',
+                  margin: '0 0 16px 0',
+                }}
+              >
+                Inventory &amp; Procurement
+              </h3>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
+                <div style={styles.fieldRow}>
+                  <label style={styles.fieldLabel}>Lead Time (Days)</label>
+                  <div style={styles.inputUnderlineWrapper}>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={leadTimeDays}
+                      onChange={e => setLeadTimeDays(e.target.value)}
+                      placeholder="14"
+                      style={styles.underlineInput}
+                    />
+                  </div>
+                </div>
+
+                <div style={styles.fieldRow}>
+                  <label style={styles.fieldLabel}>Safety Stock (Units)</label>
+                  <div style={styles.inputUnderlineWrapper}>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={safetyStock}
+                      onChange={e => setSafetyStock(e.target.value)}
+                      placeholder="2"
+                      style={styles.underlineInput}
                     />
                   </div>
                 </div>

@@ -509,7 +509,7 @@ export default function AnalyticsPage() {
         <div>
           <h1 style={STYLES.title}>Business Analytics Engine</h1>
           <p style={STYLES.subtitle}>
-            Rule-based, deterministic retail ledger analytics &amp; margin intelligence
+            Rule-based, deterministic retail ledger analytics &amp; margin analysis
           </p>
         </div>
 
@@ -1294,7 +1294,7 @@ export default function AnalyticsPage() {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════════
-          TAB 3: CUSTOMERS & RECEIVABLES INTELLIGENCE
+          TAB 3: CUSTOMERS & RECEIVABLES PROFILES
           ═══════════════════════════════════════════════════════════════════ */}
       {activeTab === 'customers' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>

@@ -855,14 +855,14 @@ export async function getCustomerInvoices(customerId: number): Promise<CustomerI
  *   - suggested_qty = (units_per_day * lead_time_days * 2) - stock_qty
  */
 export async function getReorderSuggestions(): Promise<ReorderSuggestionRow[]> {
-  const LEAD_TIME_DAYS = 14;
-
   const res = await pool.query<{
     product_id: number;
     product_name: string;
     sku: string | null;
     category: string | null;
     cost_price: string;
+    lead_time_days: number;
+    safety_stock: string;
     stock_qty: string;
     units_sold: string;
     days_in_history: number;
@@ -902,6 +902,8 @@ export async function getReorderSuggestions(): Promise<ReorderSuggestionRow[]> {
       p.sku,
       p.category,
       p.cost_price::numeric(14,2)::text                                AS cost_price,
+      p.lead_time_days,
+      p.safety_stock::numeric(14,2)::text                              AS safety_stock,
       COALESCE(s.stock_qty, 0)::numeric(14,2)::text                    AS stock_qty,
       COALESCE(sh.units_sold, 0)::numeric(14,2)::text                  AS units_sold,
       COALESCE(sh.days_span, 30)                                       AS days_in_history,
@@ -922,15 +924,15 @@ export async function getReorderSuggestions(): Promise<ReorderSuggestionRow[]> {
     const daysSpan = Math.max(1, r.days_in_history || 30);
     const unitsPerDay = unitsSold.div(daysSpan);
 
-    // Stated rule: safety_stock = units_per_day * 7
-    const safetyStock = unitsPerDay.times(7);
+    const leadTimeDays = r.lead_time_days || 14;
+    const safetyStock = new Decimal(r.safety_stock || '0');
     // reorder_point = (units_per_day * lead_time_days) + safety_stock
-    const reorderPoint = unitsPerDay.times(LEAD_TIME_DAYS).plus(safetyStock);
+    const reorderPoint = unitsPerDay.times(leadTimeDays).plus(safetyStock);
 
     const isReorderNeeded = stockQty.lt(reorderPoint) && unitsSold.gt(0);
 
     // suggested_qty = (units_per_day * lead_time_days * 2) - stock_qty
-    let suggested = unitsPerDay.times(LEAD_TIME_DAYS * 2).minus(stockQty);
+    let suggested = unitsPerDay.times(leadTimeDays * 2).minus(stockQty);
     if (suggested.lt(1)) suggested = new Decimal(1);
 
     return {
@@ -942,7 +944,7 @@ export async function getReorderSuggestions(): Promise<ReorderSuggestionRow[]> {
       costPrice: r.cost_price,
       unitsSold: r.units_sold,
       unitsPerDay: unitsPerDay.toFixed(2),
-      leadTimeDays: LEAD_TIME_DAYS,
+      leadTimeDays: leadTimeDays,
       safetyStock: safetyStock.toFixed(2),
       reorderPoint: reorderPoint.toFixed(2),
       suggestedQty: suggested.ceil().toFixed(0),

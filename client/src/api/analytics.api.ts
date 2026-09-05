@@ -92,7 +92,7 @@ export interface InventoryAnalyticsResponse {
   periodMonths: number;
 }
 
-/* ── Phase 3 Types: Customer & Receivables Intelligence ────────────────── */
+/* ── Phase 3 Types: Customer & Receivables Analytics ───────────────────── */
 
 export interface CustomerAnalyticsRow {
   customerId: number;

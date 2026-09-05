@@ -24,7 +24,7 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [hoveredBtn, setHoveredBtn] = useState<string | null>(null);
 
-  // Inventory Intelligence & Velocity State
+  // Inventory Velocity & Analytics State
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [analytics, setAnalytics] = useState<InventoryAnalytics | null>(null);
   const [loadingAnalytics, setLoadingAnalytics] = useState(false);
@@ -138,7 +138,7 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
                 }}
               >
                 <TrendingUp size={14} />
-                <span>Stock Intelligence & Velocity</span>
+                <span>Stock Velocity & Analytics</span>
                 {showAnalytics ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
               </button>
             </div>
@@ -197,7 +197,7 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
             </div>
           </div>
 
-          {/* ── Inventory Intelligence & Analytics Panel ── */}
+          {/* ── Inventory Velocity & Analytics Panel ── */}
           {showAnalytics && (
             <div
               style={{
@@ -208,7 +208,7 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
             >
               {loadingAnalytics ? (
                 <div style={{ padding: '20px', textAlign: 'center', color: '#5C453A' }}>
-                  Loading real-time inventory intelligence...
+                  Loading real-time inventory analytics...
                 </div>
               ) : analytics ? (
                 <div>
