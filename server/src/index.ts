@@ -5,6 +5,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { contactRouter } from './routes/contact.routes.js';
 import { productRouter } from './routes/product.routes.js';
+import { accountRouter, journalRouter } from './routes/account.routes.js';
+import { analyticRouter } from './routes/analytic.routes.js';
 import { sendError } from './utils/response.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -33,6 +35,9 @@ app.use('/uploads', express.static(uploadsPath));
 // API Routes
 app.use('/api/contacts', contactRouter);
 app.use('/api/products', productRouter);
+app.use('/api/accounts', accountRouter);
+app.use('/api/journals', journalRouter);
+app.use('/api/analytic-accounts', analyticRouter);
 
 // Health check endpoint
 app.get('/api/health', (_req, res) => {

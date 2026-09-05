@@ -27,6 +27,31 @@ export interface DBState {
   doc_sequences: any[];
 }
 
+const defaultAccounts = [
+  { id: 1, code: '1001', name: 'Bank', type: 'bank', is_archived: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 2, code: '1002', name: 'Cash', type: 'cash', is_archived: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 3, code: '1003', name: 'Debtors', type: 'asset', is_archived: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 4, code: '2001', name: 'Creditors', type: 'liability', is_archived: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 5, code: '4001', name: 'Sales Income', type: 'income', is_archived: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 6, code: '5001', name: 'Purchase Expense', type: 'expense', is_archived: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 7, code: '5002', name: 'Other Expense', type: 'other_expense', is_archived: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 8, code: '3001', name: 'Capital', type: 'capital', is_archived: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+];
+
+const defaultJournals = [
+  { id: 1, name: 'Customer Invoices', type: 'sales', default_account_id: 5, is_archived: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 2, name: 'Vendor Bills', type: 'purchase', default_account_id: 6, is_archived: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 3, name: 'Bank Operations', type: 'bank', default_account_id: 1, is_archived: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 4, name: 'Cash Operations', type: 'cash', default_account_id: 2, is_archived: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+];
+
+const defaultAnalytics = [
+  { id: 1, name: 'Showroom Operations', type: 'expense', description: 'Storefront and showroom utilities & rent', is_archived: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 2, name: 'Online Sales Marketing', type: 'income', description: 'E-commerce and social campaigns', is_archived: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 3, name: 'Warehouse & Logistics', type: 'expense', description: 'Storage and freight handling', is_archived: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+  { id: 4, name: 'Custom Interior Projects', type: 'income', description: 'Bespoke corporate architecture fitouts', is_archived: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+];
+
 const defaultState: DBState = {
   contacts: [
     {
@@ -140,9 +165,9 @@ const defaultState: DBState = {
       updated_at: new Date().toISOString(),
     },
   ],
-  accounts: [],
-  journals: [],
-  analytic_accounts: [],
+  accounts: defaultAccounts,
+  journals: defaultJournals,
+  analytic_accounts: defaultAnalytics,
   purchase_orders: [],
   purchase_order_lines: [],
   vendor_bills: [],
@@ -163,7 +188,14 @@ class DatabaseEngine {
     if (fs.existsSync(dbFilePath)) {
       try {
         const raw = fs.readFileSync(dbFilePath, 'utf-8');
-        return { ...defaultState, ...JSON.parse(raw) };
+        const parsed = JSON.parse(raw);
+        return {
+          ...defaultState,
+          ...parsed,
+          accounts: parsed.accounts && parsed.accounts.length > 0 ? parsed.accounts : defaultAccounts,
+          journals: parsed.journals && parsed.journals.length > 0 ? parsed.journals : defaultJournals,
+          analytic_accounts: parsed.analytic_accounts && parsed.analytic_accounts.length > 0 ? parsed.analytic_accounts : defaultAnalytics,
+        };
       } catch {
         return defaultState;
       }
