@@ -142,13 +142,231 @@
       "updated_at": "2026-09-05T08:54:09.383Z"
     }
   ],
-  "accounts": [],
-  "journals": [],
-  "analytic_accounts": [],
-  "purchase_orders": [],
-  "purchase_order_lines": [],
-  "vendor_bills": [],
-  "vendor_bill_lines": [],
+  "accounts": [
+    {
+      "id": 1,
+      "code": "1001",
+      "name": "Bank",
+      "type": "bank",
+      "is_archived": false,
+      "created_at": "2026-09-05T09:06:08.643Z",
+      "updated_at": "2026-09-05T09:06:08.644Z"
+    },
+    {
+      "id": 2,
+      "code": "1002",
+      "name": "Cash",
+      "type": "cash",
+      "is_archived": false,
+      "created_at": "2026-09-05T09:06:08.644Z",
+      "updated_at": "2026-09-05T09:06:08.644Z"
+    },
+    {
+      "id": 3,
+      "code": "1003",
+      "name": "Debtors",
+      "type": "asset",
+      "is_archived": false,
+      "created_at": "2026-09-05T09:06:08.644Z",
+      "updated_at": "2026-09-05T09:06:08.644Z"
+    },
+    {
+      "id": 4,
+      "code": "2001",
+      "name": "Creditors",
+      "type": "liability",
+      "is_archived": false,
+      "created_at": "2026-09-05T09:06:08.644Z",
+      "updated_at": "2026-09-05T09:06:08.644Z"
+    },
+    {
+      "id": 5,
+      "code": "4001",
+      "name": "Sales Income",
+      "type": "income",
+      "is_archived": false,
+      "created_at": "2026-09-05T09:06:08.644Z",
+      "updated_at": "2026-09-05T09:06:08.644Z"
+    },
+    {
+      "id": 6,
+      "code": "5001",
+      "name": "Purchase Expense",
+      "type": "expense",
+      "is_archived": false,
+      "created_at": "2026-09-05T09:06:08.644Z",
+      "updated_at": "2026-09-05T09:06:08.644Z"
+    },
+    {
+      "id": 7,
+      "code": "5002",
+      "name": "Other Expense",
+      "type": "other_expense",
+      "is_archived": false,
+      "created_at": "2026-09-05T09:06:08.644Z",
+      "updated_at": "2026-09-05T09:06:08.644Z"
+    },
+    {
+      "id": 8,
+      "code": "3001",
+      "name": "Capital",
+      "type": "capital",
+      "is_archived": false,
+      "created_at": "2026-09-05T09:06:08.644Z",
+      "updated_at": "2026-09-05T09:06:08.644Z"
+    }
+  ],
+  "journals": [
+    {
+      "id": 1,
+      "name": "Customer Invoices",
+      "type": "sales",
+      "default_account_id": 5,
+      "is_archived": false,
+      "created_at": "2026-09-05T09:06:08.644Z",
+      "updated_at": "2026-09-05T09:06:08.644Z"
+    },
+    {
+      "id": 2,
+      "name": "Vendor Bills",
+      "type": "purchase",
+      "default_account_id": 6,
+      "is_archived": false,
+      "created_at": "2026-09-05T09:06:08.644Z",
+      "updated_at": "2026-09-05T09:06:08.644Z"
+    },
+    {
+      "id": 3,
+      "name": "Bank Operations",
+      "type": "bank",
+      "default_account_id": 1,
+      "is_archived": false,
+      "created_at": "2026-09-05T09:06:08.644Z",
+      "updated_at": "2026-09-05T09:06:08.644Z"
+    },
+    {
+      "id": 4,
+      "name": "Cash Operations",
+      "type": "cash",
+      "default_account_id": 2,
+      "is_archived": false,
+      "created_at": "2026-09-05T09:06:08.644Z",
+      "updated_at": "2026-09-05T09:06:08.644Z"
+    }
+  ],
+  "analytic_accounts": [
+    {
+      "id": 1,
+      "name": "Showroom Operations",
+      "type": "expense",
+      "description": "Storefront and showroom utilities & rent",
+      "is_archived": false,
+      "created_at": "2026-09-05T09:06:08.644Z",
+      "updated_at": "2026-09-05T09:06:08.644Z"
+    },
+    {
+      "id": 2,
+      "name": "Online Sales Marketing",
+      "type": "income",
+      "description": "E-commerce and social campaigns",
+      "is_archived": false,
+      "created_at": "2026-09-05T09:06:08.644Z",
+      "updated_at": "2026-09-05T09:06:08.644Z"
+    },
+    {
+      "id": 3,
+      "name": "Warehouse & Logistics",
+      "type": "expense",
+      "description": "Storage and freight handling",
+      "is_archived": false,
+      "created_at": "2026-09-05T09:06:08.644Z",
+      "updated_at": "2026-09-05T09:06:08.644Z"
+    },
+    {
+      "id": 4,
+      "name": "Custom Interior Projects",
+      "type": "income",
+      "description": "Bespoke corporate architecture fitouts",
+      "is_archived": false,
+      "created_at": "2026-09-05T09:06:08.644Z",
+      "updated_at": "2026-09-05T09:06:08.644Z"
+    }
+  ],
+  "purchase_orders": [
+    {
+      "id": 1,
+      "number": "P00001",
+      "vendor_id": 1,
+      "po_date": "2026-09-05",
+      "status": "confirmed",
+      "total_amount": "28000.00",
+      "lines": [],
+      "created_at": "2026-09-05T09:06:52.450Z",
+      "updated_at": "2026-09-05T09:06:52.463Z"
+    },
+    {
+      "id": 2,
+      "number": "P00002",
+      "vendor_id": 2,
+      "po_date": "2026-09-05",
+      "status": "confirmed",
+      "total_amount": "84000.00",
+      "lines": [],
+      "created_at": "2026-09-05T09:06:52.470Z",
+      "updated_at": "2026-09-05T09:06:52.480Z"
+    }
+  ],
+  "purchase_order_lines": [
+    {
+      "id": 1,
+      "po_id": 1,
+      "sr_no": 1,
+      "product_id": 1,
+      "analytic_account_id": 1,
+      "qty": 1,
+      "unit_price": "28000.00",
+      "total": "28000.00"
+    },
+    {
+      "id": 2,
+      "po_id": 2,
+      "sr_no": 1,
+      "product_id": 1,
+      "analytic_account_id": 1,
+      "qty": 3,
+      "unit_price": "28000.00",
+      "total": "84000.00"
+    }
+  ],
+  "vendor_bills": [
+    {
+      "id": 1,
+      "number": "Bill/2026/0001",
+      "bill_reference": "",
+      "po_id": 1,
+      "vendor_id": 1,
+      "bill_date": "2026-09-05",
+      "due_date": "2026-10-05",
+      "status": "draft",
+      "total_amount": "28000.00",
+      "created_at": "2026-09-05T09:06:52.487Z",
+      "updated_at": "2026-09-05T09:06:52.487Z"
+    }
+  ],
+  "vendor_bill_lines": [
+    {
+      "id": 1,
+      "bill_id": 1,
+      "sr_no": 1,
+      "product_id": 1,
+      "account_id": 6,
+      "analytic_account_id": 1,
+      "qty": 1,
+      "unit_price": "28000.00",
+      "tax_rate": "18.00",
+      "total": "28000.00"
+    }
+  ],
   "stock_moves": [],
   "audit_log": [
     {
@@ -175,7 +393,60 @@
       "action": "CREATE",
       "new_data": "{\"id\":5,\"sku\":\"COMB-OFFC-005\",\"name\":\"Executive Workstation Bundle\",\"type\":\"combo\",\"category\":\"Office\",\"sales_price\":\"48000.00\",\"cost_price\":\"31000.00\",\"mrp\":\"55000.00\",\"tax_rate\":\"18.00\",\"stock_qty\":0,\"is_archived\":false,\"created_at\":\"2026-09-05T08:54:09.383Z\",\"updated_at\":\"2026-09-05T08:54:09.383Z\"}",
       "timestamp": "2026-09-05T08:54:09.383Z"
+    },
+    {
+      "id": 4,
+      "table_name": "purchase_orders",
+      "record_id": 1,
+      "action": "CREATE_PO",
+      "new_data": "{\"po\":{\"id\":1,\"number\":\"P00001\",\"vendor_id\":1,\"po_date\":\"2026-09-05\",\"status\":\"draft\",\"total_amount\":\"28000.00\",\"lines\":[],\"created_at\":\"2026-09-05T09:06:52.450Z\",\"updated_at\":\"2026-09-05T09:06:52.450Z\"},\"lines\":[{\"sr_no\":1,\"product_id\":1,\"analytic_account_id\":1,\"qty\":1,\"unit_price\":\"28000.00\",\"total\":\"28000.00\"}]}",
+      "timestamp": "2026-09-05T09:06:52.450Z"
+    },
+    {
+      "id": 5,
+      "table_name": "purchase_orders",
+      "record_id": 1,
+      "action": "CONFIRM_PO",
+      "new_data": "{\"status\":\"confirmed\",\"hasBudgetWarning\":false}",
+      "timestamp": "2026-09-05T09:06:52.463Z"
+    },
+    {
+      "id": 6,
+      "table_name": "purchase_orders",
+      "record_id": 2,
+      "action": "CREATE_PO",
+      "new_data": "{\"po\":{\"id\":2,\"number\":\"P00002\",\"vendor_id\":2,\"po_date\":\"2026-09-05\",\"status\":\"draft\",\"total_amount\":\"84000.00\",\"lines\":[],\"created_at\":\"2026-09-05T09:06:52.470Z\",\"updated_at\":\"2026-09-05T09:06:52.470Z\"},\"lines\":[{\"sr_no\":1,\"product_id\":1,\"analytic_account_id\":1,\"qty\":3,\"unit_price\":\"28000.00\",\"total\":\"84000.00\"}]}",
+      "timestamp": "2026-09-05T09:06:52.470Z"
+    },
+    {
+      "id": 7,
+      "table_name": "purchase_orders",
+      "record_id": 2,
+      "action": "CONFIRM_PO",
+      "new_data": "{\"status\":\"confirmed\",\"hasBudgetWarning\":true}",
+      "timestamp": "2026-09-05T09:06:52.480Z"
+    },
+    {
+      "id": 8,
+      "table_name": "vendor_bills",
+      "record_id": 1,
+      "action": "CREATE_BILL_FROM_PO",
+      "new_data": "{\"bill\":{\"id\":1,\"number\":\"Bill/2026/0001\",\"bill_reference\":\"\",\"po_id\":1,\"vendor_id\":1,\"bill_date\":\"2026-09-05\",\"due_date\":\"2026-10-05\",\"status\":\"draft\",\"total_amount\":\"28000.00\",\"created_at\":\"2026-09-05T09:06:52.487Z\",\"updated_at\":\"2026-09-05T09:06:52.487Z\"},\"po_id\":1}",
+      "timestamp": "2026-09-05T09:06:52.487Z"
     }
   ],
-  "doc_sequences": []
+  "doc_sequences": [
+    {
+      "code": "PO",
+      "prefix": "P",
+      "current_value": 2,
+      "padding": 5
+    },
+    {
+      "code": "BILL",
+      "prefix": "Bill/2026/",
+      "current_value": 1,
+      "padding": 4
+    }
+  ]
 }

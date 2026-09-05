@@ -9,7 +9,9 @@ import { JournalListPage } from './pages/master/JournalListPage';
 import { JournalFormPage } from './pages/master/JournalFormPage';
 import { AnalyticListPage } from './pages/master/AnalyticListPage';
 import { AnalyticFormPage } from './pages/master/AnalyticFormPage';
-import { Users, Package, Landmark, BookOpen, PieChart } from 'lucide-react';
+import { POListPage } from './pages/purchase/POListPage';
+import { POFormPage } from './pages/purchase/POFormPage';
+import { Users, Package, Landmark, BookOpen, PieChart, ShoppingBag, ShoppingCart } from 'lucide-react';
 
 type NavigationTab = 'Sales' | 'Purchase' | 'Account' | 'Report';
 type ActiveView =
@@ -22,16 +24,19 @@ type ActiveView =
   | 'journal-list'
   | 'journal-form'
   | 'analytic-list'
-  | 'analytic-form';
+  | 'analytic-form'
+  | 'po-list'
+  | 'po-form';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<NavigationTab>('Account');
-  const [activeView, setActiveView] = useState<ActiveView>('account-list');
+  const [activeTab, setActiveTab] = useState<NavigationTab>('Purchase');
+  const [activeView, setActiveView] = useState<ActiveView>('po-list');
   const [selectedContactId, setSelectedContactId] = useState<number | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
   const [selectedJournalId, setSelectedJournalId] = useState<number | null>(null);
   const [selectedAnalyticId, setSelectedAnalyticId] = useState<number | null>(null);
+  const [selectedPOId, setSelectedPOId] = useState<number | null>(null);
 
   const navTabs: NavigationTab[] = ['Sales', 'Purchase', 'Account', 'Report'];
 
@@ -64,6 +69,7 @@ export function App() {
                   key={tab}
                   onClick={() => {
                     setActiveTab(tab);
+                    if (tab === 'Purchase') setActiveView('po-list');
                     if (tab === 'Account') setActiveView('account-list');
                   }}
                   className={`px-4 py-2 font-medium text-sm rounded-lg transition-all relative ${
@@ -85,6 +91,25 @@ export function App() {
             </span>
           </div>
         </div>
+
+        {/* Submenu for Purchase tab */}
+        {activeTab === 'Purchase' && (
+          <div className="bg-brown-50/70 border-t border-brown-200/60 px-6 py-2">
+            <div className="max-w-7xl mx-auto flex items-center gap-2 overflow-x-auto text-xs">
+              <button
+                onClick={() => setActiveView('po-list')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors ${
+                  activeView === 'po-list' || activeView === 'po-form'
+                    ? 'bg-brown-700 text-cream shadow-xs'
+                    : 'text-brown-700 hover:bg-brown-200/60'
+                }`}
+              >
+                <ShoppingCart className="w-3.5 h-3.5" />
+                Purchase Orders
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Submenu for Account tab */}
         {activeTab === 'Account' && (
@@ -156,7 +181,35 @@ export function App() {
 
       {/* Main View Area */}
       <main className="flex-1 flex flex-col">
-        {activeTab === 'Account' ? (
+        {activeTab === 'Purchase' && (
+          <>
+            {activeView === 'po-list' && (
+              <POListPage
+                onSelectPO={id => {
+                  setSelectedPOId(id);
+                  setActiveView('po-form');
+                }}
+                onNewPO={() => {
+                  setSelectedPOId(null);
+                  setActiveView('po-form');
+                }}
+              />
+            )}
+            {activeView === 'po-form' && (
+              <POFormPage
+                poId={selectedPOId}
+                onBack={() => setActiveView('po-list')}
+                onSaved={id => {
+                  setSelectedPOId(id);
+                  setActiveView('po-list');
+                }}
+                onHome={() => setActiveView('po-list')}
+              />
+            )}
+          </>
+        )}
+
+        {activeTab === 'Account' && (
           <>
             {/* Contacts */}
             {activeView === 'contact-list' && (
@@ -283,7 +336,9 @@ export function App() {
               />
             )}
           </>
-        ) : (
+        )}
+
+        {(activeTab === 'Sales' || activeTab === 'Report') && (
           <div className="flex-1 flex items-center justify-center p-12 text-center">
             <div className="max-w-md bg-surface p-8 rounded-2xl border border-brown-200 shadow-sm">
               <div className="w-12 h-12 rounded-full bg-brown-100 text-brown-700 flex items-center justify-center mx-auto mb-4 font-bold text-lg">
@@ -291,16 +346,16 @@ export function App() {
               </div>
               <h2 className="text-xl font-heading font-bold text-brown-900 mb-2">{activeTab} Module</h2>
               <p className="text-sm text-brown-500 mb-6">
-                Master Data (Contacts, Products, Chart of Accounts, Journals, and Analytics) is fully operational in the Account menu.
+                Purchase Orders and Master Data are fully operational in the Purchase & Account menus.
               </p>
               <button
                 onClick={() => {
-                  setActiveTab('Account');
-                  setActiveView('account-list');
+                  setActiveTab('Purchase');
+                  setActiveView('po-list');
                 }}
                 className="bg-brown-700 text-cream px-4 py-2 rounded-lg text-sm font-medium hover:bg-brown-800"
               >
-                Go to Master Data
+                Go to Purchase Orders
               </button>
             </div>
           </div>
