@@ -127,7 +127,7 @@ export const RoomArrangerDrawer: React.FC<RoomArrangerDrawerProps> = ({
 
   const handleCheckoutDraft = () => {
     if (!currentUser) {
-      navigate('/portal/login');
+      navigate('/login?portal=customer');
       return;
     }
     setOrderCreatedMsg(

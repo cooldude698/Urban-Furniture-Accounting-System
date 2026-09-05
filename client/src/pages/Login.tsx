@@ -79,9 +79,13 @@ export default function Login() {
     try {
       const res = await api.post('/api/portal/login', {
         login_id: customerLoginId.trim(),
+        loginId: customerLoginId.trim(),
         password: customerPassword,
       });
       localStorage.setItem('urban_portal_user', JSON.stringify(res.data?.data?.user));
+      if (res.data?.data?.token) {
+        localStorage.setItem('urban_portal_token', res.data.data.token);
+      }
       navigate('/portal', { replace: true });
     } catch (err: any) {
       const msg = err?.response?.data?.error?.message || 'Invalid Login Id or Password';
@@ -400,8 +404,27 @@ export default function Login() {
               {/* Customer Footer Option */}
               <div style={styles.tokenActivationRow}>
                 <span style={styles.tokenNotice}>Have an invitation token?</span>
-                <Link to="/portal" style={styles.tokenLink}>
+                <Link to="/portal/accept-invite" style={styles.tokenLink}>
                   Activate Account with Token &rarr;
+                </Link>
+              </div>
+
+              <div style={{ marginTop: 14, textAlign: 'center' }}>
+                <Link
+                  to="/portal/catalogue"
+                  style={{
+                    fontSize: 12,
+                    fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
+                    fontWeight: 600,
+                    color: 'var(--brown-900, #4A3A34)',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 5,
+                  }}
+                >
+                  <span>Browse Furniture Catalogue (No login needed)</span>
+                  <span>→</span>
                 </Link>
               </div>
             </form>

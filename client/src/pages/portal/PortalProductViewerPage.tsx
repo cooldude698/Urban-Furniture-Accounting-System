@@ -611,7 +611,7 @@ export const PortalProductViewerPage: React.FC = () => {
                   Sign in to your customer account to view your past invoices and purchase history for this furniture item.
                 </p>
                 <button
-                  onClick={() => navigate('/portal/login')}
+                  onClick={() => navigate('/login?portal=customer')}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',

@@ -49,7 +49,7 @@ export const PortalInviteAccept: React.FC = () => {
 
       setSuccess('Password set successfully! Redirecting to login…');
       setTimeout(() => {
-        navigate('/portal/login', { replace: true });
+        navigate('/login?portal=customer', { replace: true });
       }, 1200);
     } catch (err: any) {
       setError(err?.response?.data?.error?.message || err.message || 'Invitation acceptance failed');
@@ -266,7 +266,7 @@ export const PortalInviteAccept: React.FC = () => {
           {/* Back to login */}
           <div style={{ marginTop: 22, textAlign: 'center' }}>
             <button
-              onClick={() => navigate('/portal/login')}
+              onClick={() => navigate('/login?portal=customer')}
               style={{
                 background: 'none',
                 border: 'none',

@@ -14,7 +14,7 @@ export const PortalLayout: React.FC = () => {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/portal/login', { replace: true });
+    navigate('/login?portal=customer', { replace: true });
   };
 
   return (
@@ -142,7 +142,7 @@ export const PortalLayout: React.FC = () => {
             </>
           ) : (
             <button
-              onClick={() => navigate('/portal/login')}
+              onClick={() => navigate('/login?portal=customer')}
               style={{
                 padding: '6px 14px',
                 fontSize: 12,

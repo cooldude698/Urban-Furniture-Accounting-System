@@ -31,7 +31,7 @@ export const PortalApp: React.FC = () => {
     <PortalAuthProvider>
       <Routes>
         {/* ── Public standalone auth routes ── */}
-        <Route path="login" element={<PortalLogin />} />
+        <Route path="login" element={<Navigate to="/login?portal=customer" replace />} />
         <Route path="accept-invite" element={<PortalInviteAccept />} />
 
         {/* ── All portal pages inside PortalLayout (Top Header + Nav Bar + Footer) ── */}

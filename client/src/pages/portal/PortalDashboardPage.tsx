@@ -1018,7 +1018,7 @@ export const PortalDashboardPage: React.FC = () => {
                 </p>
                 <button
                   type="button"
-                  onClick={() => navigate('/portal/login')}
+                  onClick={() => navigate('/login?portal=customer')}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',

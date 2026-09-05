@@ -84,7 +84,7 @@ export const PortalAuthGuard: React.FC = () => {
   }
 
   if (!user) {
-    return <Navigate to="/portal/login" replace />;
+    return <Navigate to="/login?portal=customer" replace />;
   }
 
   return <Outlet />;

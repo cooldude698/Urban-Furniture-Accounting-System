@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate, Navigate } from 'react-router-dom';
+import { NavLink, Link, Outlet, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import {
   LucideIcon,
   ChevronDown,
@@ -284,8 +284,8 @@ export default function AppShell() {
             )}
 
             {/* Portal switch link — subtle, top-right, visible to internal staff */}
-            <a
-              href="/portal/invoices"
+            <Link
+              to="/login?portal=customer"
               style={{
                 fontSize: 12,
                 fontWeight: 600,
@@ -312,7 +312,7 @@ export default function AppShell() {
             >
               <span>Customer Portal</span>
               <span style={{ fontSize: 11, opacity: 0.75 }}>→</span>
-            </a>
+            </Link>
 
             <button
               type="button"
