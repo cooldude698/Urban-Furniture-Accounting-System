@@ -416,17 +416,17 @@ export class VoiceBillParser {
     }
 
     // 2. Extract Phone Number
-    // Look for anchor OR raw 10-digit Indian phone number
+    // Look for anchor OR raw 10-13 digit Indian phone number (handles +91, 91, 0, or raw digits)
     const phoneAnchorMatch = normalizedText.match(
-      /(?:phone|number|mobile|contact|फ़ोन|फोन|नंबर|मोबाइल|mob)[\s:=]*(\+?91[\s-]?)?(\d{10})\b/i
+      /(?:phone|number|mobile|contact|फ़ोन|फोन|नंबर|मोबाइल|mob)[\s:=]*(\+?91[\s-]?)?(\d{10,13})\b/i
     );
     if (phoneAnchorMatch) {
-      slots.phone = phoneAnchorMatch[2];
+      slots.phone = phoneAnchorMatch[2].slice(-10);
     } else {
-      // Direct 10-digit mobile number pattern
-      const directPhoneMatch = normalizedText.match(/\b(\d{10})\b/);
+      // Direct 10-13 digit mobile number pattern
+      const directPhoneMatch = normalizedText.match(/(?:^|(?<=[\s,.:;]))(?:\+?91[\s-]?)?(\d{10,13})(?=[\s,.:;]|$)/);
       if (directPhoneMatch) {
-        slots.phone = directPhoneMatch[1];
+        slots.phone = directPhoneMatch[1].slice(-10);
       }
     }
 
@@ -441,6 +441,22 @@ export class VoiceBillParser {
       // Ensure it doesn't accidentally capture purely numbers or keywords
       if (extracted.length >= 2 && !/^\d+$/.test(extracted)) {
         slots.customerName = extracted;
+      }
+    }
+
+    // Direct Indian Name Match (if no anchor was used, e.g. user said "rahul 5" or just "rahul")
+    if (!slots.customerName) {
+      const words = normalizedText.split(/[\s,.:;!?]+/).filter(w => w.length >= 2);
+      for (let i = 0; i < words.length; i++) {
+        if (isIndianName(words[i])) {
+          let detectedName = this.capitalizeWords(words[i]);
+          if (i + 1 < words.length && isIndianName(words[i + 1])) {
+            detectedName += ' ' + this.capitalizeWords(words[i + 1]);
+          }
+          slots.customerName = detectedName;
+          slots.isNameInferred = true;
+          break;
+        }
       }
     }
 
@@ -471,8 +487,8 @@ export class VoiceBillParser {
 
     if (priceMatch) {
       const p = parseFloat(priceMatch[1]);
-      // Avoid interpreting phone numbers as price
-      if (!isNaN(p) && p > 0 && String(p) !== slots.phone) {
+      // Avoid interpreting phone numbers or astronomical values as price (< 1 Crore)
+      if (!isNaN(p) && p > 0 && p < 10000000 && String(p) !== slots.phone && (!slots.phone || !String(p).includes(slots.phone))) {
         slots.unitPrice = p;
       }
     }
@@ -566,7 +582,11 @@ export class VoiceBillParser {
     ) {
       const inputWords = trimmedInput.toLowerCase().split(/[\s,.:;!?]+/).filter(w => w.length > 0);
       const isConversational = inputWords.some(w => CONVERSATIONAL_STOP_WORDS.has(w));
-      if (!isConversational) {
+      const hasIndianName = inputWords.some(w => isIndianName(w));
+      if (hasIndianName && !slots.customerName) {
+        slots.customerName = this.capitalizeWords(trimmedInput);
+        slots.isNameInferred = true;
+      } else if (!isConversational && !hasIndianName) {
         slots.productName = trimmedInput;
       }
     }
@@ -623,10 +643,10 @@ export class VoiceBillParser {
 
   /**
    * Elimination Pass: Deterministically classifies remaining unconsumed tokens in exact priority order:
-   * 1. Phone (10-digit regex)
-   * 2. Numbers (magnitude disambiguation: >= 100 -> unitPrice, < 100 -> quantity). Never infer discount.
-   * 3. Product (fuzzy matching against Product Master / catalog)
-   * 4. Customer Name (match against bundled static Indian first names list)
+   * 1. Phone (10-13 digit regex)
+   * 2. Numbers (magnitude disambiguation: >= 100 -> unitPrice, < 100 -> quantity). Strictly cap unitPrice < 10,000,000.
+   * 3. Customer Name (match against bundled static Indian first names list)
+   * 4. Product (fuzzy matching against Product Master / catalog)
    * 5. Leftovers (remain unclassified, triggering targeted slot follow-ups)
    */
   static runEliminationPass(normalizedText: string, slots: ParsedSlots, knownProductNames?: string[]): void {
@@ -634,6 +654,7 @@ export class VoiceBillParser {
 
     // Remove tokens already consumed in Pass 1 to prevent double-matching
     if (slots.phone) {
+      workingText = workingText.replace(/(?:^|(?<=[\s,.:;]))(?:\+?91[\s-]?)?\d{10,13}(?=[\s,.:;]|$)/g, ' ');
       workingText = workingText.replace(new RegExp(`(?:\\+?91[\\s-]?)?${slots.phone}`, 'g'), ' ');
     }
     if (slots.customerName) {
@@ -659,26 +680,36 @@ export class VoiceBillParser {
       .replace(/\b(for|to|at|with|and|ko|hai|he|ke|liye|chahiye|dalo|jodo|add|customer|client|name|naam|phone|mobile|number|qty|quantity|price|rate|discount|hello|hi|hey|namaste|namaskar|help|thanks|thank|you|shukriya|dhanyawad|what|which|sell|buy|product|products|item|items|furniture|sir|bro|there|something|anything)\b/gi, ' ')
       .replace(/(?:के\s*लिए|को|है|चाहिए|डालो|जोड़ो|ग्राहक|नाम|फ़ोन|फोन|मोबाइल|नंबर|मात्रा|कीमत|दाम|छूट|नमस्ते|नमस्कार|हेलो|हाय|धन्यवाद|शुक्रिया|मदद|सहायता|सामान|चीज़|बेचते|बताओ|दिखाओ)/g, ' ');
 
-    // --- STEP 1: Phone (10-digit regex) ---
+    // --- STEP 1: Phone (10-13 digit regex) ---
     if (!slots.phone) {
-      const phoneRegex = /(?:^|(?<=[\s,.:;]))(?:\+?91[\s-]?)?(\d{10})(?=[\s,.:;]|$)/;
+      const phoneRegex = /(?:^|(?<=[\s,.:;]))(?:\+?91[\s-]?)?(\d{10,13})(?=[\s,.:;]|$)/;
       const phoneMatch = workingText.match(phoneRegex);
       if (phoneMatch) {
-        slots.phone = phoneMatch[1];
+        slots.phone = phoneMatch[1].slice(-10);
         workingText = workingText.replace(phoneMatch[0], ' ');
       }
     }
 
     // --- STEP 2: Numbers (Magnitude Disambiguation: >= 100 -> price, < 100 -> quantity) ---
-    // Never infer discount without explicit anchor/%.
+    // Strictly cap price < 10,000,000 (1 Crore). Numbers with >= 10 digits or >= 10,000,000 are NEVER unit prices.
     if (!slots.unitPrice || !slots.quantity) {
       const numberMatches = Array.from(
         workingText.matchAll(/(?:^|(?<=[\s,.:;]))(\d+(?:\.\d+)?)(?=[\s,.:;]|$)/g)
       );
 
       for (const m of numberMatches) {
+        const rawDigits = m[1].replace(/\D/g, '');
         const val = parseFloat(m[1]);
         if (isNaN(val) || val <= 0) continue;
+
+        // If >= 10 digits or >= 10,000,000, treat as phone if needed, never as unit price
+        if (rawDigits.length >= 10 || val >= 10000000) {
+          if (!slots.phone && rawDigits.length >= 10) {
+            slots.phone = rawDigits.slice(-10);
+          }
+          workingText = workingText.replace(m[0], ' ');
+          continue;
+        }
 
         if (val >= 100 && !slots.unitPrice) {
           slots.unitPrice = val;
@@ -751,7 +782,7 @@ export class VoiceBillParser {
           const cleanTokens = workingText
             .trim()
             .split(/\s+/)
-            .filter(t => t.length > 0 && !/^\d+$/.test(t) && !CONVERSATIONAL_STOP_WORDS.has(t.toLowerCase()));
+            .filter(t => t.length > 0 && !/^\d+$/.test(t) && !CONVERSATIONAL_STOP_WORDS.has(t.toLowerCase()) && !isIndianName(t));
           let bestScore = 0;
           let bestProduct: string | null = null;
           let bestCandidateWords: string[] = [];

@@ -1,6 +1,7 @@
 import { pool } from '../db/pool';
 import { VoiceBillParser, ParsedSlots, SupportedLanguage, CONVERSATIONAL_STOP_WORDS } from './voiceBillParser';
 import { InvoiceService } from './invoiceService';
+import { isIndianName } from '../data/indianNames';
 import Decimal from 'decimal.js';
 
 export interface OllamaLineItem {
@@ -199,6 +200,12 @@ export class VoiceBillService {
     }
 
     let searchPhrase = productPhrase.trim();
+
+    // If searchPhrase is solely an Indian person name, it is not a catalog product
+    const nameWords = searchPhrase.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+    if (nameWords.length > 0 && nameWords.every(w => isIndianName(w))) {
+      return { matchedProduct: null, score: 0, candidates: [] };
+    }
 
     // Check Hindi product keyword mappings
     for (const [hiKey, enVal] of Object.entries(HINDI_PRODUCT_KEYWORD_MAP)) {
@@ -651,6 +658,39 @@ Output:`;
     session.updatedAt = new Date();
     session.lastUpdateNote = undefined;
 
+    // 0. Session Self-Healing & Cleanup:
+    // Remove any erroneously added line items where the product name is an Indian person name (e.g. "rahul")
+    // and correct any corrupted astronomical unit prices (>= 10,000,000)
+    let sessionNeedsRecalc = false;
+    session.lineItems = session.lineItems.filter(item => {
+      const pName = (item.productName || '').toLowerCase().trim();
+      const pWords = pName.split(/\s+/).filter(w => w.length > 0);
+      const isPerson = pWords.length > 0 && pWords.every(w => isIndianName(w));
+
+      if (isPerson) {
+        if (!session.customerName) {
+          session.customerName = VoiceBillParser.capitalizeWords(item.productName);
+        }
+        sessionNeedsRecalc = true;
+        return false; // Evict person name from line items!
+      }
+
+      if (item.unitPrice >= 10000000) {
+        const strPrice = String(item.unitPrice).replace(/\D/g, '');
+        if (!session.phone && strPrice.length >= 10) {
+          session.phone = strPrice.slice(-10);
+        }
+        item.unitPrice = 0;
+        sessionNeedsRecalc = true;
+      }
+      return true;
+    });
+
+    if (sessionNeedsRecalc) {
+      this.recalculateTotals(session);
+      VoiceBillService.updateSessionStatus(session);
+    }
+
     // Detect language of incoming message
     const lang = VoiceBillParser.detectLanguage(text);
     session.language = lang;
@@ -836,6 +876,19 @@ Output:`;
         }
       }
 
+      // Guard: Indian Person Name should never be a product name
+      if (parsed.productName) {
+        const prodWords = parsed.productName.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+        if (prodWords.length > 0 && prodWords.every(w => isIndianName(w))) {
+          if (!parsed.customerName) {
+            parsed.customerName = VoiceBillParser.capitalizeWords(parsed.productName);
+            slotSources.customerName = 'deterministic';
+          }
+          delete parsed.productName;
+          delete slotSources.productName;
+        }
+      }
+
       // 3. PHONE: Validate exactly 10 digits; if not, cross-check deterministic parser regex
       if (llmResult.phone) {
         const cleanDigits = llmResult.phone.replace(/\D/g, '');
@@ -895,6 +948,12 @@ Output:`;
         slotSources.unitPrice = 'llm';
       }
 
+      // Strictly cap unitPrice < 10,000,000
+      if (parsed.unitPrice && parsed.unitPrice >= 10000000) {
+        delete parsed.unitPrice;
+        delete slotSources.unitPrice;
+      }
+
       // 6. DISCOUNT: Cross-check against deterministic parser (money-critical field)
       const llmDiscount = llmItem?.discount_percent;
       if (detParsed.discountPercent !== undefined && llmDiscount !== null && llmDiscount !== undefined) {
@@ -918,12 +977,51 @@ Output:`;
       }
     } else {
       // 100% deterministic fallback
-      if (detParsed.customerName) slotSources.customerName = 'deterministic';
-      if (detParsed.phone) slotSources.phone = 'deterministic';
-      if (detParsed.productName) slotSources.productName = 'deterministic';
-      if (detParsed.quantity !== undefined) slotSources.qty = 'deterministic';
-      if (detParsed.unitPrice !== undefined) slotSources.unitPrice = 'deterministic';
-      if (detParsed.discountPercent !== undefined) slotSources.discountPercent = 'deterministic';
+      if (detParsed.customerName) {
+        parsed.customerName = detParsed.customerName;
+        slotSources.customerName = 'deterministic';
+      }
+      if (detParsed.phone) {
+        parsed.phone = detParsed.phone;
+        slotSources.phone = 'deterministic';
+      }
+      if (detParsed.productName) {
+        const prodWords = detParsed.productName.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+        if (prodWords.length > 0 && prodWords.every(w => isIndianName(w))) {
+          if (!parsed.customerName) {
+            parsed.customerName = VoiceBillParser.capitalizeWords(detParsed.productName);
+            slotSources.customerName = 'deterministic';
+          }
+        } else {
+          parsed.productName = detParsed.productName;
+          slotSources.productName = 'deterministic';
+        }
+      }
+      if (detParsed.quantity !== undefined) {
+        parsed.quantity = detParsed.quantity;
+        slotSources.qty = 'deterministic';
+      }
+      if (detParsed.unitPrice !== undefined && detParsed.unitPrice < 10000000) {
+        parsed.unitPrice = detParsed.unitPrice;
+        slotSources.unitPrice = 'deterministic';
+      }
+      if (detParsed.discountPercent !== undefined) {
+        parsed.discountPercent = detParsed.discountPercent;
+        slotSources.discountPercent = 'deterministic';
+      }
+    }
+
+    // Global phone safety check: If text contains a 10-13 digit number, ensure parsed.phone captures it
+    const cleanDigitsMatch = text.replace(/[\s\-+]/g, '').match(/\d{10,13}/);
+    if (cleanDigitsMatch) {
+      const extractedPhone = cleanDigitsMatch[0].slice(-10);
+      parsed.phone = extractedPhone;
+      slotSources.phone = slotSources.phone || 'deterministic';
+      // Ensure unitPrice is never assigned this phone number or an astronomical number
+      if (parsed.unitPrice && (String(parsed.unitPrice).includes(extractedPhone) || parsed.unitPrice >= 10000000)) {
+        delete parsed.unitPrice;
+        delete slotSources.unitPrice;
+      }
     }
 
     if (disagreementWarningsEn.length > 0 || disagreementWarningsHi.length > 0) {
@@ -1185,7 +1283,7 @@ Output:`;
           lastItem.qtyNeedsReview = parsed.qtyNeedsReview;
           lastItem.qtySource = slotSources.qty;
         }
-        if (parsed.unitPrice && !parsed.isUpdate) {
+        if (parsed.unitPrice && !parsed.isUpdate && parsed.unitPrice < 10000000 && String(parsed.unitPrice) !== session.phone && (!session.phone || !String(parsed.unitPrice).includes(session.phone))) {
           lastItem.unitPrice = parsed.unitPrice;
           lastItem.isPriceAssumed = parsed.isPriceAssumed;
           lastItem.priceNeedsReview = parsed.priceNeedsReview;
