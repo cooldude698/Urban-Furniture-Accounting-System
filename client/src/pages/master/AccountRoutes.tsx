@@ -45,6 +45,19 @@ export const ContactListRoute: React.FC = () => {
     <ContactListPage
       onSelectContact={id => navigate(`/account/contacts/${id}`)}
       onNewContact={() => navigate('/account/contacts/new')}
+      onBack={() => navigate('/account/coa')}
+    />
+  );
+};
+
+export const ContactKanbanRoute: React.FC = () => {
+  const navigate = useNavigate();
+  return (
+    <ContactListPage
+      initialViewMode="kanban"
+      onSelectContact={id => navigate(`/account/contacts/${id}`)}
+      onNewContact={() => navigate('/account/contacts/new')}
+      onBack={() => navigate('/account/coa')}
     />
   );
 };
@@ -137,6 +150,19 @@ export const AnalyticListRoute: React.FC = () => {
     <AnalyticListPage
       onSelectAnalytic={id => navigate(`/account/analytics/${id}`)}
       onNewAnalytic={() => navigate('/account/analytics/new')}
+      onBack={() => navigate('/account/coa')}
+    />
+  );
+};
+
+export const AnalyticKanbanRoute: React.FC = () => {
+  const navigate = useNavigate();
+  return (
+    <AnalyticListPage
+      initialViewMode="kanban"
+      onSelectAnalytic={id => navigate(`/account/analytics/${id}`)}
+      onNewAnalytic={() => navigate('/account/analytics/new')}
+      onBack={() => navigate('/account/coa')}
     />
   );
 };
