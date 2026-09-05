@@ -100,25 +100,29 @@ export default function BudgetReportPage() {
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: 12,
-          padding: '2px 0',
+          padding: '10px 16px',
+          background: 'var(--surface)',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid rgba(208, 174, 146, 0.4)',
+          boxShadow: '0 1px 3px rgba(74, 58, 52, 0.04)',
         }}
       >
         {/* Budget Selector */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div
             style={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
               gap: 8,
-              background: 'var(--surface)',
-              border: '1px solid var(--brown-300)',
-              padding: '4px 10px',
-              borderRadius: 'var(--radius-sm)',
+              background: 'rgba(235, 215, 190, 0.2)',
+              border: '1px solid rgba(208, 174, 146, 0.4)',
+              padding: '6px 12px',
+              borderRadius: 8,
               fontSize: 13,
             }}
           >
-            <FileBarChart size={13} style={{ color: 'var(--brown-700)' }} />
-            <label htmlFor="budgetSelector" style={{ fontWeight: 600, color: 'var(--brown-700)' }}>
+            <FileBarChart size={14} style={{ color: 'var(--brown-600)' }} />
+            <label htmlFor="budgetSelector" style={{ fontSize: 12, fontWeight: 600, color: 'var(--brown-700)' }}>
               Analytical Budget:
             </label>
             <select
@@ -134,6 +138,7 @@ export default function BudgetReportPage() {
                 color: 'var(--brown-900)',
                 outline: 'none',
                 cursor: 'pointer',
+                padding: 0,
               }}
             >
               {budgets.length > 0 ? (
@@ -150,7 +155,7 @@ export default function BudgetReportPage() {
         </div>
 
         {/* Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             type="button"
             onClick={() => {
@@ -160,19 +165,22 @@ export default function BudgetReportPage() {
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 5,
-              padding: '5px 10px',
+              gap: 6,
+              padding: '6px 12px',
               fontSize: 12,
               fontWeight: 600,
               color: 'var(--brown-700)',
-              background: 'var(--surface)',
-              border: '1px solid var(--brown-300)',
-              borderRadius: 'var(--radius-sm)',
+              background: 'transparent',
+              border: '1px solid rgba(208, 174, 146, 0.4)',
+              borderRadius: 8,
               cursor: 'pointer',
+              transition: 'all 120ms ease',
             }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(235, 215, 190, 0.25)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             title="Refresh report"
           >
-            <RefreshCw size={12} />
+            <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />
             <span>Refresh</span>
           </button>
 
@@ -183,16 +191,19 @@ export default function BudgetReportPage() {
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              padding: '6px 14px',
+              padding: '6px 16px',
               fontSize: 12,
               fontWeight: 600,
-              color: 'var(--cream)',
+              color: '#FFFFFF',
               background: 'var(--brown-900)',
-              border: 'none',
-              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--brown-900)',
+              borderRadius: 8,
               cursor: 'pointer',
-              boxShadow: 'var(--shadow-sm)',
+              boxShadow: '0 1px 2px rgba(74, 58, 52, 0.15)',
+              transition: 'all 120ms ease',
             }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--brown-800)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--brown-900)')}
           >
             <Printer size={13} />
             <span>Print Budget Report</span>

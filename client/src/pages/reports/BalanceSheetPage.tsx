@@ -66,25 +66,29 @@ export default function BalanceSheetPage() {
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: 12,
-          padding: '2px 0',
+          padding: '10px 16px',
+          background: 'var(--surface)',
+          borderRadius: 'var(--radius-md)',
+          border: '1px solid rgba(208, 174, 146, 0.4)',
+          boxShadow: '0 1px 3px rgba(74, 58, 52, 0.04)',
         }}
       >
-        {/* Single As-Of Date Filter & Presets */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        {/* Left: Connected Segmented Controls & Date Input */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <div
             style={{
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              gap: 6,
-              background: 'var(--surface)',
-              border: '1px solid var(--brown-300)',
-              padding: '4px 10px',
-              borderRadius: 'var(--radius-sm)',
+              gap: 8,
+              background: 'rgba(235, 215, 190, 0.2)',
+              border: '1px solid rgba(208, 174, 146, 0.4)',
+              padding: '6px 12px',
+              borderRadius: 8,
               fontSize: 13,
             }}
           >
-            <Calendar size={13} style={{ color: 'var(--brown-700)' }} />
-            <span style={{ fontWeight: 600, color: 'var(--brown-700)' }}>As of:</span>
+            <Calendar size={14} style={{ color: 'var(--brown-600)' }} />
+            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--brown-700)' }}>As of:</span>
             <input
               type="date"
               value={asOfDate}
@@ -94,86 +98,85 @@ export default function BalanceSheetPage() {
                 background: 'transparent',
                 fontSize: 12,
                 fontFamily: 'var(--font-mono)',
+                fontWeight: 600,
                 color: 'var(--brown-900)',
                 outline: 'none',
                 cursor: 'pointer',
+                padding: 0,
               }}
             />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <button
-              type="button"
-              onClick={() => setPreset('today')}
-              style={{
-                background: 'var(--surface)',
-                border: '1px solid var(--brown-300)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '4px 8px',
-                fontSize: 11,
-                fontWeight: 600,
-                color: 'var(--brown-700)',
-                cursor: 'pointer',
-              }}
-            >
-              Today
-            </button>
-            <button
-              type="button"
-              onClick={() => setPreset('month-end')}
-              style={{
-                background: 'var(--surface)',
-                border: '1px solid var(--brown-300)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '4px 8px',
-                fontSize: 11,
-                fontWeight: 600,
-                color: 'var(--brown-700)',
-                cursor: 'pointer',
-              }}
-            >
-              Month End
-            </button>
-            <button
-              type="button"
-              onClick={() => setPreset('fy26')}
-              style={{
-                background: 'var(--surface)',
-                border: '1px solid var(--brown-300)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '4px 8px',
-                fontSize: 11,
-                fontWeight: 600,
-                color: 'var(--brown-700)',
-                cursor: 'pointer',
-              }}
-            >
-              FY 2026 Close
-            </button>
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              background: 'rgba(235, 215, 190, 0.3)',
+              padding: 3,
+              borderRadius: 8,
+              border: '1px solid rgba(208, 174, 146, 0.3)',
+              gap: 2,
+            }}
+          >
+            {[
+              { id: 'today', label: 'Today', date: new Date().toISOString().split('T')[0] },
+              {
+                id: 'month-end',
+                label: 'Month End',
+                date: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0],
+              },
+              { id: 'fy26', label: 'FY 2026 Close', date: '2026-03-31' },
+            ].map((preset) => {
+              const isActive = asOfDate === preset.date;
+              return (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => setAsOfDate(preset.date)}
+                  style={{
+                    background: isActive ? 'var(--surface)' : 'transparent',
+                    border: 'none',
+                    borderRadius: 6,
+                    padding: '5px 12px',
+                    fontSize: 12,
+                    fontWeight: isActive ? 700 : 500,
+                    color: isActive ? 'var(--brown-900)' : 'var(--brown-700)',
+                    cursor: 'pointer',
+                    boxShadow: isActive ? '0 1px 2px rgba(74, 58, 52, 0.08)' : 'none',
+                    transition: 'all 120ms ease',
+                  }}
+                >
+                  {preset.label}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* Right: Refresh & Print actions */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button
             type="button"
             onClick={() => refetch()}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 5,
-              padding: '5px 10px',
+              gap: 6,
+              padding: '6px 12px',
               fontSize: 12,
               fontWeight: 600,
               color: 'var(--brown-700)',
-              background: 'var(--surface)',
-              border: '1px solid var(--brown-300)',
-              borderRadius: 'var(--radius-sm)',
+              background: 'transparent',
+              border: '1px solid rgba(208, 174, 146, 0.4)',
+              borderRadius: 8,
               cursor: 'pointer',
+              transition: 'all 120ms ease',
             }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(235, 215, 190, 0.25)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
             title="Refresh statement"
           >
-            <RefreshCw size={12} />
+            <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />
             <span>Refresh</span>
           </button>
 
@@ -184,16 +187,19 @@ export default function BalanceSheetPage() {
               display: 'inline-flex',
               alignItems: 'center',
               gap: 6,
-              padding: '6px 14px',
+              padding: '6px 16px',
               fontSize: 12,
               fontWeight: 600,
-              color: 'var(--cream)',
+              color: '#FFFFFF',
               background: 'var(--brown-900)',
-              border: 'none',
-              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--brown-900)',
+              borderRadius: 8,
               cursor: 'pointer',
-              boxShadow: 'var(--shadow-sm)',
+              boxShadow: '0 1px 2px rgba(74, 58, 52, 0.15)',
+              transition: 'all 120ms ease',
             }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--brown-800)')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--brown-900)')}
           >
             <Printer size={13} />
             <span>Print Balance Sheet</span>
