@@ -24,3 +24,24 @@ export function formatINR(value: string): string {
 export function toDecimal(value: string): Decimal {
   return new Decimal(value);
 }
+
+/**
+ * Abbreviated INR formatter for KPI summary cards.
+ * ≥ 1 Cr  → "₹X.XXCr"
+ * ≥ 1 L   → "₹X.XXL"
+ * < 1 L   → full formatINR
+ */
+export function formatINRCompact(value: string): string {
+  const d = new Decimal(value);
+  const neg = d.isNegative();
+  const abs = d.abs();
+  const prefix = neg ? '-' : '';
+
+  if (abs.gte(10_000_000)) {
+    return `${prefix}₹${abs.div(10_000_000).toFixed(2)}Cr`;
+  }
+  if (abs.gte(100_000)) {
+    return `${prefix}₹${abs.div(100_000).toFixed(2)}L`;
+  }
+  return formatINR(value);
+}
