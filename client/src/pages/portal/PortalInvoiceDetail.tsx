@@ -267,12 +267,15 @@ export const PortalInvoiceDetail: React.FC<PortalInvoiceDetailProps> = ({
               </button>
             </>
           )}
-          <button
-            onClick={() => window.print()}
-            className="px-3.5 py-2 bg-surface border border-brown-300 hover:bg-brown-100/50 text-brown-800 font-semibold text-xs rounded-[8px] transition-colors shadow-xs font-body cursor-pointer"
+          <a
+            href={`/api/portal/invoices/${invoice.id}/pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-3.5 py-2 bg-surface border border-brown-300 hover:bg-brown-100/50 text-brown-800 font-semibold text-xs rounded-[8px] transition-colors shadow-xs font-body cursor-pointer flex items-center gap-1.5"
           >
-            Print / PDF
-          </button>
+            <span>📄</span>
+            <span>Print / PDF</span>
+          </a>
         </div>
       </div>
 

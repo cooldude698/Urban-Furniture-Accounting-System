@@ -6,7 +6,7 @@ import { InvoiceLineGrid, InvoiceGridLine } from './components/InvoiceLineGrid';
 import { BlockingWarning } from './components/Warnings';
 import { PaymentHistoryPanel } from './components/PaymentHistoryPanel';
 import { CustomerInvoiceDTO } from '@shared/schemas/invoice';
-import { ShoppingCart, CreditCard, BookOpen, TrendingUp } from 'lucide-react';
+import { ShoppingCart, CreditCard, BookOpen, TrendingUp, Printer } from 'lucide-react';
 import { JournalEntryModal } from '../../components/purchase/JournalEntryModal';
 import { RegisterPaymentModal } from '../../components/purchase/RegisterPaymentModal';
 
@@ -223,15 +223,26 @@ export const CustomerInvoiceFormPage: React.FC<CustomerInvoiceFormPageProps> = (
             </button>
           )}
           {isConfirmed && (
-            <button
-              type="button"
-              disabled={Number(invoice?.amountDue ?? invoice?.total) <= 0}
-              onClick={() => setIsPaymentModalOpen(true)}
-              className="px-4 py-1.5 text-sm font-semibold bg-posted text-white rounded-[6px] hover:bg-emerald-800 transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <CreditCard className="w-4 h-4" />
-              {Number(invoice?.amountDue ?? invoice?.total) <= 0 ? 'Paid in Full' : 'Pay / Register Payment'}
-            </button>
+            <>
+              <button
+                type="button"
+                disabled={Number(invoice?.amountDue ?? invoice?.total) <= 0}
+                onClick={() => setIsPaymentModalOpen(true)}
+                className="px-4 py-1.5 text-sm font-semibold bg-posted text-white rounded-[6px] hover:bg-emerald-800 transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <CreditCard className="w-4 h-4" />
+                {Number(invoice?.amountDue ?? invoice?.total) <= 0 ? 'Paid in Full' : 'Pay / Register Payment'}
+              </button>
+              <a
+                href={`/api/invoices/${invoice?.id}/pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-1.5 text-sm font-medium bg-surface text-brown-800 border border-brown-300 rounded-[6px] hover:bg-brown-100 transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
+              >
+                <Printer className="w-4 h-4 text-brown-600" />
+                Print / PDF
+              </a>
+            </>
           )}
         </div>
 

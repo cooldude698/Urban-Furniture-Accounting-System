@@ -119,6 +119,50 @@ portalRouter.get('/invoices/:id', requireAuth, requirePortalContact, async (req:
   }
 });
 
+// 6b. GET /api/portal/invoices/:id/pdf - Scoped invoice PDF export (server-side Puppeteer with HTML fallback)
+portalRouter.get('/invoices/:id/pdf', requireAuth, requirePortalContact, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const invId = parseInt(String(req.params.id), 10);
+    if (isNaN(invId)) {
+      return sendError(res, 'INVALID_ID', 'Invoice ID must be a number', 400);
+    }
+
+    // Scoped check at data layer: throws / returns null if not contact's invoice
+    const scopedInvoice = await PortalService.getPortalInvoiceById(invId, req.user!);
+    if (!scopedInvoice) {
+      return sendError(res, 'NOT_FOUND', `Invoice #${invId} not found or unauthorized`, 404);
+    }
+
+    const { InvoiceService } = await import('../services/invoiceService');
+    const fullInvoice = await InvoiceService.getInvoiceById(invId);
+    if (!fullInvoice) {
+      return sendError(res, 'NOT_FOUND', `Invoice #${invId} not found`, 404);
+    }
+
+    const { PdfService } = await import('../services/pdfService');
+    if (req.query.format === 'html') {
+      const html = PdfService.generateInvoiceHtml(fullInvoice);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.send(html);
+    }
+
+    try {
+      const pdfBuffer = await PdfService.generateInvoicePdf(fullInvoice);
+      const filename = `Invoice-${fullInvoice.number.replace(/\//g, '_')}.pdf`;
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+      return res.send(pdfBuffer);
+    } catch (pdfErr: any) {
+      console.warn('Puppeteer launch fallback to printable HTML:', pdfErr.message);
+      const html = PdfService.generateInvoiceHtml(fullInvoice);
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.send(html);
+    }
+  } catch (err: any) {
+    return sendError(res, 'SERVER_ERROR', err.message, 500);
+  }
+});
+
 // 7. POST /api/portal/invoices/:id/payments & /pay - Record manual payment (Cash / Bank)
 portalRouter.post(['/invoices/:id/payments', '/invoices/:id/pay'], requireAuth, requirePortalContact, async (req: AuthenticatedRequest, res: Response) => {
   try {

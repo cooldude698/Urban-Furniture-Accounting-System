@@ -186,7 +186,9 @@ async function verifyPhase5() {
 
     // Step 8: Test PDF Export Endpoint
     console.log('--- Step 8: PDF / Print Export for Invoice ---');
-    const pdfRes = await fetch(`${baseUrl}/api/invoices/${inv1.id}/pdf`);
+    const pdfRes = await fetch(`${baseUrl}/api/invoices/${inv1.id}/pdf`, {
+      headers: { Cookie: cookie },
+    });
     console.log(`PDF HTTP Status: ${pdfRes.status}`);
     const contentType = pdfRes.headers.get('content-type');
     console.log(`PDF Content-Type: ${contentType}`);
