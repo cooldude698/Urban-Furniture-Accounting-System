@@ -9,6 +9,8 @@ import { ProductKanbanPage } from './ProductKanbanPage';
 import { ProductFormPage } from './ProductFormPage';
 import { JournalListPage } from './JournalListPage';
 import { JournalFormPage } from './JournalFormPage';
+import { JournalEntryListPage } from './JournalEntryListPage';
+import { JournalEntryFormPage } from './JournalEntryFormPage';
 import { AnalyticListPage } from './AnalyticListPage';
 import { AnalyticFormPage } from './AnalyticFormPage';
 
@@ -73,9 +75,6 @@ export const ContactFormRoute: React.FC = () => {
       onHome={() => navigate('/account/contacts')}
       onSaved={savedId => navigate(`/account/contacts/${savedId}`)}
       onNew={() => navigate('/account/contacts/new')}
-      onViewBills={() => navigate('/purchase/bills')}
-      onViewPOs={() => navigate('/purchase/orders')}
-      onViewStatement={cId => navigate(`/purchase/statements/${cId}`)}
     />
   );
 };
@@ -139,6 +138,28 @@ export const JournalFormRoute: React.FC = () => {
       onHome={() => navigate('/account/journals')}
       onSaved={savedId => navigate(`/account/journals/${savedId}`)}
       onNew={() => navigate('/account/journals/new')}
+    />
+  );
+};
+
+// ── Journal Entries ──
+export const JournalEntryListRoute: React.FC = () => {
+  const navigate = useNavigate();
+  return (
+    <JournalEntryListPage
+      onSelectEntry={id => navigate(`/account/journal-entries/${id}`)}
+      onNewEntry={() => navigate('/account/journal-entries/new')}
+      onBack={() => navigate('/account/coa')}
+    />
+  );
+};
+
+export const JournalEntryFormRoute: React.FC = () => {
+  const navigate = useNavigate();
+  return (
+    <JournalEntryFormPage
+      onBack={() => navigate('/account/journal-entries')}
+      onSaved={() => navigate('/account/journal-entries')}
     />
   );
 };

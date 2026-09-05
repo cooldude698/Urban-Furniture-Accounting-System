@@ -41,6 +41,8 @@ import {
   ProductFormRoute,
   JournalListRoute,
   JournalFormRoute,
+  JournalEntryListRoute,
+  JournalEntryFormRoute,
   AnalyticListRoute,
   AnalyticKanbanRoute,
   AnalyticFormRoute,
@@ -124,6 +126,10 @@ export function App() {
           <Route path="journals" element={<JournalListRoute />} />
           <Route path="journals/new" element={<JournalFormRoute />} />
           <Route path="journals/:id" element={<JournalFormRoute />} />
+          <Route path="journal-entries" element={<JournalEntryListRoute />} />
+          <Route path="journal-entries/new" element={<JournalEntryFormRoute />} />
+          <Route path="journal-entries/:id" element={<JournalEntryFormRoute />} />
+
           <Route path="analytics" element={<AnalyticListRoute />} />
           <Route path="analytics/kanban" element={<AnalyticKanbanRoute />} />
           <Route path="analytics/new" element={<AnalyticFormRoute />} />

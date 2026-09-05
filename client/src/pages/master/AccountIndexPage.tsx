@@ -7,6 +7,7 @@ const ACCOUNT_NAV_ITEMS = [
   { label: 'Products & Services', to: '/account/products', icon: Package },
   { label: 'Chart of Accounts', to: '/account/coa', icon: Landmark },
   { label: 'Journals', to: '/account/journals', icon: BookOpen },
+  { label: 'Journal Entries', to: '/account/journal-entries', icon: BookOpen },
   { label: 'Analyticals', to: '/account/analytics', icon: PieChart },
   { label: 'Analytical Budget', to: '/account/budgets', icon: FileBarChart },
 ];

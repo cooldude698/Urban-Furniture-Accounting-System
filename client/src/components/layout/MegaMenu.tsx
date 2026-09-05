@@ -43,7 +43,7 @@ const MEGA_MENU_COLUMNS: ColumnData[] = [
       { label: 'Analytical Budget', to: '/account/budgets', tab: 'Account', view: 'budget-list' },
       { label: 'Chart of Account', to: '/account/coa', tab: 'Account', view: 'account-list' },
       { label: 'Journals', to: '/account/journals', tab: 'Account', view: 'journal-list' },
-      { label: 'Journal Entries', to: '/verify', tab: 'Account', view: 'journal-list' },
+      { label: 'Journal Entries', to: '/account/journal-entries', tab: 'Account', view: 'journal-entry-list' },
     ],
   },
   {
