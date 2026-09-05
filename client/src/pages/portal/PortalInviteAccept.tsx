@@ -9,7 +9,12 @@ export const PortalInviteAccept: React.FC<PortalInviteAcceptProps> = ({
   onBackToLogin,
   onPasswordSetSuccess,
 }) => {
-  const [token, setToken] = useState('');
+  const [token, setToken] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return new URLSearchParams(window.location.search).get('token') || '';
+    }
+    return '';
+  });
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);

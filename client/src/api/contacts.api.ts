@@ -72,4 +72,18 @@ export const ContactsApi = {
         running_balance: string;
       }>;
     }>(`/api/contacts/${id}/statement`),
+
+  inviteToPortal: (data: { contactId: number; email: string; fullName: string; loginId: string }) =>
+    apiRequest<{
+      userId: number;
+      contactId: number;
+      loginId: string;
+      email: string;
+      inviteToken: string;
+      inviteUrl: string;
+      expiresAt: string;
+    }>('/api/portal/invite', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
