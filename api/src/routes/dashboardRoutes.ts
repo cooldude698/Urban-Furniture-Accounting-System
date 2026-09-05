@@ -6,9 +6,9 @@ export const dashboardRouter = Router();
 
 /**
  * GET /api/dashboard/stats
- * Counts for Sales, Purchase, Budget
+ * Counts for Sales, Purchase, Budget cards
  */
-dashboardRouter.get('/stats', async (req: Request, res: Response) => {
+dashboardRouter.get('/stats', async (_req: Request, res: Response) => {
   try {
     const stats = await DashboardService.getStats();
     return sendSuccess(res, stats);
@@ -20,9 +20,9 @@ dashboardRouter.get('/stats', async (req: Request, res: Response) => {
 
 /**
  * GET /api/dashboard/kpi
- * Financial balances and monthly income (all strings)
+ * Real-time financial balances: Cash, Bank, Receivable, Payable, Net Income
  */
-dashboardRouter.get('/kpi', async (req: Request, res: Response) => {
+dashboardRouter.get('/kpi', async (_req: Request, res: Response) => {
   try {
     const kpi = await DashboardService.getKPI();
     return sendSuccess(res, kpi);
@@ -34,7 +34,7 @@ dashboardRouter.get('/kpi', async (req: Request, res: Response) => {
 
 /**
  * GET /api/dashboard/activity
- * Recent transactions with partner name and journal
+ * Recent transactional documents across Sales, Purchase, and Invoices
  */
 dashboardRouter.get('/activity', async (req: Request, res: Response) => {
   try {
@@ -51,7 +51,7 @@ dashboardRouter.get('/activity', async (req: Request, res: Response) => {
  * GET /api/dashboard/trends
  * Revenue vs Expenses monthly trend
  */
-dashboardRouter.get('/trends', async (req: Request, res: Response) => {
+dashboardRouter.get('/trends', async (_req: Request, res: Response) => {
   try {
     const trends = await DashboardService.getTrends();
     return sendSuccess(res, trends);
@@ -65,7 +65,7 @@ dashboardRouter.get('/trends', async (req: Request, res: Response) => {
  * GET /api/dashboard/alerts
  * Operational alerts (overdue invoices, low stock)
  */
-dashboardRouter.get('/alerts', async (req: Request, res: Response) => {
+dashboardRouter.get('/alerts', async (_req: Request, res: Response) => {
   try {
     const alerts = await DashboardService.getAlerts();
     return sendSuccess(res, alerts);

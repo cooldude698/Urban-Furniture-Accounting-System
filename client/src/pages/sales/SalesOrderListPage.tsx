@@ -3,7 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { StatusBadge } from '../../components/StatusBadge';
 import { SalesOrderDTO } from '@shared/schemas/salesOrder';
 
-export const SalesOrderListPage: React.FC = () => {
+export interface SalesOrderListPageProps {
+  onSelectOrder?: (id: number) => void;
+  onNewOrder?: () => void;
+}
+
+export const SalesOrderListPage: React.FC<SalesOrderListPageProps> = ({ onSelectOrder, onNewOrder }) => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState<SalesOrderDTO[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -43,7 +48,7 @@ export const SalesOrderListPage: React.FC = () => {
             <option value="cancelled">Cancelled</option>
           </select>
           <button
-            onClick={() => navigate('/sales/orders/new')}
+            onClick={() => onNewOrder ? onNewOrder() : navigate('/sales/orders/new')}
             className="bg-brown-900 text-cream px-4 py-2 rounded-[6px] text-sm font-semibold hover:bg-brown-700 transition-colors shadow-sm"
           >
             + New Order
@@ -81,7 +86,7 @@ export const SalesOrderListPage: React.FC = () => {
                 filtered.map(order => (
                   <tr
                     key={order.id}
-                    onClick={() => navigate(`/sales/orders/${order.id}`)}
+                    onClick={() => onSelectOrder ? onSelectOrder(order.id) : navigate(`/sales/orders/${order.id}`)}
                     className="hover:bg-brown-100/40 cursor-pointer transition-colors"
                   >
                     <td className="p-3.5 font-semibold text-brown-900">{order.number}</td>

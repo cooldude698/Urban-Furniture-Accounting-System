@@ -3,7 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { StatusBadge } from '../../components/StatusBadge';
 import { CustomerInvoiceDTO } from '@shared/schemas/invoice';
 
-export const CustomerInvoiceListPage: React.FC = () => {
+export interface CustomerInvoiceListPageProps {
+  onSelectInvoice?: (id: number) => void;
+  onNewInvoice?: () => void;
+}
+
+export const CustomerInvoiceListPage: React.FC<CustomerInvoiceListPageProps> = ({ onSelectInvoice, onNewInvoice }) => {
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState<CustomerInvoiceDTO[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -45,7 +50,7 @@ export const CustomerInvoiceListPage: React.FC = () => {
             <option value="paid">Paid</option>
           </select>
           <button
-            onClick={() => navigate('/sales/invoices/new')}
+            onClick={() => onNewInvoice ? onNewInvoice() : navigate('/sales/invoices/new')}
             className="bg-brown-900 text-cream px-4 py-2 rounded-[6px] text-sm font-semibold hover:bg-brown-700 transition-colors shadow-sm"
           >
             + New Invoice
@@ -83,7 +88,7 @@ export const CustomerInvoiceListPage: React.FC = () => {
                 filtered.map(inv => (
                   <tr
                     key={inv.id}
-                    onClick={() => navigate(`/sales/invoices/${inv.id}`)}
+                    onClick={() => onSelectInvoice ? onSelectInvoice(inv.id) : navigate(`/sales/invoices/${inv.id}`)}
                     className="hover:bg-brown-100/40 cursor-pointer transition-colors"
                   >
                     <td className="p-3.5 font-semibold text-brown-900">
