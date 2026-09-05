@@ -16,6 +16,7 @@ import {
   X,
   AlertCircle,
   ChevronDown,
+  Info,
 } from 'lucide-react';
 
 export default function BudgetFormPage() {
@@ -48,6 +49,7 @@ export default function BudgetFormPage() {
   const [hoveredBtn, setHoveredBtn] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeViewMode, setActiveViewMode] = useState<'auto' | 'original' | 'revised'>('auto');
+  const [isMappingModalOpen, setIsMappingModalOpen] = useState(false);
 
   // Achieved drill-down modal state
   const [activeDocLine, setActiveDocLine] = useState<BudgetLine | null>(null);
@@ -176,10 +178,12 @@ export default function BudgetFormPage() {
     },
   });
 
-  // Current status
+  // Current status & lifecycle stages
   const currentStatus = isNew ? 'draft' : budget?.status || 'draft';
   const isConfirmed = currentStatus === 'confirmed';
   const isDraft = isNew || currentStatus === 'draft';
+  const isRevised = currentStatus === 'revised';
+  const isCancelled = currentStatus === 'cancelled';
 
   // Line calculations using Decimal.js
   const handleCommittedChange = (index: number, val: string) => {
@@ -280,14 +284,14 @@ export default function BudgetFormPage() {
     if (isConfirmed) {
       reviseMutation.mutate();
     } else {
-      setError('Only confirmed budgets can be revised.');
+      setError('Only visible & available at confirmed Stage.');
     }
   };
 
   const handleCancel = () => {
     setError(null);
-    if (!isNew && (isDraft || isConfirmed)) {
-      if (window.confirm('Are you sure you want to cancel this budget?')) {
+    if (!isNew && !isCancelled) {
+      if (window.confirm('Are you sure you want to cancel / archive this budget?')) {
         cancelMutation.mutate();
       }
     } else if (isNew) {
@@ -321,7 +325,7 @@ export default function BudgetFormPage() {
             )}
           </h1>
 
-          {/* Toggle View Pills for easy preview & verification */}
+          {/* Toggle View Pills & Menu & Stage Mapping Guide */}
           <div style={styles.viewToggleGroup}>
             <button
               type="button"
@@ -343,15 +347,32 @@ export default function BudgetFormPage() {
             >
               Revised View
             </button>
+            <button
+              type="button"
+              onClick={() => setIsMappingModalOpen(true)}
+              style={{
+                ...styles.viewToggleBtn,
+                background: isMappingModalOpen ? 'rgba(217, 119, 6, 0.2)' : 'transparent',
+                color: '#B45309',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+              }}
+            >
+              <Info size={13} />
+              <span>Menu & Stage Mapping</span>
+            </button>
           </div>
         </div>
 
         {/* Outer Card with Rounded Border */}
         <div style={styles.card}>
-          {/* Top Bar: [New] [Confirm] [Revise] [Cancel] ... [Draft > Confirm > Revised > Cancelled] */}
+          {/* Top Bar: [New] [Confirm] [Revise] [Cancelled] ... [Draft > Confirm > Revised > Cancelled] */}
           <div style={styles.topBar}>
-            {/* Action Buttons Left */}
+            {/* Action Buttons Left matching Menu & Stage Mapping specifications */}
             <div style={styles.leftBtnGroup}>
+              {/* [New]: Always visible (Draft Stage: Here user can create a new fresh Budget) */}
               <button
                 type="button"
                 onClick={handleNew}
@@ -365,49 +386,58 @@ export default function BudgetFormPage() {
                 New
               </button>
 
-              <button
-                type="button"
-                onClick={handleConfirm}
-                disabled={createMutation.isPending || confirmMutation.isPending}
-                onMouseEnter={() => setHoveredBtn('confirm')}
-                onMouseLeave={() => setHoveredBtn(null)}
-                style={{
-                  ...styles.confirmBtn,
-                  ...(hoveredBtn === 'confirm' ? styles.confirmBtnHover : {}),
-                  opacity: createMutation.isPending || confirmMutation.isPending ? 0.7 : 1,
-                }}
-              >
-                {createMutation.isPending || confirmMutation.isPending ? 'Confirming...' : 'Confirm'}
-              </button>
+              {/* [Confirm]: Visible in Draft stage (Confirm Stage: User confirm the newly created Budget) */}
+              {isDraft && (
+                <button
+                  type="button"
+                  onClick={handleConfirm}
+                  disabled={createMutation.isPending || confirmMutation.isPending}
+                  onMouseEnter={() => setHoveredBtn('confirm')}
+                  onMouseLeave={() => setHoveredBtn(null)}
+                  style={{
+                    ...styles.confirmBtn,
+                    ...(hoveredBtn === 'confirm' ? styles.confirmBtnHover : {}),
+                    opacity: createMutation.isPending || confirmMutation.isPending ? 0.7 : 1,
+                  }}
+                >
+                  {createMutation.isPending || confirmMutation.isPending ? 'Confirming...' : 'Confirm'}
+                </button>
+              )}
 
-              <button
-                type="button"
-                onClick={handleRevise}
-                disabled={reviseMutation.isPending}
-                onMouseEnter={() => setHoveredBtn('revise')}
-                onMouseLeave={() => setHoveredBtn(null)}
-                style={{
-                  ...styles.wireframeBtn,
-                  ...(hoveredBtn === 'revise' ? styles.wireframeBtnHover : {}),
-                  opacity: reviseMutation.isPending ? 0.7 : 1,
-                }}
-              >
-                {reviseMutation.isPending ? 'Revising...' : 'Revise'}
-              </button>
+              {/* [Revise]: ONLY VISIBLE AT CONFIRMED STAGE (Revised Stage) */}
+              {isConfirmed && (
+                <button
+                  type="button"
+                  onClick={handleRevise}
+                  disabled={reviseMutation.isPending}
+                  onMouseEnter={() => setHoveredBtn('revise')}
+                  onMouseLeave={() => setHoveredBtn(null)}
+                  style={{
+                    ...styles.wireframeBtn,
+                    ...(hoveredBtn === 'revise' ? styles.wireframeBtnHover : {}),
+                    opacity: reviseMutation.isPending ? 0.7 : 1,
+                  }}
+                >
+                  {reviseMutation.isPending ? 'Revising...' : 'Revise'}
+                </button>
+              )}
 
-              <button
-                type="button"
-                onClick={handleCancel}
-                disabled={cancelMutation.isPending}
-                onMouseEnter={() => setHoveredBtn('cancel')}
-                onMouseLeave={() => setHoveredBtn(null)}
-                style={{
-                  ...styles.wireframeBtn,
-                  ...(hoveredBtn === 'cancel' ? styles.wireframeBtnHover : {}),
-                }}
-              >
-                Cancel
-              </button>
+              {/* [Cancelled]: Visible when not already cancelled (Cancelled Stage: Here User can archive the existing budget) */}
+              {!isCancelled && (
+                <button
+                  type="button"
+                  onClick={handleCancel}
+                  disabled={cancelMutation.isPending}
+                  onMouseEnter={() => setHoveredBtn('cancel')}
+                  onMouseLeave={() => setHoveredBtn(null)}
+                  style={{
+                    ...styles.wireframeBtn,
+                    ...(hoveredBtn === 'cancel' ? styles.wireframeBtnHover : {}),
+                  }}
+                >
+                  Cancelled
+                </button>
+              )}
             </div>
 
             {/* Status Chevron Pipeline Right */}
@@ -607,7 +637,7 @@ export default function BudgetFormPage() {
                         <span style={styles.typeText}>{line.analytic_type || 'Expense'}</span>
                       </td>
 
-                      {/* Committed Amount */}
+                      {/* Committed Amount (Editable in draft for limit revisions e.g. 200000 -> 350000) */}
                       <td style={{ ...styles.td, textAlign: 'right' }}>
                         {isDraft ? (
                           <input
@@ -683,6 +713,97 @@ export default function BudgetFormPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Menu & Stage Mapping Guide Modal matching the wireframe specification ── */}
+      {isMappingModalOpen && (
+        <div style={styles.modalBackdrop} onClick={() => setIsMappingModalOpen(false)}>
+          <div style={{ ...styles.modalContent, maxWidth: 840 }} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.mappingHeader}>
+              <h2 style={styles.mappingTitle}>Menu & Stage Mapping</h2>
+              <button
+                type="button"
+                onClick={() => setIsMappingModalOpen(false)}
+                style={styles.modalCloseBtn}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={styles.mappingBody}>
+              <div style={styles.mappingTableContainer}>
+                {/* Headers: Menu | Stage | Output */}
+                <div style={styles.mappingRowHeader}>
+                  <div style={{ width: '18%', color: '#0284C7', fontWeight: 700, fontSize: 16 }}>Menu</div>
+                  <div style={{ width: '18%', color: '#0284C7', fontWeight: 700, fontSize: 16 }}>Stage</div>
+                  <div style={{ width: '64%', color: '#0284C7', fontWeight: 700, fontSize: 16 }}>Output</div>
+                </div>
+
+                {/* Row 1: New */}
+                <div style={styles.mappingRow}>
+                  <div style={{ width: '18%' }}>
+                    <div style={styles.mockBtn}>New</div>
+                  </div>
+                  <div style={{ width: '18%', color: '#16A34A', fontWeight: 700, fontSize: 15 }}>Draft</div>
+                  <div style={{ width: '64%', fontSize: 14, color: '#382A24' }}>
+                    Here user can create a new fresh Budget
+                  </div>
+                </div>
+
+                {/* Row 2: Confirm */}
+                <div style={styles.mappingRow}>
+                  <div style={{ width: '18%' }}>
+                    <div style={styles.mockConfirmBtn}>Confirm</div>
+                  </div>
+                  <div style={{ width: '18%', color: '#16A34A', fontWeight: 700, fontSize: 15 }}>Confirm</div>
+                  <div style={{ width: '64%', fontSize: 14, color: '#382A24' }}>
+                    User confirm the newly created Budget
+                  </div>
+                </div>
+
+                {/* Row 3: Revise */}
+                <div style={styles.mappingRow}>
+                  <div style={{ width: '18%' }}>
+                    <div style={styles.mockBtn}>Revise</div>
+                  </div>
+                  <div style={{ width: '18%', color: '#16A34A', fontWeight: 700, fontSize: 15 }}>Revised</div>
+                  <div style={{ width: '64%', fontSize: 14, color: '#382A24', lineHeight: 1.5 }}>
+                    <div style={{ color: '#DC2626', fontWeight: 700, marginBottom: 4 }}>
+                      Only Visible at confirmed Stage
+                    </div>
+                    <div>
+                      Here User can revise the new confirmed budget e.g. Budgeted Expense was 2,00,000 now you need to change the limit to 3,50,000
+                    </div>
+                    <div style={{ marginTop: 6, fontStyle: 'italic', color: '#5C453A' }}>
+                      On Clicking Revise - New Budget will appear and Old one will move to Revised state. Link will be visible on Main Budget and on click it will lead to new revised Budget and the revised will have link to original.
+                    </div>
+                  </div>
+                </div>
+
+                {/* Row 4: Cancelled */}
+                <div style={styles.mappingRow}>
+                  <div style={{ width: '18%' }}>
+                    <div style={styles.mockBtn}>Cancelled</div>
+                  </div>
+                  <div style={{ width: '18%', color: '#16A34A', fontWeight: 700, fontSize: 15 }}>Cancelled</div>
+                  <div style={{ width: '64%', fontSize: 14, color: '#382A24' }}>
+                    Here User can archive the existing budget
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={styles.modalFooter}>
+              <button
+                type="button"
+                onClick={() => setIsMappingModalOpen(false)}
+                style={styles.modalCloseButton}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Achieved Documents Modal ── */}
       {activeDocLine && (
@@ -816,6 +937,8 @@ const styles = {
     borderRadius: 20,
     padding: 3,
     gap: 4,
+    flexWrap: 'wrap' as const,
+    justifyContent: 'center',
   } as React.CSSProperties,
 
   viewToggleBtn: {
@@ -1196,6 +1319,79 @@ const styles = {
     fontWeight: 600,
     fontFamily: '"Montserrat", var(--font-display), sans-serif',
     cursor: 'pointer',
+  } as React.CSSProperties,
+
+  // Menu & Stage Mapping Guide Styles
+  mappingHeader: {
+    padding: '20px 24px',
+    borderBottom: '1px solid #E4D5C7',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    background: 'var(--cream, #F9F2E4)',
+  } as React.CSSProperties,
+
+  mappingTitle: {
+    fontFamily: '"Montserrat", var(--font-display), cursive, sans-serif',
+    fontWeight: 700,
+    fontSize: 22,
+    color: '#DC2626',
+    margin: 0,
+    letterSpacing: '-0.01em',
+  } as React.CSSProperties,
+
+  mappingBody: {
+    padding: 24,
+    maxHeight: 520,
+    overflowY: 'auto' as const,
+  } as React.CSSProperties,
+
+  mappingTableContainer: {
+    border: '1.5px solid #77574A',
+    borderRadius: 20,
+    padding: '20px 24px',
+    background: '#FFFFFF',
+  } as React.CSSProperties,
+
+  mappingRowHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    paddingBottom: 12,
+    borderBottom: '1.5px solid #77574A',
+    marginBottom: 8,
+  } as React.CSSProperties,
+
+  mappingRow: {
+    display: 'flex',
+    alignItems: 'center',
+    padding: '16px 0',
+    borderBottom: '1px solid #E4D5C7',
+  } as React.CSSProperties,
+
+  mockBtn: {
+    display: 'inline-block',
+    padding: '6px 18px',
+    border: '1.5px solid #4A3A34',
+    borderRadius: 10,
+    fontFamily: '"Montserrat", sans-serif',
+    fontWeight: 700,
+    fontSize: 13,
+    color: '#4A3A34',
+    background: '#F5EFEB',
+    textAlign: 'center' as const,
+  } as React.CSSProperties,
+
+  mockConfirmBtn: {
+    display: 'inline-block',
+    padding: '6px 18px',
+    border: '1.5px solid #5C3A4D',
+    borderRadius: 10,
+    fontFamily: '"Montserrat", sans-serif',
+    fontWeight: 700,
+    fontSize: 13,
+    color: '#FFFFFF',
+    background: '#5C3A4D',
+    textAlign: 'center' as const,
   } as React.CSSProperties,
 
   // Modal Styles
