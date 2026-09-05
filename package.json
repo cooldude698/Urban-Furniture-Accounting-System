@@ -10,7 +10,8 @@
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f",
     "dev:api": "npm run dev --prefix api",
-    "dev:web": "npm run dev --prefix web"
+    "dev:web": "npm run dev --prefix web",
+    "dev:client": "npm run dev --prefix client"
   },
   "dependencies": {
     "decimal.js": "^10.6.0",
