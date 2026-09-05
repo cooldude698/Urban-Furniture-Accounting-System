@@ -569,6 +569,42 @@ export const PortalProductViewerPage: React.FC = () => {
                 reinforced joinery, and premium upholstery, tested to commercial hospitality performance standards.
               </p>
             </div>
+
+            {/* 3D Studio Planner Direct Transition Button */}
+            {hasModel && (
+              <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid rgba(208, 174, 146, 0.3)' }}>
+                <button
+                  onClick={() => navigate(`/portal/studio?model=${encodeURIComponent(product.model_url || '')}`)}
+                  style={{
+                    width: '100%',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    padding: '12px 20px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'var(--brown-900)',
+                    color: 'var(--cream)',
+                    border: 'none',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-display)',
+                    cursor: 'pointer',
+                    boxShadow: 'var(--shadow-sm)',
+                    transition: 'all 120ms ease',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.backgroundColor = 'var(--brown-700)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.backgroundColor = 'var(--brown-900)';
+                  }}
+                >
+                  <Box size={16} />
+                  Open in 3D Room Studio Planner
+                </button>
+              </div>
+            )}
           </div>
 
           {/* ── Customer Invoices with this Product ── */}

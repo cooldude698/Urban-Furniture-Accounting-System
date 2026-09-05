@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { Router, Request, Response } from 'express';
 import { z } from 'zod';
 import { PortalService } from '../services/portalService';
@@ -385,6 +387,72 @@ portalRouter.get('/catalogue', async (_req: Request, res: Response) => {
     return sendSuccess(res, result.rows);
   } catch (err: any) {
     return sendError(res, 'FETCH_FAILED', err.message || 'Failed to fetch catalogue', 500);
+  }
+});
+
+// 12b. GET /api/portal/models - Public list of all 24 local 3D models with categories & dimensions for the 3D room studio
+portalRouter.get('/models', async (_req: Request, res: Response) => {
+  try {
+    const modelsDir = path.resolve(__dirname, '../../../client/public/Models');
+    if (!fs.existsSync(modelsDir)) {
+      return sendSuccess(res, []);
+    }
+
+    const files = fs.readdirSync(modelsDir);
+    const models = files
+      .filter(f => (f.endsWith('.glb') || f.endsWith('.gltf')) && !f.toLowerCase().includes('room_blank'))
+      .map(filename => {
+        const fullPath = path.join(modelsDir, filename);
+        const stat = fs.statSync(fullPath);
+        const lower = filename.toLowerCase();
+
+        let category = 'Other';
+        let defaultScale = 1.0;
+        let defaultY = 0;
+
+        if (lower.includes('bed')) {
+          category = 'Beds';
+          defaultScale = 1.2;
+        } else if (lower.includes('couch') || lower.includes('sofa') || lower.includes('chair')) {
+          category = 'Seating';
+          defaultScale = lower.includes('couch large') ? 1.4 : 1.0;
+        } else if (lower.includes('desk') || lower.includes('table') || lower.includes('stand')) {
+          category = 'Tables';
+          defaultScale = lower.includes('desk') ? 1.1 : 0.9;
+        } else if (lower.includes('book') || lower.includes('shelf') || lower.includes('drawer')) {
+          category = 'Storage';
+          defaultScale = 1.1;
+        } else if (lower.includes('light') || lower.includes('lamp')) {
+          category = 'Lighting';
+          defaultScale = 1.0;
+        }
+
+        // Clean user-friendly display name
+        const cleanName = filename
+          .replace(/\.glb$/i, '')
+          .replace(/\s*-\s*[A-Za-z0-9_-]{8,15}$/, '')
+          .replace(/ by [A-Za-z0-9 ]+$/i, '');
+
+        return {
+          id: filename,
+          filename,
+          name: cleanName,
+          category,
+          defaultScale,
+          defaultY,
+          sizeBytes: stat.size,
+          sizeKB: (stat.size / 1024).toFixed(1),
+          url: `/models/${filename}`,
+        };
+      })
+      .sort((a, b) => {
+        if (a.category !== b.category) return a.category.localeCompare(b.category);
+        return a.name.localeCompare(b.name);
+      });
+
+    return sendSuccess(res, models);
+  } catch (err: any) {
+    return sendError(res, 'FETCH_MODELS_FAILED', err.message || 'Failed to list models', 500);
   }
 });
 

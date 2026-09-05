@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ProductsApi } from '../../api/products.api';
 import { Product, CreateProductInput, ProductType } from '@shared/schemas/product.schema';
-import { Camera, ChevronDown, Check, Plus, AlertCircle } from 'lucide-react';
+import { Camera, ChevronDown, Check, Plus, AlertCircle, Upload, Box } from 'lucide-react';
 
 interface ProductFormPageProps {
   productId?: number | null;
@@ -28,6 +28,13 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
   const [modelUrl, setModelUrl] = useState('');
   const [sku, setSku] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  // Available showroom 3D models state & upload
+  const [availableModels, setAvailableModels] = useState<
+    { id: string; filename: string; name: string; category?: string; url: string; sizeKB: string }[]
+  >([]);
+  const [isUploadingModel, setIsUploadingModel] = useState(false);
+  const modelFileInputRef = useRef<HTMLInputElement>(null);
 
   // Category Many2one dropdown state
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
@@ -56,8 +63,42 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
     }
   };
 
+  const handleModelFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingModel(true);
+    setError(null);
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64 = reader.result as string;
+        const res = await ProductsApi.uploadModel(file.name, base64);
+        setModelUrl(res.model_url);
+        // Refresh showroom models list
+        const updated = await ProductsApi.getAvailableModels();
+        setAvailableModels(updated);
+      } catch (err: any) {
+        setError(err.message || 'Failed to upload 3D model');
+      } finally {
+        setIsUploadingModel(false);
+      }
+    };
+    reader.onerror = () => {
+      setError('Failed to read model file');
+      setIsUploadingModel(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
   // Load existing categories & product data if editing
   useEffect(() => {
+    // Load available showroom 3D models
+    ProductsApi.getAvailableModels()
+      .then(models => setAvailableModels(models))
+      .catch(() => {});
+
     // Fetch products to aggregate categories
     ProductsApi.getAll(false)
       .then(prods => {
@@ -497,20 +538,86 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
                 </div>
               </div>
 
-              {/* 3D Model URL */}
+              {/* 3D Model Selection & Upload */}
               <div style={{ ...styles.fieldRow, marginTop: 14 }}>
-                <label style={styles.fieldLabel}>3D Model URL</label>
+                <label style={styles.fieldLabel}>3D Model (.glb)</label>
                 <div style={styles.inputUnderlineWrapper}>
-                  <input
-                    type="text"
-                    value={modelUrl}
-                    onChange={e => setModelUrl(e.target.value)}
-                    placeholder="e.g. https://example.com/furniture.glb"
-                    style={styles.underlineInput}
-                  />
-                  <div style={{ fontSize: 11, color: '#77574A', marginTop: 4, fontFamily: '"DM Sans", sans-serif' }}>
-                    Paste a public .glb or .gltf URL
+                  {/* Quick Select from Showroom Models */}
+                  {availableModels.length > 0 && (
+                    <div style={{ marginBottom: 8 }}>
+                      <select
+                        value={modelUrl}
+                        onChange={e => setModelUrl(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '6px 10px',
+                          fontSize: 13,
+                          fontFamily: '"DM Sans", sans-serif',
+                          color: 'var(--brown-900)',
+                          backgroundColor: 'var(--surface)',
+                          border: '1px solid var(--brown-300)',
+                          borderRadius: 'var(--radius-sm)',
+                          outline: 'none',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <option value="">— Select from Showroom Models ({availableModels.length} available) —</option>
+                        {availableModels.map(m => (
+                          <option key={m.url} value={m.url}>
+                            [{m.category || 'Item'}] {m.name} ({m.sizeKB} KB)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      value={modelUrl}
+                      onChange={e => setModelUrl(e.target.value)}
+                      placeholder="/models/filename.glb or https://..."
+                      style={{ ...styles.underlineInput, flex: 1 }}
+                    />
+
+                    {/* Hidden file input for uploading custom GLB model */}
+                    <input
+                      ref={modelFileInputRef}
+                      type="file"
+                      accept=".glb,.gltf"
+                      onChange={handleModelFileUpload}
+                      style={{ display: 'none' }}
+                    />
+
+                    <button
+                      type="button"
+                      disabled={isUploadingModel}
+                      onClick={() => modelFileInputRef.current?.click()}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        padding: '6px 12px',
+                        fontSize: 12,
+                        fontWeight: 600,
+                        fontFamily: '"DM Sans", sans-serif',
+                        color: 'var(--brown-900)',
+                        backgroundColor: 'var(--brown-100)',
+                        border: '1px solid var(--brown-300)',
+                        borderRadius: 'var(--radius-sm)',
+                        cursor: isUploadingModel ? 'wait' : 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <Upload size={13} />
+                      {isUploadingModel ? 'Uploading...' : 'Upload .glb'}
+                    </button>
                   </div>
+
+                  <div style={{ fontSize: 11, color: '#77574A', marginTop: 4, fontFamily: '"DM Sans", sans-serif' }}>
+                    Select from imported models, upload a .glb file, or paste a model path
+                  </div>
+
                   {modelUrl.trim() !== '' && (
                     <div
                       style={{
@@ -524,8 +631,8 @@ export const ProductFormPage: React.FC<ProductFormPageProps> = ({
                         fontFamily: '"DM Sans", sans-serif',
                       }}
                     >
-                      <Check size={13} />
-                      Model will appear in customer portal 3D viewer
+                      <Box size={13} />
+                      3D Model active & ready for Customer Studio Room Planner
                     </div>
                   )}
                 </div>

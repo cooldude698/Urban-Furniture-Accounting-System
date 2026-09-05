@@ -13,6 +13,7 @@ import { PortalPaymentList } from './PortalPaymentList';
 import { PortalCataloguePage } from './PortalCataloguePage';
 import { PortalProductViewerPage } from './PortalProductViewerPage';
 import { PortalDashboardPage } from './PortalDashboardPage';
+import { PortalRoomStudioPage } from './PortalRoomStudioPage';
 
 /**
  * Portal route tree.
@@ -20,6 +21,7 @@ import { PortalDashboardPage } from './PortalDashboardPage';
  * Public Standalone – /portal/login, /portal/accept-invite
  * Portal Surface (wrapped by PortalLayout with sub-header navigation)
  *   - Overview Dashboard: /portal, /portal/dashboard
+ *   - Interactive 3D Room Studio: /portal/studio, /portal/planner
  *   - Public browseable catalogue: /portal/catalogue, /portal/catalogue/:id
  *   - Authenticated customer & vendor (behind PortalAuthGuard):
  *       /portal/invoices, /portal/invoices/:id,
@@ -39,6 +41,10 @@ export const PortalApp: React.FC = () => {
           {/* Customer Studio Dashboard */}
           <Route index element={<PortalDashboardPage />} />
           <Route path="dashboard" element={<PortalDashboardPage />} />
+
+          {/* Interactive Japandi 3D Room Studio Planner */}
+          <Route path="studio" element={<PortalRoomStudioPage />} />
+          <Route path="planner" element={<PortalRoomStudioPage />} />
 
           {/* Public catalogue routes */}
           <Route path="catalogue" element={<PortalCataloguePage />} />

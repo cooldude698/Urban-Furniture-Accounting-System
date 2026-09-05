@@ -26,7 +26,7 @@ const sampleProducts: SeedProduct[] = [
     mrp: '9999.00',
     tax_rate: '18.00',
     stock_qty: '25.00',
-    model_url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/main/2.0/SheenChair/glTF-Binary/SheenChair.glb',
+    model_url: '/models/Office Chair by Quaternius - UfKvrZBK6C.glb',
     image_url: 'https://images.unsplash.com/photo-1580481077195-c3a821a78f4b?auto=format&fit=crop&w=600&q=80',
   },
   // 2. Seating: Lounge Sofa
@@ -40,7 +40,7 @@ const sampleProducts: SeedProduct[] = [
     mrp: '52000.00',
     tax_rate: '18.00',
     stock_qty: '12.00',
-    model_url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/main/2.0/GlamVelvetSofa/glTF-Binary/GlamVelvetSofa.glb',
+    model_url: '/models/Couch Large by Quaternius - 6MoOyPtetL.glb',
     image_url: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=600&q=80',
   },
   // 3. Tables: Dining Table
@@ -54,7 +54,7 @@ const sampleProducts: SeedProduct[] = [
     mrp: '28999.00',
     tax_rate: '18.00',
     stock_qty: '18.00',
-    model_url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SheenWoodLeatherSofa/glTF-Binary/SheenWoodLeatherSofa.glb',
+    model_url: '/models/Desk by dook - EtJlOllzbf.glb',
     image_url: 'https://images.unsplash.com/photo-1615066390971-03e4e1c36ddf?auto=format&fit=crop&w=600&q=80',
   },
   // 4. Tables: Coffee Table
@@ -68,7 +68,7 @@ const sampleProducts: SeedProduct[] = [
     mrp: '8900.00',
     tax_rate: '18.00',
     stock_qty: '30.00',
-    model_url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/SpecularSilkPouf/glTF-Binary/SpecularSilkPouf.glb',
+    model_url: '/models/Table Round Small by Quaternius - oEArSZykyi.glb',
     image_url: 'https://images.unsplash.com/photo-1533090481720-856c6e3c1fdc?auto=format&fit=crop&w=600&q=80',
   },
   // 5. Storage: Wardrobe
@@ -82,7 +82,7 @@ const sampleProducts: SeedProduct[] = [
     mrp: '38500.00',
     tax_rate: '18.00',
     stock_qty: '10.00',
-    model_url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/CommercialRefrigerator/glTF-Binary/CommercialRefrigerator.glb',
+    model_url: '/models/Drawer by Quaternius - G1H0wnCHQf.glb',
     image_url: 'https://images.unsplash.com/photo-1595428774223-ef52624120d2?auto=format&fit=crop&w=600&q=80',
   },
   // 6. Storage: Bookshelf
@@ -96,7 +96,7 @@ const sampleProducts: SeedProduct[] = [
     mrp: '13999.00',
     tax_rate: '18.00',
     stock_qty: '22.00',
-    model_url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/BoxTextured/glTF-Binary/BoxTextured.glb',
+    model_url: '/models/Bookcase with Books by Quaternius - tACDGJ4CGW.glb',
     image_url: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?auto=format&fit=crop&w=600&q=80',
   },
   // 7. Beds: Single Bed
@@ -110,7 +110,7 @@ const sampleProducts: SeedProduct[] = [
     mrp: '19999.00',
     tax_rate: '18.00',
     stock_qty: '15.00',
-    model_url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/ChairDamaskPurplegold/glTF-Binary/ChairDamaskPurplegold.glb',
+    model_url: '/models/Bed Single by Quaternius - ianC28eMOF.glb',
     image_url: 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=600&q=80',
   },
   // 8. Beds: Queen Bed
@@ -124,7 +124,7 @@ const sampleProducts: SeedProduct[] = [
     mrp: '44500.00',
     tax_rate: '18.00',
     stock_qty: '8.00',
-    model_url: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/main/2.0/GlamVelvetSofa/glTF-Binary/GlamVelvetSofa.glb',
+    model_url: '/models/Bed Double by Quaternius - BuRay4fVFr.glb',
     image_url: 'https://images.unsplash.com/photo-1540518614846-7ede433c4ef0?auto=format&fit=crop&w=600&q=80',
   },
 ];

@@ -411,7 +411,7 @@ export const PortalDashboardPage: React.FC = () => {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <button
                 type="button"
-                onClick={() => navigate('/portal/catalogue/316')}
+                onClick={() => navigate('/portal/studio')}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -432,7 +432,7 @@ export const PortalDashboardPage: React.FC = () => {
                 onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
               >
                 <Box size={16} />
-                <span>View Room in 3D</span>
+                <span>Enter 3D Studio Planner</span>
                 <ArrowRight size={14} />
               </button>
 

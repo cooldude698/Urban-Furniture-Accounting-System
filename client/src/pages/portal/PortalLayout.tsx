@@ -225,6 +225,26 @@ export const PortalLayout: React.FC = () => {
           Furniture Catalogue
         </NavLink>
 
+        {/* 3D Studio Planner — Interactive Japandi Room Customizer */}
+        <NavLink
+          to="/portal/studio"
+          style={({ isActive }) => ({
+            padding: '13px 4px',
+            fontSize: 13,
+            fontFamily: 'var(--font-display)',
+            fontWeight: isActive ? 700 : 500,
+            color: isActive ? 'var(--brown-900)' : 'var(--brown-700)',
+            textDecoration: 'none',
+            borderBottom: isActive ? '2px solid var(--brown-900)' : '2px solid transparent',
+            transition: 'all 120ms ease-out',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+          })}
+        >
+          3D Studio Planner
+        </NavLink>
+
         {/* My Invoices — visible ONLY when logged in */}
         {user && (
           <NavLink
