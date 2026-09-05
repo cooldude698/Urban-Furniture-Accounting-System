@@ -45,6 +45,7 @@ services:
     environment:
       API_TARGET: http://api:5000
       VITE_API_URL: http://api:5000
+      CHOKIDAR_USEPOLLING: "true"
     ports:
       - "5173:5173"
     volumes:
