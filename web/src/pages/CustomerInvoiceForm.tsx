@@ -3,6 +3,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { SmartButton } from '../components/SmartButton';
 import { InvoiceLineGrid, InvoiceGridLine } from '../components/InvoiceLineGrid';
 import { BlockingWarning } from '../components/Warnings';
+import { PaymentHistoryPanel } from '../components/PaymentHistoryPanel';
 import { CustomerInvoiceDTO } from '../../../shared/schemas/invoice';
 
 interface CustomerInvoiceFormProps {
@@ -323,6 +324,11 @@ export const CustomerInvoiceForm: React.FC<CustomerInvoiceFormProps> = ({
             disabled={isConfirmed}
           />
         </div>
+
+        {/* Payment History Panel (Phase 3) */}
+        {invoice?.id && (
+          <PaymentHistoryPanel invoiceId={invoice.id} invoiceTotal={invoice.total || '0.00'} />
+        )}
 
         {/* Footer breakdown per Mockup: Subtotal, Tax, Total, Paid Via Cash, Paid Via Bank, Amount Due */}
         <div className="bg-surface border border-brown-300 rounded-[10px] p-5 shadow-sm ml-auto max-w-md space-y-2 text-sm">

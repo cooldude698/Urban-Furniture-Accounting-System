@@ -397,4 +397,13 @@ export class InvoiceService {
       createdAt: inv.created_at ? new Date(inv.created_at).toISOString() : '',
     }));
   }
+
+  /**
+   * Get payment history for this invoice
+   */
+  static async getInvoicePayments(invoiceId: number) {
+    const { PaymentService } = await import('./paymentService');
+    return PaymentService.getInvoicePaymentHistory(invoiceId);
+  }
 }
+

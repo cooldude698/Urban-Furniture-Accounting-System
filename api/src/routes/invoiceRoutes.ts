@@ -72,11 +72,7 @@ invoiceRouter.get('/:id', async (req: Request, res: Response) => {
   }
 });
 
-// 4. POST /api/invoices/:id/confirm - Confirm invoice:
-// a. Call postingService.postDocument('invoice', id, tx)
-// b. Deduct stock moves (-qty for goods)
-// c. Write audit_log
-// d. Set status confirmed
+// 4. POST /api/invoices/:id/confirm - Confirm invoice
 invoiceRouter.post('/:id/confirm', async (req: Request, res: Response) => {
   try {
     const invId = parseInt(String(req.params.id), 10);
@@ -90,3 +86,19 @@ invoiceRouter.post('/:id/confirm', async (req: Request, res: Response) => {
     return sendError(res, 'CONFIRM_ERROR', err.message, 400);
   }
 });
+
+// 5. GET /api/invoices/:id/payments - Payment history panel
+invoiceRouter.get('/:id/payments', async (req: Request, res: Response) => {
+  try {
+    const invId = parseInt(String(req.params.id), 10);
+    if (isNaN(invId)) {
+      return sendError(res, 'INVALID_ID', 'Invoice ID must be a number', 400);
+    }
+
+    const history = await InvoiceService.getInvoicePayments(invId);
+    return sendSuccess(res, history);
+  } catch (err: any) {
+    return sendError(res, 'SERVER_ERROR', err.message, 500);
+  }
+});
+

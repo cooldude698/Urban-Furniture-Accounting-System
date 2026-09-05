@@ -3,14 +3,16 @@ import { SalesOrderList } from './pages/SalesOrderList';
 import { SalesOrderForm } from './pages/SalesOrderForm';
 import { CustomerInvoiceList } from './pages/CustomerInvoiceList';
 import { CustomerInvoiceForm } from './pages/CustomerInvoiceForm';
+import { RegisterPaymentForm } from './pages/RegisterPaymentForm';
+import { ReceivablesView } from './pages/ReceivablesView';
 
-type SalesSubMenu = 'orders' | 'invoices';
+type SalesSubMenu = 'orders' | 'invoices' | 'receivables' | 'payments';
 type NavTab = 'Sales' | 'Purchase' | 'Account' | 'Report';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavTab>('Sales');
   const [salesSubMenu, setSalesSubMenu] = useState<SalesSubMenu>('orders');
-  
+
   // Sales order view state
   const [soViewMode, setSoViewMode] = useState<'list' | 'form'>('list');
   const [selectedSoId, setSelectedSoId] = useState<number | null>(null);
@@ -18,6 +20,9 @@ export const App: React.FC = () => {
   // Customer invoice view state
   const [invViewMode, setInvViewMode] = useState<'list' | 'form'>('list');
   const [selectedInvId, setSelectedInvId] = useState<number | null>(null);
+
+  // Payment register view state
+  const [selectedPaymentInvoiceId, setSelectedPaymentInvoiceId] = useState<number | null>(null);
 
   const navItems: NavTab[] = ['Sales', 'Purchase', 'Account', 'Report'];
 
@@ -63,7 +68,7 @@ export const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Submenu for Sales (Sales Orders / Customer Invoices) */}
+      {/* Submenu for Sales (Sales Orders / Customer Invoices / Receivables / Register Payment) */}
       {activeTab === 'Sales' && (
         <div className="bg-surface/70 border-b border-brown-300/60 px-8 py-2 flex items-center space-x-4 text-sm font-medium">
           <button
@@ -94,6 +99,33 @@ export const App: React.FC = () => {
             }`}
           >
             Customer Invoices
+          </button>
+
+          <button
+            onClick={() => {
+              setSalesSubMenu('receivables');
+            }}
+            className={`px-3 py-1 rounded-[6px] transition-colors ${
+              salesSubMenu === 'receivables'
+                ? 'bg-brown-900 text-cream font-semibold'
+                : 'text-brown-700 hover:bg-brown-100'
+            }`}
+          >
+            Receivables Ledger
+          </button>
+
+          <button
+            onClick={() => {
+              setSelectedPaymentInvoiceId(null);
+              setSalesSubMenu('payments');
+            }}
+            className={`px-3 py-1 rounded-[6px] transition-colors ${
+              salesSubMenu === 'payments'
+                ? 'bg-brown-900 text-cream font-semibold'
+                : 'text-brown-700 hover:bg-brown-100'
+            }`}
+          >
+            Register Payment
           </button>
         </div>
       )}
@@ -127,7 +159,7 @@ export const App: React.FC = () => {
                 }}
               />
             )
-          ) : (
+          ) : salesSubMenu === 'invoices' ? (
             invViewMode === 'list' ? (
               <CustomerInvoiceList
                 onSelectInvoice={id => {
@@ -152,10 +184,50 @@ export const App: React.FC = () => {
                   setSoViewMode('form');
                 }}
                 onRegisterPayment={invId => {
-                  alert(`Register payment for Invoice #${invId} (Handled in Phase 3)`);
+                  setSelectedPaymentInvoiceId(invId);
+                  setSalesSubMenu('payments');
                 }}
               />
             )
+          ) : salesSubMenu === 'receivables' ? (
+            <ReceivablesView
+              onSelectInvoice={invId => {
+                setSelectedInvId(invId);
+                setSalesSubMenu('invoices');
+                setInvViewMode('form');
+              }}
+              onRegisterPaymentForInvoice={invId => {
+                setSelectedPaymentInvoiceId(invId);
+                setSalesSubMenu('payments');
+              }}
+              onRegisterPaymentForCustomer={() => {
+                setSelectedPaymentInvoiceId(null);
+                setSalesSubMenu('payments');
+              }}
+            />
+          ) : (
+            <RegisterPaymentForm
+              initialInvoiceId={selectedPaymentInvoiceId}
+              onBack={() => {
+                if (selectedPaymentInvoiceId) {
+                  setSelectedInvId(selectedPaymentInvoiceId);
+                  setSalesSubMenu('invoices');
+                  setInvViewMode('form');
+                } else {
+                  setSalesSubMenu('invoices');
+                  setInvViewMode('list');
+                }
+              }}
+              onPaymentSuccess={() => {
+                if (selectedPaymentInvoiceId) {
+                  setSelectedInvId(selectedPaymentInvoiceId);
+                  setSalesSubMenu('invoices');
+                  setInvViewMode('form');
+                } else {
+                  setSalesSubMenu('receivables');
+                }
+              }}
+            />
           )
         ) : (
           <div className="max-w-4xl mx-auto py-16 text-center text-brown-700">

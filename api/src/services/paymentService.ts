@@ -1,173 +1,175 @@
 import { PoolClient } from 'pg';
 import Decimal from 'decimal.js';
 import { pool } from '../db/pool';
-import { withTransaction } from '../db/withTransaction';
 import { SequenceService } from './sequenceService';
 import { PostingService } from './postingService';
-import { CreatePaymentInput } from '../shared/schemas/payment';
+
+export interface PaymentAllocationInput {
+  invoiceId?: number;
+  billId?: number;
+  amount: string | number;
+}
+
+export interface CreatePaymentDTO {
+  direction?: 'inbound' | 'outbound';
+  partnerId: number;
+  method: 'cash' | 'bank';
+  paymentDate?: string;
+  amount: string | number;
+  allocations: PaymentAllocationInput[];
+}
 
 export interface PaymentHistoryItem {
-  payment_id: number;
-  payment_number: string;
-  payment_date: string;
-  method: string;
+  allocationId: number;
+  paymentId: number;
+  paymentNumber: string;
+  paymentDate: string;
+  method: 'cash' | 'bank';
+  direction: 'inbound' | 'outbound';
   amount: string;
-  created_at: string;
+  runningRemaining: string;
 }
 
 export interface CustomerReceivableItem {
-  customer_id: number;
-  customer_name: string;
-  total_invoiced: string;
-  total_paid: string;
-  outstanding: string;
-}
-
-export interface AgingBucketItem {
-  partner_id: number;
-  partner_name: string;
-  total_due: string;
-  current_0_30: string;
-  past_31_60: string;
-  past_61_90: string;
-  past_90_plus: string;
-}
-
-export interface AgingReport {
-  type: 'receivable' | 'payable';
-  asOfDate: string;
-  totals: {
-    total_due: string;
-    current_0_30: string;
-    past_31_60: string;
-    past_61_90: string;
-    past_90_plus: string;
-  };
-  details: AgingBucketItem[];
+  customerId: number;
+  customerName: string;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  totalInvoiced: string;
+  totalPaid: string;
+  totalOutstanding: string;
+  invoiceCount: number;
 }
 
 export class PaymentService {
   /**
-   * 1. POST /api/payments
-   * Validate: SUM(allocations) == payment.amount
-   * Validate: each allocation <= that document's amount_due (from v_invoice_status / v_bill_status)
-   * Create payment + payment_allocations, then postDocument('payment', ...)
+   * Create and post a payment with allocations.
+   * Runs atomically inside a single transaction:
+   * 1. Validate total allocations == payment.amount
+   * 2. Validate allocation <= document amount_due (from v_invoice_status / v_bill_status)
+   * 3. Insert into payments
+   * 4. Insert into payment_allocations
+   * 5. Call PostingService.postDocument('payment', id, tx)
+   *    -> Inbound: DR Cash/Bank, CR Debtors (partner = customer)
+   *    -> Outbound: DR Creditors, CR Cash/Bank
+   * 6. Write audit_log
    */
-  static async createPayment(input: CreatePaymentInput): Promise<{
-    paymentId: number;
-    paymentNumber: string;
-    journalEntryId: number;
-    amount: string;
-  }> {
-    const paymentAmount = new Decimal(input.amount);
-    if (paymentAmount.isNegative() || paymentAmount.isZero()) {
-      throw new Error('Payment amount must be greater than zero');
-    }
+  static async createPayment(dto: CreatePaymentDTO, userId?: number) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
 
-    // 1. Validate: SUM(allocations) == payment.amount
-    let sumAllocations = new Decimal(0);
-    for (const alloc of input.allocations) {
-      const allocAmt = new Decimal(alloc.amount);
-      if (allocAmt.isNegative() || allocAmt.isZero()) {
-        throw new Error('Allocation amount must be greater than zero');
+      const direction = dto.direction || 'inbound';
+      const partnerId = dto.partnerId;
+      const method = dto.method;
+      const paymentDate = dto.paymentDate || new Date().toISOString().split('T')[0];
+      const paymentAmount = new Decimal(dto.amount);
+
+      if (paymentAmount.lte(0)) {
+        throw new Error('Payment amount must be greater than zero');
       }
-      sumAllocations = sumAllocations.plus(allocAmt);
-    }
 
-    if (!sumAllocations.equals(paymentAmount)) {
-      const err = new Error(
-        `Sum of allocations (${sumAllocations.toFixed(2)}) does not match payment amount (${paymentAmount.toFixed(2)})`
-      );
-      (err as any).code = 'ALLOCATION_MISMATCH';
-      (err as any).severity = 'blocking';
-      (err as any).statusCode = 400;
-      throw err;
-    }
+      if (!dto.allocations || dto.allocations.length === 0) {
+        throw new Error('At least one payment allocation is required');
+      }
 
-    // 2. Validate: each allocation <= document amount_due from view
-    for (const alloc of input.allocations) {
-      const allocAmt = new Decimal(alloc.amount);
-
-      if (input.direction === 'inbound') {
-        if (!alloc.invoiceId) {
-          throw new Error('Inbound payments must allocate to customer invoices');
+      // Sum allocation amounts
+      let allocSum = new Decimal(0);
+      for (const alloc of dto.allocations) {
+        const amt = new Decimal(alloc.amount);
+        if (amt.lte(0)) {
+          throw new Error('Each allocated amount must be greater than zero');
         }
-        const invRes = await pool.query<{
-          number: string;
-          amount_due: string;
-          payment_status: string;
-        }>('SELECT number, amount_due, payment_status FROM v_invoice_status WHERE invoice_id = $1', [
-          alloc.invoiceId,
-        ]);
-        const invoice = invRes.rows[0];
-        if (!invoice) {
-          throw new Error(`Customer invoice ${alloc.invoiceId} not found`);
-        }
-        const due = new Decimal(invoice.amount_due);
-        if (allocAmt.greaterThan(due)) {
-          const err = new Error(
-            `Allocation amount ${allocAmt.toFixed(2)} exceeds amount due ${due.toFixed(2)} on invoice ${invoice.number}`
+        allocSum = allocSum.plus(amt);
+      }
+
+      if (!allocSum.equals(paymentAmount)) {
+        throw new Error(
+          `Sum of allocations (${allocSum.toFixed(2)}) must equal payment total amount (${paymentAmount.toFixed(2)})`
+        );
+      }
+
+      // Validate each allocation against amount_due from v_invoice_status / v_bill_status
+      for (const alloc of dto.allocations) {
+        if (alloc.invoiceId) {
+          const invStatusRes = await client.query<{
+            invoice_id: number;
+            number: string;
+            customer_id: number;
+            amount_due: string;
+            total: string;
+          }>(
+            `SELECT invoice_id, number, customer_id, amount_due, total 
+             FROM v_invoice_status 
+             WHERE invoice_id = $1`,
+            [alloc.invoiceId]
           );
-          (err as any).code = 'OVERPAYMENT_BLOCKED';
-          (err as any).severity = 'blocking';
-          (err as any).statusCode = 400;
-          throw err;
-        }
-      } else {
-        if (!alloc.billId) {
-          throw new Error('Outbound payments must allocate to vendor bills');
-        }
-        const billRes = await pool.query<{
-          number: string;
-          amount_due: string;
-          payment_status: string;
-        }>('SELECT number, amount_due, payment_status FROM v_bill_status WHERE bill_id = $1', [
-          alloc.billId,
-        ]);
-        const bill = billRes.rows[0];
-        if (!bill) {
-          throw new Error(`Vendor bill ${alloc.billId} not found`);
-        }
-        const due = new Decimal(bill.amount_due);
-        if (allocAmt.greaterThan(due)) {
-          const err = new Error(
-            `Allocation amount ${allocAmt.toFixed(2)} exceeds amount due ${due.toFixed(2)} on bill ${bill.number}`
+
+          if (invStatusRes.rows.length === 0) {
+            throw new Error(`Customer invoice #${alloc.invoiceId} not found`);
+          }
+
+          const invStatus = invStatusRes.rows[0];
+          if (invStatus.customer_id !== partnerId) {
+            throw new Error(`Invoice ${invStatus.number} does not belong to partner #${partnerId}`);
+          }
+
+          const due = new Decimal(invStatus.amount_due);
+          const allocating = new Decimal(alloc.amount);
+          if (allocating.gt(due)) {
+            throw new Error(
+              `Cannot allocate ${allocating.toFixed(2)} to Invoice ${invStatus.number}: maximum amount due is ${due.toFixed(2)}`
+            );
+          }
+        } else if (alloc.billId) {
+          const billStatusRes = await client.query<{
+            bill_id: number;
+            number: string;
+            vendor_id: number;
+            amount_due: string;
+          }>(
+            `SELECT bill_id, number, vendor_id, amount_due 
+             FROM v_bill_status 
+             WHERE bill_id = $1`,
+            [alloc.billId]
           );
-          (err as any).code = 'OVERPAYMENT_BLOCKED';
-          (err as any).severity = 'blocking';
-          (err as any).statusCode = 400;
-          throw err;
+
+          if (billStatusRes.rows.length === 0) {
+            throw new Error(`Vendor bill #${alloc.billId} not found`);
+          }
+
+          const billStatus = billStatusRes.rows[0];
+          if (billStatus.vendor_id !== partnerId) {
+            throw new Error(`Bill ${billStatus.number} does not belong to partner #${partnerId}`);
+          }
+
+          const due = new Decimal(billStatus.amount_due);
+          const allocating = new Decimal(alloc.amount);
+          if (allocating.gt(due)) {
+            throw new Error(
+              `Cannot allocate ${allocating.toFixed(2)} to Bill ${billStatus.number}: maximum amount due is ${due.toFixed(2)}`
+            );
+          }
+        } else {
+          throw new Error('Each allocation must specify either invoiceId or billId');
         }
       }
-    }
 
-    // 3. Create payment and allocations in a single transaction
-    let paymentId = 0;
-    let paymentNumber = '';
-    let entryId = 0;
+      // Generate sequence number
+      const paymentNumber = await SequenceService.nextDocNumber('PAY', client);
 
-    await withTransaction(async (tx) => {
-      paymentNumber = await SequenceService.nextDocNumber('PAY', tx);
-      const payDate = input.paymentDate || new Date().toISOString().split('T')[0];
-
-      const pRes = await tx.query<{ id: number }>(
-        `INSERT INTO payments
-           (number, direction, partner_id, method, payment_date, amount)
+      // Insert payment record
+      const payRes = await client.query<{ id: number }>(
+        `INSERT INTO payments (number, direction, partner_id, method, payment_date, amount)
          VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING id`,
-        [
-          paymentNumber,
-          input.direction,
-          input.partnerId,
-          input.method,
-          payDate,
-          paymentAmount.toFixed(2),
-        ]
+        [paymentNumber, direction, partnerId, method, paymentDate, paymentAmount.toFixed(2)]
       );
-      paymentId = pRes.rows[0].id;
+      const paymentId = payRes.rows[0].id;
 
-      for (const alloc of input.allocations) {
-        await tx.query(
+      // Insert allocations
+      for (const alloc of dto.allocations) {
+        await client.query(
           `INSERT INTO payment_allocations (payment_id, invoice_id, bill_id, amount)
            VALUES ($1, $2, $3, $4)`,
           [
@@ -179,129 +181,161 @@ export class PaymentService {
         );
       }
 
-      // Post the payment entry to the financial ledger
-      const postResult = await PostingService.postDocument('payment', paymentId, tx);
-      entryId = postResult.entryId;
-    });
+      // Post document via PostingService
+      const { entryId } = await PostingService.postDocument('payment', paymentId, client);
 
-    return {
-      paymentId,
-      paymentNumber,
-      journalEntryId: entryId,
-      amount: paymentAmount.toFixed(2),
-    };
+      // Audit log
+      await client.query(
+        `INSERT INTO audit_log (table_name, record_id, action, user_id, after_data)
+         VALUES ($1, $2, 'pay', $3, $4)`,
+        [
+          'payments',
+          paymentId,
+          userId || null,
+          JSON.stringify({
+            number: paymentNumber,
+            direction,
+            partnerId,
+            method,
+            paymentDate,
+            amount: paymentAmount.toFixed(2),
+            journalEntryId: entryId,
+            allocations: dto.allocations,
+          }),
+        ]
+      );
+
+      await client.query('COMMIT');
+
+      return {
+        id: paymentId,
+        number: paymentNumber,
+        direction,
+        partnerId,
+        method,
+        paymentDate,
+        amount: paymentAmount.toFixed(2),
+        journalEntryId: entryId,
+      };
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 
   /**
-   * 2. GET /api/invoices/:id/payments — full history: date, method, amount
+   * Get payment history for a customer invoice with running remaining balance
    */
-  static async getInvoicePayments(invoiceId: number): Promise<PaymentHistoryItem[]> {
-    const res = await pool.query<PaymentHistoryItem>(
-      `SELECT
-         p.id AS payment_id,
-         p.number AS payment_number,
-         p.payment_date::TEXT AS payment_date,
+  static async getInvoicePaymentHistory(invoiceId: number): Promise<PaymentHistoryItem[]> {
+    // 1. Fetch invoice total
+    const invRes = await pool.query<{ total: string }>(
+      'SELECT total FROM customer_invoices WHERE id = $1',
+      [invoiceId]
+    );
+    if (invRes.rows.length === 0) {
+      throw new Error(`Customer invoice #${invoiceId} not found`);
+    }
+
+    const totalInvoice = new Decimal(invRes.rows[0].total);
+
+    // 2. Fetch allocations in chronological order
+    const allocRes = await pool.query<{
+      allocation_id: number;
+      payment_id: number;
+      payment_number: string;
+      payment_date: string;
+      method: 'cash' | 'bank';
+      direction: 'inbound' | 'outbound';
+      amount: string;
+    }>(
+      `SELECT 
+         pa.id as allocation_id,
+         p.id as payment_id,
+         p.number as payment_number,
+         p.payment_date,
          p.method,
-         pa.amount::TEXT AS amount,
-         p.created_at::TEXT AS created_at
+         p.direction,
+         pa.amount
        FROM payment_allocations pa
        JOIN payments p ON p.id = pa.payment_id
        WHERE pa.invoice_id = $1
-       ORDER BY p.payment_date DESC, p.id DESC`,
+       ORDER BY p.payment_date ASC, pa.id ASC`,
       [invoiceId]
     );
-    return res.rows;
+
+    let runningRemaining = totalInvoice;
+    const history: PaymentHistoryItem[] = [];
+
+    for (const row of allocRes.rows) {
+      const allocated = new Decimal(row.amount);
+      runningRemaining = runningRemaining.minus(allocated);
+      history.push({
+        allocationId: row.allocation_id,
+        paymentId: row.payment_id,
+        paymentNumber: row.payment_number,
+        paymentDate: row.payment_date ? new Date(row.payment_date).toISOString().split('T')[0] : '',
+        method: row.method,
+        direction: row.direction,
+        amount: allocated.toFixed(2),
+        runningRemaining: runningRemaining.toFixed(2),
+      });
+    }
+
+    return history;
   }
 
   /**
-   * 3. GET /api/receivables — customer-wise: total invoiced, total paid, outstanding
+   * Customer receivables summary: per customer, total invoiced / total paid / total outstanding
    */
   static async getReceivablesSummary(): Promise<CustomerReceivableItem[]> {
     const res = await pool.query<CustomerReceivableItem>(
-      `SELECT
-         c.id AS customer_id,
-         c.name AS customer_name,
-         COALESCE(SUM(vis.total), 0)::TEXT AS total_invoiced,
-         COALESCE(SUM(vis.amount_paid), 0)::TEXT AS total_paid,
-         COALESCE(SUM(vis.amount_due), 0)::TEXT AS outstanding
+      `SELECT 
+         c.id AS "customerId",
+         c.name AS "customerName",
+         c.email AS "customerEmail",
+         c.mobile AS "customerPhone",
+         COALESCE(SUM(vis.total), 0)::text AS "totalInvoiced",
+         COALESCE(SUM(vis.amount_paid), 0)::text AS "totalPaid",
+         COALESCE(SUM(vis.amount_due), 0)::text AS "totalOutstanding",
+         COUNT(vis.invoice_id)::int AS "invoiceCount"
        FROM contacts c
        JOIN customer_invoices ci ON ci.customer_id = c.id
        JOIN v_invoice_status vis ON vis.invoice_id = ci.id
        WHERE ci.status = 'confirmed'
-       GROUP BY c.id, c.name
+       GROUP BY c.id, c.name, c.email, c.mobile
        ORDER BY COALESCE(SUM(vis.amount_due), 0) DESC, c.name ASC`
     );
+
     return res.rows;
   }
 
   /**
-   * 4. GET /api/aging?type=receivable|payable — buckets 0-30, 31-60, 61-90, 90+
+   * Get open (unpaid or partially paid) confirmed invoices for a customer
    */
-  static async getAgingReport(type: 'receivable' | 'payable'): Promise<AgingReport> {
-    const isReceivable = type === 'receivable';
+  static async getOpenInvoicesForCustomer(customerId: number) {
+    const res = await pool.query(
+      `SELECT 
+         ci.id,
+         ci.number,
+         ci.invoice_date AS "invoiceDate",
+         ci.due_date AS "dueDate",
+         vis.total::text,
+         vis.amount_paid::text AS "amountPaid",
+         vis.amount_due::text AS "amountDue",
+         vis.payment_status AS "paymentStatus"
+       FROM customer_invoices ci
+       JOIN v_invoice_status vis ON vis.invoice_id = ci.id
+       WHERE ci.customer_id = $1 AND ci.status = 'confirmed' AND vis.amount_due > 0
+       ORDER BY ci.invoice_date ASC, ci.id ASC`,
+      [customerId]
+    );
 
-    const query = isReceivable
-      ? `
-        SELECT
-          c.id AS partner_id,
-          c.name AS partner_name,
-          COALESCE(SUM(vis.amount_due), 0)::TEXT AS total_due,
-          COALESCE(SUM(CASE WHEN (CURRENT_DATE - COALESCE(ci.due_date, ci.invoice_date)) <= 30 THEN vis.amount_due ELSE 0 END), 0)::TEXT AS current_0_30,
-          COALESCE(SUM(CASE WHEN (CURRENT_DATE - COALESCE(ci.due_date, ci.invoice_date)) BETWEEN 31 AND 60 THEN vis.amount_due ELSE 0 END), 0)::TEXT AS past_31_60,
-          COALESCE(SUM(CASE WHEN (CURRENT_DATE - COALESCE(ci.due_date, ci.invoice_date)) BETWEEN 61 AND 90 THEN vis.amount_due ELSE 0 END), 0)::TEXT AS past_61_90,
-          COALESCE(SUM(CASE WHEN (CURRENT_DATE - COALESCE(ci.due_date, ci.invoice_date)) > 90 THEN vis.amount_due ELSE 0 END), 0)::TEXT AS past_90_plus
-        FROM contacts c
-        JOIN customer_invoices ci ON ci.customer_id = c.id
-        JOIN v_invoice_status vis ON vis.invoice_id = ci.id
-        WHERE ci.status = 'confirmed' AND vis.amount_due > 0
-        GROUP BY c.id, c.name
-        ORDER BY COALESCE(SUM(vis.amount_due), 0) DESC, c.name ASC
-      `
-      : `
-        SELECT
-          c.id AS partner_id,
-          c.name AS partner_name,
-          COALESCE(SUM(vbs.amount_due), 0)::TEXT AS total_due,
-          COALESCE(SUM(CASE WHEN (CURRENT_DATE - COALESCE(vb.due_date, vb.bill_date)) <= 30 THEN vbs.amount_due ELSE 0 END), 0)::TEXT AS current_0_30,
-          COALESCE(SUM(CASE WHEN (CURRENT_DATE - COALESCE(vb.due_date, vb.bill_date)) BETWEEN 31 AND 60 THEN vbs.amount_due ELSE 0 END), 0)::TEXT AS past_31_60,
-          COALESCE(SUM(CASE WHEN (CURRENT_DATE - COALESCE(vb.due_date, vb.bill_date)) BETWEEN 61 AND 90 THEN vbs.amount_due ELSE 0 END), 0)::TEXT AS past_61_90,
-          COALESCE(SUM(CASE WHEN (CURRENT_DATE - COALESCE(vb.due_date, vb.bill_date)) > 90 THEN vbs.amount_due ELSE 0 END), 0)::TEXT AS past_90_plus
-        FROM contacts c
-        JOIN vendor_bills vb ON vb.vendor_id = c.id
-        JOIN v_bill_status vbs ON vbs.bill_id = vb.id
-        WHERE vb.status = 'confirmed' AND vbs.amount_due > 0
-        GROUP BY c.id, c.name
-        ORDER BY COALESCE(SUM(vbs.amount_due), 0) DESC, c.name ASC
-      `;
-
-    const res = await pool.query<AgingBucketItem>(query);
-    const details = res.rows;
-
-    let totDue = new Decimal(0);
-    let tot0_30 = new Decimal(0);
-    let tot31_60 = new Decimal(0);
-    let tot61_90 = new Decimal(0);
-    let tot90Plus = new Decimal(0);
-
-    for (const item of details) {
-      totDue = totDue.plus(new Decimal(item.total_due));
-      tot0_30 = tot0_30.plus(new Decimal(item.current_0_30));
-      tot31_60 = tot31_60.plus(new Decimal(item.past_31_60));
-      tot61_90 = tot61_90.plus(new Decimal(item.past_61_90));
-      tot90Plus = tot90Plus.plus(new Decimal(item.past_90_plus));
-    }
-
-    return {
-      type,
-      asOfDate: new Date().toISOString().split('T')[0],
-      totals: {
-        total_due: totDue.toFixed(2),
-        current_0_30: tot0_30.toFixed(2),
-        past_31_60: tot31_60.toFixed(2),
-        past_61_90: tot61_90.toFixed(2),
-        past_90_plus: tot90Plus.toFixed(2),
-      },
-      details,
-    };
+    return res.rows.map(r => ({
+      ...r,
+      invoiceDate: r.invoiceDate ? new Date(r.invoiceDate).toISOString().split('T')[0] : '',
+      dueDate: r.dueDate ? new Date(r.dueDate).toISOString().split('T')[0] : '',
+    }));
   }
 }

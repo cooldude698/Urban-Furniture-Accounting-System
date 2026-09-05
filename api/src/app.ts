@@ -7,6 +7,7 @@ import { journalEntryRouter } from './routes/journalEntryRoutes';
 import { salesOrderRouter } from './routes/salesOrderRoutes';
 import { invoiceRouter } from './routes/invoiceRoutes';
 import { paymentRouter } from './routes/paymentRoutes';
+import { receivablesRouter } from './routes/receivablesRoutes';
 import { sendError } from './utils/response';
 
 dotenv.config();
@@ -31,7 +32,8 @@ app.use('/api/journal-entries', journalEntryRouter);
 app.use('/api/sales-orders', salesOrderRouter);
 app.use('/api/invoices', invoiceRouter);
 app.use('/api/payments', paymentRouter);
-app.use('/api', paymentRouter);
+app.use('/api/receivables', receivablesRouter);
+
 
 // Health check
 app.get('/api/health', (req: Request, res: Response) => {
