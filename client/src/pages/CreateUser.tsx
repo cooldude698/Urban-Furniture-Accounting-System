@@ -84,9 +84,9 @@ export default function CreateUser() {
       });
       navigate('/login');
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: { message?: string } } } })
-        ?.response?.data?.error?.message;
-      setError(msg ?? 'Failed to create user. Please try again.');
+      const errObj = (err as { response?: { data?: { error?: { message?: string; fields?: Record<string, string> } } } })?.response?.data?.error;
+      const fieldError = errObj?.fields ? Object.values(errObj.fields)[0] : null;
+      setError(fieldError || errObj?.message || 'Failed to create user. Please try again.');
     } finally {
       setLoading(false);
     }
