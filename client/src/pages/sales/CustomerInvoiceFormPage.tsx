@@ -6,10 +6,9 @@ import { InvoiceLineGrid, InvoiceGridLine } from './components/InvoiceLineGrid';
 import { BlockingWarning } from './components/Warnings';
 import { PaymentHistoryPanel } from './components/PaymentHistoryPanel';
 import { CustomerInvoiceDTO } from '@shared/schemas/invoice';
-import { ShoppingCart, CreditCard, BookOpen } from 'lucide-react';
+import { ShoppingCart, CreditCard, BookOpen, TrendingUp } from 'lucide-react';
 import { JournalEntryModal } from '../../components/purchase/JournalEntryModal';
-
-
+import { RegisterPaymentModal } from '../../components/purchase/RegisterPaymentModal';
 
 export interface CustomerInvoiceFormPageProps {
   invoiceId?: number | null;
@@ -37,6 +36,7 @@ export const CustomerInvoiceFormPage: React.FC<CustomerInvoiceFormPageProps> = (
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isJournalModalOpen, setIsJournalModalOpen] = useState<boolean>(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState<boolean>(false);
 
 
   // Fetch dropdown data
@@ -73,35 +73,41 @@ export const CustomerInvoiceFormPage: React.FC<CustomerInvoiceFormPageProps> = (
   }, []);
 
   // Fetch existing invoice if invoiceId provided
+  const loadInvoice = async (idToLoad: number) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/invoices/${idToLoad}`);
+      const json = await res.json();
+      if (json.data) {
+        const inv: CustomerInvoiceDTO = json.data;
+        setInvoice(inv);
+        setCustomerId(inv.customerId);
+        setInvoiceDate(inv.invoiceDate);
+        setDueDate(inv.dueDate || '');
+        setLines(inv.lines.map(l => ({
+          productId: l.productId,
+          accountId: l.accountId,
+          analyticAccountId: l.analyticAccountId || null,
+          qty: l.qty,
+          unitPrice: l.unitPrice,
+          taxRate: l.taxRate,
+          subtotal: l.subtotal,
+          taxAmount: l.taxAmount,
+          total: l.total,
+        })));
+      } else if (json.error) {
+        setError(json.error.message);
+      }
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (invoiceId) {
-      setLoading(true);
-      fetch(`/api/invoices/${invoiceId}`)
-        .then(res => res.json())
-        .then(json => {
-          if (json.data) {
-            const inv: CustomerInvoiceDTO = json.data;
-            setInvoice(inv);
-            setCustomerId(inv.customerId);
-            setInvoiceDate(inv.invoiceDate);
-            setDueDate(inv.dueDate || '');
-            setLines(inv.lines.map(l => ({
-              productId: l.productId,
-              accountId: l.accountId,
-              analyticAccountId: l.analyticAccountId || null,
-              qty: l.qty,
-              unitPrice: l.unitPrice,
-              taxRate: l.taxRate,
-              subtotal: l.subtotal,
-              taxAmount: l.taxAmount,
-              total: l.total,
-            })));
-          } else if (json.error) {
-            setError(json.error.message);
-          }
-        })
-        .catch(err => setError(err.message))
-        .finally(() => setLoading(false));
+      loadInvoice(invoiceId);
     } else {
       setInvoice(null);
       setCustomerId(0);
@@ -219,11 +225,12 @@ export const CustomerInvoiceFormPage: React.FC<CustomerInvoiceFormPageProps> = (
           {isConfirmed && (
             <button
               type="button"
-              onClick={() => navigate(`/sales/payments?invoiceId=${invoice?.id}`)}
-              className="px-4 py-1.5 text-sm font-semibold bg-posted text-white rounded-[6px] hover:bg-emerald-800 transition-all shadow-sm flex items-center gap-1.5"
+              disabled={Number(invoice?.amountDue ?? invoice?.total) <= 0}
+              onClick={() => setIsPaymentModalOpen(true)}
+              className="px-4 py-1.5 text-sm font-semibold bg-posted text-white rounded-[6px] hover:bg-emerald-800 transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <CreditCard className="w-4 h-4" />
-              Register Payment
+              {Number(invoice?.amountDue ?? invoice?.total) <= 0 ? 'Paid in Full' : 'Pay / Register Payment'}
             </button>
           )}
         </div>
@@ -244,6 +251,13 @@ export const CustomerInvoiceFormPage: React.FC<CustomerInvoiceFormPageProps> = (
               onClick={() => setIsJournalModalOpen(true)}
             />
           )}
+          {(invoice?.lines?.some(l => l.analyticAccountId) || lines.some(l => l.analyticAccountId)) && (
+            <SmartButton
+              label="Budget Report"
+              icon={TrendingUp}
+              onClick={() => navigate('/report/budget')}
+            />
+          )}
         </div>
 
       </div>
@@ -253,6 +267,52 @@ export const CustomerInvoiceFormPage: React.FC<CustomerInvoiceFormPageProps> = (
         {successMsg && (
           <div className="p-4 bg-posted-bg border border-posted/30 text-posted rounded-md mb-4 text-sm font-medium">
             ✓ {successMsg}
+          </div>
+        )}
+
+        {/* Settlement Overview Cards */}
+        {invoice && (
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 p-3.5 bg-surface border border-brown-200 rounded-[10px] shadow-sm mb-6">
+            <div className="p-3 bg-brown-50/70 rounded-lg border border-brown-100">
+              <span className="block text-[11px] font-medium text-brown-600 uppercase tracking-wider">
+                Invoice Total
+              </span>
+              <span className="text-sm font-bold font-mono text-brown-900">
+                ₹{Number(invoice.total || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+            <div className="p-3 bg-brown-50/70 rounded-lg border border-brown-100">
+              <span className="block text-[11px] font-medium text-brown-600 uppercase tracking-wider">
+                Paid Via Cash
+              </span>
+              <span className="text-sm font-bold font-mono text-emerald-800">
+                ₹{Number(invoice.paidViaCash || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+            <div className="p-3 bg-brown-50/70 rounded-lg border border-brown-100">
+              <span className="block text-[11px] font-medium text-brown-600 uppercase tracking-wider">
+                Paid Via Bank
+              </span>
+              <span className="text-sm font-bold font-mono text-blue-800">
+                ₹{Number(invoice.paidViaBank || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+            <div className="p-3 bg-brown-50/70 rounded-lg border border-brown-100">
+              <span className="block text-[11px] font-medium text-brown-600 uppercase tracking-wider">
+                Total Paid
+              </span>
+              <span className="text-sm font-bold font-mono text-emerald-700">
+                ₹{Number(invoice.amountPaid || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+            <div className="p-3 bg-brown-50/70 rounded-lg border border-brown-100">
+              <span className="block text-[11px] font-medium text-brown-600 uppercase tracking-wider">
+                Amount Due
+              </span>
+              <span className={`text-sm font-bold font-mono ${Number(invoice.amountDue || 0) > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                ₹{Number(invoice.amountDue !== undefined && invoice.amountDue !== null ? invoice.amountDue : (invoice.total || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
           </div>
         )}
 
@@ -360,6 +420,19 @@ export const CustomerInvoiceFormPage: React.FC<CustomerInvoiceFormPageProps> = (
           isOpen={isJournalModalOpen}
           onClose={() => setIsJournalModalOpen(false)}
           sourceDocNumber={invoice.number}
+        />
+      )}
+
+      {/* Register Payment Modal */}
+      {invoice && (
+        <RegisterPaymentModal
+          invoice={invoice}
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          onPaymentSuccess={() => {
+            setSuccessMsg('Payment successfully registered and posted to ledger!');
+            loadInvoice(invoice.id);
+          }}
         />
       )}
     </div>

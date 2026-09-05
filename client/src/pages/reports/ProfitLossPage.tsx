@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import Decimal from 'decimal.js';
 import { ReportsApi, ProfitLossReport } from '../../api/reports.api';
@@ -11,10 +12,12 @@ import {
   TrendingDown,
   ExternalLink,
   RefreshCw,
+  ArrowLeft,
 } from 'lucide-react';
 
 export default function ProfitLossPage() {
-  // DATE RANGE PICKER: deliberately distinct state and dual controls from Balance Sheet
+  const navigate = useNavigate();
+  const [selectedYear, setSelectedYear] = useState<string>('2026');
   const [fromDate, setFromDate] = useState<string>('2026-01-01');
   const [toDate, setToDate] = useState<string>(
     new Date().toISOString().split('T')[0]
@@ -23,6 +26,14 @@ export default function ProfitLossPage() {
     id: number;
     name: string;
   } | null>(null);
+
+  const handleYearChange = (yr: string) => {
+    setSelectedYear(yr);
+    if (yr !== 'custom') {
+      setFromDate(`${yr}-01-01`);
+      setToDate(`${yr}-12-31`);
+    }
+  };
 
   const {
     data: report,
@@ -81,31 +92,54 @@ export default function ProfitLossPage() {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handlePrint}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '8px 16px',
-            fontSize: 13,
-            fontFamily: 'var(--font-body)',
-            fontWeight: 600,
-            color: 'var(--brown-900)',
-            background: 'var(--surface)',
-            border: '1px solid var(--brown-300)',
-            borderRadius: 'var(--radius-sm)',
-            cursor: 'pointer',
-            boxShadow: 'var(--shadow-sm)',
-          }}
-        >
-          <Printer size={15} />
-          <span>Print / PDF</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 14px',
+              fontSize: 13,
+              fontFamily: 'var(--font-body)',
+              fontWeight: 600,
+              color: 'var(--brown-700)',
+              background: 'transparent',
+              border: '1px solid var(--brown-300)',
+              borderRadius: 'var(--radius-sm)',
+              cursor: 'pointer',
+            }}
+          >
+            <ArrowLeft size={15} />
+            <span>Back</span>
+          </button>
+          <button
+            type="button"
+            onClick={handlePrint}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 16px',
+              fontSize: 13,
+              fontFamily: 'var(--font-body)',
+              fontWeight: 600,
+              color: 'var(--brown-900)',
+              background: 'var(--surface)',
+              border: '1px solid var(--brown-300)',
+              borderRadius: 'var(--radius-sm)',
+              cursor: 'pointer',
+              boxShadow: 'var(--shadow-sm)',
+            }}
+          >
+            <Printer size={15} />
+            <span>Print / PDF</span>
+          </button>
+        </div>
       </div>
 
-      {/* ── Controls: DATE RANGE PICKER (From & To) ── */}
+      {/* ── Controls: Year & Date Range Picker ── */}
       <div
         style={{
           background: 'var(--cream)',
@@ -123,8 +157,28 @@ export default function ProfitLossPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <CalendarRange size={18} style={{ color: 'var(--brown-700)' }} />
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--brown-900)', fontFamily: 'var(--font-body)' }}>
-              Date Range:
+              Year:
             </span>
+            <select
+              value={selectedYear}
+              onChange={(e) => handleYearChange(e.target.value)}
+              style={{
+                fontFamily: 'var(--font-body)',
+                fontSize: 13,
+                fontWeight: 600,
+                padding: '6px 12px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--brown-300)',
+                background: 'var(--surface)',
+                color: 'var(--brown-900)',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="2026">2026</option>
+              <option value="2025">2025</option>
+              <option value="2024">2024</option>
+              <option value="custom">Custom Range</option>
+            </select>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

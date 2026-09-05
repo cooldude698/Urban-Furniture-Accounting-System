@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import Decimal from 'decimal.js';
 import { VendorBillsApi } from '../../api/vendorBills.api';
+import { CustomerInvoicesApi } from '../../api/customerInvoices.api';
 import { VendorBill } from '@shared/schemas/vendorBill.schema';
+import { CustomerInvoiceDTO } from '@shared/schemas/invoice';
 import { X, CheckCircle2, AlertTriangle, DollarSign, CreditCard, Building2 } from 'lucide-react';
 
-interface RegisterPaymentModalProps {
-  bill: VendorBill;
+export interface RegisterPaymentModalProps {
+  bill?: VendorBill | null;
+  invoice?: CustomerInvoiceDTO | null;
   isOpen: boolean;
   onClose: () => void;
   onPaymentSuccess: (payment: any) => void;
@@ -13,23 +16,33 @@ interface RegisterPaymentModalProps {
 
 export const RegisterPaymentModal: React.FC<RegisterPaymentModalProps> = ({
   bill,
+  invoice,
   isOpen,
   onClose,
   onPaymentSuccess,
 }) => {
   if (!isOpen) return null;
 
-  const billTotal = bill.total || bill.grand_total || bill.total_amount || '0.00';
+  const isInvoice = !!invoice;
+  const docNumber = isInvoice ? invoice!.number : (bill?.number || '');
+  const partnerName = isInvoice ? (invoice!.customerName || `Customer #${invoice!.customerId}`) : (bill?.vendor_name || `Vendor #${bill?.vendor_id}`);
 
-  const maxDue = bill.amount_due ? String(bill.amount_due) : String(billTotal);
+  const totalAmount = isInvoice
+    ? (invoice!.total || invoice!.totalAmount || '0.00')
+    : (bill?.total || bill?.grand_total || bill?.total_amount || '0.00');
 
+  const maxDue = isInvoice
+    ? (invoice!.amountDue !== undefined && invoice!.amountDue !== null ? String(invoice!.amountDue) : String(totalAmount))
+    : (bill?.amount_due ? String(bill.amount_due) : String(totalAmount));
 
   const [amount, setAmount] = useState<string>(maxDue);
   const [method, setMethod] = useState<'cash' | 'bank'>('bank');
   const [paymentDate, setPaymentDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
-  const [memo, setMemo] = useState<string>(`Payment for ${bill.number}`);
+  const [memo, setMemo] = useState<string>(
+    isInvoice ? `Payment received for ${docNumber}` : `Payment for ${docNumber}`
+  );
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,11 +74,20 @@ export const RegisterPaymentModal: React.FC<RegisterPaymentModalProps> = ({
       setLoading(true);
       setError(null);
 
-      const payment = await VendorBillsApi.registerPayment(bill.id!, {
-        amount: new Decimal(amount).toFixed(2),
-        method,
-        paymentDate,
-      });
+      let payment: any;
+      if (isInvoice) {
+        payment = await CustomerInvoicesApi.registerPayment(invoice!.id, {
+          amount: new Decimal(amount).toFixed(2),
+          method,
+          paymentDate,
+        });
+      } else {
+        payment = await VendorBillsApi.registerPayment(bill!.id!, {
+          amount: new Decimal(amount).toFixed(2),
+          method,
+          paymentDate,
+        });
+      }
 
       onPaymentSuccess(payment);
       onClose();
@@ -87,10 +109,10 @@ export const RegisterPaymentModal: React.FC<RegisterPaymentModalProps> = ({
             </div>
             <div>
               <h3 className="font-heading font-semibold text-lg leading-tight">
-                Register Bill Payment
+                {isInvoice ? 'Register Customer Payment' : 'Register Bill Payment'}
               </h3>
               <p className="text-xs text-cream/70 font-mono">
-                {bill.number} • {bill.vendor_name}
+                {docNumber} • {partnerName}
               </p>
             </div>
           </div>
@@ -115,12 +137,11 @@ export const RegisterPaymentModal: React.FC<RegisterPaymentModalProps> = ({
           <div className="grid grid-cols-3 gap-3 p-3.5 bg-brown-50/60 rounded-xl border border-brown-100">
             <div>
               <span className="block text-[11px] font-medium text-brown-600 uppercase tracking-wider">
-                Total Bill
+                {isInvoice ? 'Total Invoice' : 'Total Bill'}
               </span>
               <span className="text-sm font-semibold font-mono text-brown-900">
-                ₹{Number(billTotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                ₹{Number(totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </span>
-
             </div>
             <div>
               <span className="block text-[11px] font-medium text-brown-600 uppercase tracking-wider">
@@ -245,12 +266,22 @@ export const RegisterPaymentModal: React.FC<RegisterPaymentModalProps> = ({
           <div className="p-3 bg-brown-100/50 rounded-xl text-xs text-brown-700 space-y-1">
             <div className="flex justify-between">
               <span className="font-medium">Debit Account:</span>
-              <span className="font-mono">Creditors / Accounts Payable (2001)</span>
+              <span className="font-mono">
+                {isInvoice
+                  ? method === 'bank'
+                    ? 'Bank Accounts (1020)'
+                    : 'Cash on Hand (1010)'
+                  : 'Sundry Creditors (2010)'}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="font-medium">Credit Account:</span>
               <span className="font-mono">
-                {method === 'bank' ? 'Bank Account (1002)' : 'Cash Account (1001)'}
+                {isInvoice
+                  ? 'Accounts Receivable / Sundry Debtors (1200)'
+                  : method === 'bank'
+                  ? 'Bank Accounts (1020)'
+                  : 'Cash on Hand (1010)'}
               </span>
             </div>
           </div>

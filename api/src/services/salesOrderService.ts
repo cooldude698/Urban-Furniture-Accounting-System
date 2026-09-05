@@ -285,7 +285,15 @@ export class SalesOrderService {
         [invoiceId, userId || null, JSON.stringify({ soId: so.id, invoiceNumber: invNumber })]
       );
 
-      return { invoiceId, invoiceNumber: invNumber };
+      const { InvoiceService } = await import('./invoiceService');
+      const invData = await InvoiceService.getInvoiceById(invoiceId, tx);
+      return {
+        ...invData,
+        id: invoiceId,
+        number: invNumber,
+        invoiceId,
+        invoiceNumber: invNumber,
+      };
     });
   }
 

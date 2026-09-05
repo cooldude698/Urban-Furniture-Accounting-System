@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ReportsApi, BalanceSheetReport } from '../../api/reports.api';
 import Money from '../../components/ui/Money';
@@ -10,9 +11,12 @@ import {
   AlertCircle,
   ExternalLink,
   RefreshCw,
+  ArrowLeft,
 } from 'lucide-react';
 
 export default function BalanceSheetPage() {
+  const navigate = useNavigate();
+  const [selectedYear, setSelectedYear] = useState<string>('2026');
   const [asOfDate, setAsOfDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
@@ -20,6 +24,13 @@ export default function BalanceSheetPage() {
     id: number;
     name: string;
   } | null>(null);
+
+  const handleYearChange = (yr: string) => {
+    setSelectedYear(yr);
+    if (yr !== 'custom') {
+      setAsOfDate(`${yr}-12-31`);
+    }
+  };
 
   const {
     data: report,
@@ -74,7 +85,28 @@ export default function BalanceSheetPage() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '8px 14px',
+              fontSize: 13,
+              fontFamily: 'var(--font-body)',
+              fontWeight: 600,
+              color: 'var(--brown-700)',
+              background: 'transparent',
+              border: '1px solid var(--brown-300)',
+              borderRadius: 'var(--radius-sm)',
+              cursor: 'pointer',
+            }}
+          >
+            <ArrowLeft size={15} />
+            <span>Back</span>
+          </button>
           {/* Print / PDF Button */}
           <button
             type="button"
@@ -101,7 +133,7 @@ export default function BalanceSheetPage() {
         </div>
       </div>
 
-      {/* ── Controls: SINGLE As-Of Date Picker ── */}
+      {/* ── Controls: Year & Single As-Of Date Picker ── */}
       <div
         style={{
           background: 'var(--cream)',
@@ -115,8 +147,34 @@ export default function BalanceSheetPage() {
           gap: 16,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Calendar size={18} style={{ color: 'var(--brown-700)' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Calendar size={18} style={{ color: 'var(--brown-700)' }} />
+            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--brown-900)', fontFamily: 'var(--font-body)' }}>
+              Year:
+            </span>
+            <select
+              value={selectedYear}
+              onChange={(e) => handleYearChange(e.target.value)}
+              style={{
+                fontFamily: 'var(--font-body)',
+                fontSize: 13,
+                fontWeight: 600,
+                padding: '6px 12px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid var(--brown-300)',
+                background: 'var(--surface)',
+                color: 'var(--brown-900)',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="2026">2026 (Dec 31, 2026)</option>
+              <option value="2025">2025 (Dec 31, 2025)</option>
+              <option value="2024">2024 (Dec 31, 2024)</option>
+              <option value="custom">Custom Date</option>
+            </select>
+          </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <label
               htmlFor="asOfDatePicker"

@@ -102,6 +102,51 @@ invoiceRouter.get('/:id/payments', async (req: Request, res: Response) => {
   }
 });
 
+// 5b. POST /api/invoices/:id/payments - Direct invoice payment registration
+invoiceRouter.post('/:id/payments', async (req: Request, res: Response) => {
+  try {
+    const invId = parseInt(String(req.params.id), 10);
+    if (isNaN(invId)) {
+      return sendError(res, 'INVALID_ID', 'Invoice ID must be a number', 400);
+    }
+
+    const invoice = await InvoiceService.getInvoiceById(invId);
+    if (!invoice) {
+      return sendError(res, 'NOT_FOUND', `Customer invoice #${invId} not found`, 404);
+    }
+
+    const { amount, method, paymentDate } = req.body;
+    if (!amount || Number(amount) <= 0) {
+      return sendError(res, 'VALIDATION_ERROR', 'Payment amount must be greater than zero');
+    }
+    if (!method || !['cash', 'bank'].includes(method)) {
+      return sendError(res, 'VALIDATION_ERROR', 'Payment method must be cash or bank');
+    }
+
+    const { PaymentService } = await import('../services/paymentService');
+    const payment = await PaymentService.createPayment(
+      {
+        direction: 'inbound',
+        partnerId: invoice.customerId,
+        method,
+        paymentDate: paymentDate || new Date().toISOString().split('T')[0],
+        amount: String(amount),
+        allocations: [
+          {
+            invoiceId: invoice.id,
+            amount: String(amount),
+          },
+        ],
+      },
+      (req as any).user?.id
+    );
+
+    return sendSuccess(res, payment, 201);
+  } catch (err: any) {
+    return sendError(res, 'PAYMENT_FAILED', err.message, 400);
+  }
+});
+
 // 6. GET & POST /api/invoices/:id/pdf - Export PDF (server-side Puppeteer)
 const handleInvoicePdf = async (req: Request, res: Response) => {
   try {

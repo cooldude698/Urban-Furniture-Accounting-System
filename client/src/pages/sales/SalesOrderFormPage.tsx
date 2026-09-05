@@ -170,8 +170,9 @@ export const SalesOrderFormPage: React.FC<SalesOrderFormPageProps> = ({ orderId:
         method: 'POST',
       });
       const json = await res.json();
-      if (json.data) {
-        navigate(`/sales/invoices/${json.data.id}`);
+      const targetId = json.data?.id || json.data?.invoiceId;
+      if (targetId) {
+        navigate(`/sales/invoices/${targetId}`);
       } else {
         setError(json.error?.message || 'Failed to create Customer Invoice');
       }
