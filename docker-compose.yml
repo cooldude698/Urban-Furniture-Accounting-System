@@ -34,7 +34,6 @@ services:
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
     ports:
-      - "5000:5000"
       - "5002:5000"
     volumes:
       - ./api:/app
