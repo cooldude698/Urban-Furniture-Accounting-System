@@ -443,9 +443,9 @@ export const PortalRoomStudioPage: React.FC = () => {
         raycaster.setFromCamera(mouse, camera);
 
         if (raycaster.ray.intersectPlane(floorPlane, planeIntersect)) {
-          // Keep within architectural living room floor
-          const targetX = Math.max(-2.8, Math.min(2.8, planeIntersect.x + dragOffset.x));
-          const targetZ = Math.max(-3.4, Math.min(0.8, planeIntersect.z + dragOffset.z));
+          // Allow full architectural floor range to reach walls and corners
+          const targetX = Math.max(-4.6, Math.min(4.6, planeIntersect.x + dragOffset.x));
+          const targetZ = Math.max(-4.7, Math.min(4.7, planeIntersect.z + dragOffset.z));
 
           draggedGroup.position.x = targetX;
           draggedGroup.position.z = targetZ;
@@ -725,8 +725,8 @@ export const PortalRoomStudioPage: React.FC = () => {
       const intersect = new THREE.Vector3();
 
       if (ray.ray.intersectPlane(floorPlane, intersect)) {
-        dropIndicatorRef.current.position.x = Math.max(-3.6, Math.min(3.6, intersect.x));
-        dropIndicatorRef.current.position.z = Math.max(-3.6, Math.min(3.6, intersect.z));
+        dropIndicatorRef.current.position.x = Math.max(-4.6, Math.min(4.6, intersect.x));
+        dropIndicatorRef.current.position.z = Math.max(-4.7, Math.min(4.7, intersect.z));
         (dropIndicatorRef.current.material as THREE.MeshBasicMaterial).opacity = 0.7;
       }
     }
@@ -761,8 +761,8 @@ export const PortalRoomStudioPage: React.FC = () => {
     let targetX = 0;
     let targetZ = -1.0;
     if (ray.ray.intersectPlane(floorPlane, intersect)) {
-      targetX = Math.max(-2.8, Math.min(2.8, intersect.x));
-      targetZ = Math.max(-3.2, Math.min(0.8, intersect.z));
+      targetX = Math.max(-4.6, Math.min(4.6, intersect.x));
+      targetZ = Math.max(-4.7, Math.min(4.7, intersect.z));
     }
 
     const model = catalogModels.find((m) => m.id === modelId || m.filename === modelId);
@@ -811,6 +811,31 @@ export const PortalRoomStudioPage: React.FC = () => {
     );
   }, [selectedInstanceId]);
 
+  const handleNudgeSelected = useCallback((dx: number, dz: number) => {
+    if (!selectedInstanceId) return;
+    const mesh = placedMeshesRef.current.get(selectedInstanceId);
+    if (!mesh) return;
+
+    const newX = Math.max(-4.6, Math.min(4.6, mesh.position.x + dx));
+    const newZ = Math.max(-4.7, Math.min(4.7, mesh.position.z + dz));
+
+    mesh.position.x = newX;
+    mesh.position.z = newZ;
+
+    if (selectionRingRef.current) {
+      selectionRingRef.current.position.x = newX;
+      selectionRingRef.current.position.z = newZ;
+    }
+
+    setPlacedItems((prev) =>
+      prev.map((item) =>
+        item.instanceId === selectedInstanceId
+          ? { ...item, position: [newX, item.position[1], newZ] }
+          : item
+      )
+    );
+  }, [selectedInstanceId]);
+
   const handleRemoveSelected = useCallback(() => {
     if (!selectedInstanceId || !sceneRef.current) return;
     const mesh = placedMeshesRef.current.get(selectedInstanceId);
@@ -822,13 +847,25 @@ export const PortalRoomStudioPage: React.FC = () => {
     setSelectedInstanceId(null);
   }, [selectedInstanceId]);
 
-  // Keyboard Shortcuts
+  // Keyboard Shortcuts (R to rotate, Arrows to nudge, Delete to remove)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!selectedInstanceId) return;
       if (e.key === 'r' || e.key === 'R') {
         e.preventDefault();
         handleRotateSelected(Math.PI / 4);
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        handleNudgeSelected(-0.15, 0);
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        handleNudgeSelected(0.15, 0);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        handleNudgeSelected(0, -0.15);
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        handleNudgeSelected(0, 0.15);
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
         handleRemoveSelected();
@@ -839,7 +876,7 @@ export const PortalRoomStudioPage: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedInstanceId, handleRotateSelected, handleRemoveSelected]);
+  }, [selectedInstanceId, handleRotateSelected, handleRemoveSelected, handleNudgeSelected]);
 
   // Load Preset Spaces
   const handleLoadPreset = (preset: 'lounge' | 'study' | 'bedroom' | 'blank') => {
@@ -1272,6 +1309,43 @@ export const PortalRoomStudioPage: React.FC = () => {
               {selectedItem.name}
             </span>
             <span style={{ fontSize: 11, color: 'var(--brown-600)' }}>• Drag floor to glide</span>
+          </div>
+
+          <div style={{ height: 20, width: 1, backgroundColor: 'rgba(208, 174, 146, 0.5)' }} />
+
+          {/* Nudge Controls (Push flush to walls & into corners) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+            <span style={{ fontSize: 10, color: 'var(--brown-600)', textTransform: 'uppercase', letterSpacing: '0.04em', marginRight: 2 }}>
+              Wall Align:
+            </span>
+            <button
+              onClick={() => handleNudgeSelected(-0.15, 0)}
+              title="Nudge Left towards wall (Left Arrow)"
+              style={styles.hudActionBtn}
+            >
+              ←
+            </button>
+            <button
+              onClick={() => handleNudgeSelected(0, -0.15)}
+              title="Nudge Back towards wall (Up Arrow)"
+              style={styles.hudActionBtn}
+            >
+              ↑
+            </button>
+            <button
+              onClick={() => handleNudgeSelected(0, 0.15)}
+              title="Nudge Forward (Down Arrow)"
+              style={styles.hudActionBtn}
+            >
+              ↓
+            </button>
+            <button
+              onClick={() => handleNudgeSelected(0.15, 0)}
+              title="Nudge Right towards wall (Right Arrow)"
+              style={styles.hudActionBtn}
+            >
+              →
+            </button>
           </div>
 
           <div style={{ height: 20, width: 1, backgroundColor: 'rgba(208, 174, 146, 0.5)' }} />
