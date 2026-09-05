@@ -534,6 +534,45 @@ export const VoiceBillPage: React.FC = () => {
     if (inputRef.current) inputRef.current.focus();
   };
 
+  // Handle quantity stepper directly via server session API
+  const handleUpdateQty = async (itemId: string, newQty: number) => {
+    if (!session || session.status === 'confirmed') return;
+    try {
+      if (newQty <= 0) {
+        await handleDeleteItem(itemId);
+        return;
+      }
+      const res = await fetch(`/api/voice-bill/session/${sessionId}/item/${itemId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qty: newQty }),
+      });
+      const json = await res.json();
+      if (json.data) {
+        setSession(json.data);
+      }
+    } catch (err: any) {
+      console.error('Failed to update quantity:', err);
+    }
+  };
+
+  // Handle item deletion directly via server session API
+  const handleDeleteItem = async (itemId: string) => {
+    if (!session || session.status === 'confirmed') return;
+    try {
+      const res = await fetch(`/api/voice-bill/session/${sessionId}/item/${itemId}`, {
+        method: 'DELETE',
+      });
+      const json = await res.json();
+      if (json.data) {
+        setSession(json.data);
+        if (soundEnabled) playChime('stop');
+      }
+    } catch (err: any) {
+      console.error('Failed to delete item:', err);
+    }
+  };
+
   // Calculations for live bill sheet
   const subtotalDec = useMemo(() => {
     if (!session || !session.lineItems) return 0;
@@ -1135,16 +1174,16 @@ export const VoiceBillPage: React.FC = () => {
                             <div className="inline-flex items-center gap-1">
                               <button
                                 type="button"
-                                onClick={() => handleSendMessage(`change quantity to ${Math.max(1, item.qty - 1)}`)}
-                                className="w-4 h-4 rounded bg-brown-100 hover:bg-brown-200 text-brown-800 flex items-center justify-center cursor-pointer text-[10px]"
+                                onClick={() => handleUpdateQty(item.id, item.qty - 1)}
+                                className="w-5 h-5 rounded bg-brown-100 hover:bg-brown-200 text-brown-800 flex items-center justify-center cursor-pointer text-xs transition-colors"
                               >
                                 -
                               </button>
-                              <span className="font-mono font-bold w-4 text-center">{item.qty}</span>
+                              <span className="font-mono font-bold w-5 text-center">{item.qty}</span>
                               <button
                                 type="button"
-                                onClick={() => handleSendMessage(`change quantity to ${item.qty + 1}`)}
-                                className="w-4 h-4 rounded bg-brown-100 hover:bg-brown-200 text-brown-800 flex items-center justify-center cursor-pointer text-[10px]"
+                                onClick={() => handleUpdateQty(item.id, item.qty + 1)}
+                                className="w-5 h-5 rounded bg-brown-100 hover:bg-brown-200 text-brown-800 flex items-center justify-center cursor-pointer text-xs transition-colors"
                               >
                                 +
                               </button>
@@ -1164,11 +1203,11 @@ export const VoiceBillPage: React.FC = () => {
                           <td className="py-2 px-1 text-center">
                             <button
                               type="button"
-                              onClick={() => handleSendMessage('clear')}
-                              title="Reset item"
-                              className="text-brown-400 hover:text-danger p-0.5 cursor-pointer"
+                              onClick={() => handleDeleteItem(item.id)}
+                              title="Delete item from bill"
+                              className="text-brown-400 hover:text-danger p-1 cursor-pointer transition-colors"
                             >
-                              <Trash2 className="w-3 h-3" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </td>
                         </tr>

@@ -19,6 +19,8 @@ export interface ParsedSlots {
   priceNeedsReview?: boolean;
   discountNeedsReview?: boolean;
   confidenceNotes?: { en: string[]; hi: string[] };
+  isRemoval?: boolean;
+  removalTarget?: string;
 }
 
 export type SupportedLanguage = 'en' | 'hi';
@@ -26,6 +28,9 @@ export type SupportedLanguage = 'en' | 'hi';
 // Hindi number word to digit map
 const HINDI_NUMBER_WORDS: Record<string, number> = {
   // Devanagari
+  'शून्य': 0,
+  'ज़ीरो': 0,
+  'zero': 0,
   'एक': 1,
   'दो': 2,
   'तीन': 3,
@@ -224,6 +229,37 @@ export class VoiceBillParser {
     }
 
     const normalizedText = this.normalizeNumberWordsInText(inputText);
+    const trimmed = normalizedText.trim();
+
+    // 0a. Check for standalone 0 or quantity set to 0 (user wants to cancel/remove item)
+    if (
+      /^(?:0|zero|shunya|शून्य|ज़ीरो)$/i.test(trimmed) ||
+      /^(?:change|update|make|set)?\s*(?:quantity|qty|मात्रा)\s*(?:to|=|\s|को)?\s*(?:0|zero|शून्य)\s*(?:कर\s*दो|kardo)?$/i.test(trimmed)
+    ) {
+      slots.quantity = 0;
+      slots.isUpdate = true;
+      slots.updateField = 'quantity';
+      slots.isRemoval = true;
+      slots.updateNote = {
+        en: 'Quantity set to 0 (item removed)',
+        hi: 'मात्रा 0 कर दी गई (उत्पाद हटा दिया गया)',
+      };
+      return slots;
+    }
+
+    // 0b. Check for removal/deletion intent:
+    // e.g. "remove chair", "delete item", "chair hata do", "हटा दो", "remove", "delete"
+    const removeMatch = trimmed.match(
+      /^(?:remove|delete|cancel|clear item|hata\s*do|hatao|nikal\s*do|हटा\s*दो|हटाओ|निकाल\s*दो|हटाएं|रद्द\s*करें)(?:\s+(.+))?$/i
+    ) || trimmed.match(
+      /^(.+?)\s+(?:hata\s*do|hatao|nikal\s*do|हटा\s*दो|हटाओ|निकाल\s*दो)$/i
+    );
+
+    if (removeMatch) {
+      slots.isRemoval = true;
+      slots.removalTarget = (removeMatch[1] || '').trim();
+      return slots;
+    }
 
     // 1. Check for update/correction patterns first:
     // e.g. "change quantity to 4", "make qty 3", "मात्रा 4 कर दो", "quantity ko 5 kardo"
