@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { StatusBadge } from '../../components/StatusBadge';
 import { CustomerInvoiceDTO } from '@shared/schemas/invoice';
+import { Mic } from 'lucide-react';
 
 export interface CustomerInvoiceListPageProps {
   onSelectInvoice?: (id: number) => void;
@@ -49,6 +50,14 @@ export const CustomerInvoiceListPage: React.FC<CustomerInvoiceListPageProps> = (
             <option value="partial">Partial</option>
             <option value="paid">Paid</option>
           </select>
+          <button
+            onClick={() => navigate('/sales/voice-bill')}
+            className="inline-flex items-center gap-1.5 bg-cream border border-brown-300 hover:bg-brown-100 text-brown-900 px-3.5 py-2 rounded-[6px] text-sm font-semibold transition-colors shadow-sm cursor-pointer"
+            title="Create customer invoice with conversational voice dictation"
+          >
+            <Mic className="w-4 h-4 text-rose-600" />
+            <span>Voice e-Bill</span>
+          </button>
           <button
             onClick={() => onNewInvoice ? onNewInvoice() : navigate('/sales/invoices/new')}
             className="bg-brown-900 text-cream px-4 py-2 rounded-[6px] text-sm font-semibold hover:bg-brown-700 transition-colors shadow-sm"

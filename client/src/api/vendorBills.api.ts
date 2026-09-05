@@ -43,5 +43,17 @@ export const VendorBillsApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  parseReceipt: (text: string) =>
+    apiRequest<any>('/api/bills/parse-receipt', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }),
+
+  parseVoice: (text: string) =>
+    apiRequest<any>('/api/bills/parse-voice', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    }),
 };
 
