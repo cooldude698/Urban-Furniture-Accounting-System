@@ -150,6 +150,11 @@ async function main() {
     unbalPostRes.error?.message === 'Debit and credit amounts do not match.'
   ) {
     console.log('✅ Correct: Returned blocking error: "Debit and credit amounts do not match."\n');
+    // Clean up draft entry so journal_entry_lines stays balanced
+    await fetch(`${baseUrl}/api/journal-entries/${unbalancedId}`, {
+      method: 'DELETE',
+      headers: { Cookie: cookie },
+    });
   } else {
     throw new Error('Failed to block unbalanced post!');
   }
