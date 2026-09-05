@@ -13,13 +13,17 @@ import { POListPage } from './pages/purchase/POListPage';
 import { POFormPage } from './pages/purchase/POFormPage';
 import { VendorBillListPage } from './pages/purchase/VendorBillListPage';
 import { VendorBillFormPage } from './pages/purchase/VendorBillFormPage';
+import { VendorStatementPage } from './pages/master/VendorStatementPage';
+import { ProductKanbanPage } from './pages/master/ProductKanbanPage';
 import { Users, Package, Landmark, BookOpen, PieChart, ShoppingCart, FileText } from 'lucide-react';
 
 type NavigationTab = 'Sales' | 'Purchase' | 'Account' | 'Report';
 type ActiveView =
   | 'contact-list'
   | 'contact-form'
+  | 'vendor-statement'
   | 'product-list'
+  | 'product-kanban'
   | 'product-form'
   | 'account-list'
   | 'account-form'
@@ -284,6 +288,25 @@ export function App() {
                   setActiveView('contact-list');
                 }}
                 onHome={() => setActiveView('contact-list')}
+                onViewBills={vendorId => {
+                  setActiveTab('Purchase');
+                  setActiveView('bill-list');
+                }}
+                onViewPOs={vendorId => {
+                  setActiveTab('Purchase');
+                  setActiveView('po-list');
+                }}
+                onViewStatement={contactId => {
+                  setSelectedContactId(contactId);
+                  setActiveView('vendor-statement');
+                }}
+              />
+            )}
+            {activeView === 'vendor-statement' && selectedContactId && (
+              <VendorStatementPage
+                contactId={selectedContactId}
+                onBack={() => setActiveView('contact-form')}
+                onHome={() => setActiveView('contact-list')}
               />
             )}
 
@@ -298,6 +321,19 @@ export function App() {
                   setSelectedProductId(null);
                   setActiveView('product-form');
                 }}
+              />
+            )}
+            {activeView === 'product-kanban' && (
+              <ProductKanbanPage
+                onSelectProduct={id => {
+                  setSelectedProductId(id);
+                  setActiveView('product-form');
+                }}
+                onNewProduct={() => {
+                  setSelectedProductId(null);
+                  setActiveView('product-form');
+                }}
+                onToggleViewMode={() => setActiveView('product-list')}
               />
             )}
             {activeView === 'product-form' && (

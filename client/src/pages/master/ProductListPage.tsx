@@ -4,14 +4,21 @@ import { ProductsApi } from '../../api/products.api';
 import { Product, ProductType } from '@shared/schemas/product.schema';
 import { StatusBadge } from '../../components/StatusBadge';
 import { Money } from '../../components/Money';
-import { Package, Wrench, Layers } from 'lucide-react';
+import { Package, Wrench, Layers, List, LayoutGrid } from 'lucide-react';
+import { ProductKanbanPage } from './ProductKanbanPage';
 
 interface ProductListPageProps {
   onSelectProduct: (id: number) => void;
   onNewProduct: () => void;
+  initialViewMode?: 'list' | 'kanban';
 }
 
-export const ProductListPage: React.FC<ProductListPageProps> = ({ onSelectProduct, onNewProduct }) => {
+export const ProductListPage: React.FC<ProductListPageProps> = ({
+  onSelectProduct,
+  onNewProduct,
+  initialViewMode = 'list',
+}) => {
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>(initialViewMode);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [includeArchived, setIncludeArchived] = useState(false);
@@ -33,6 +40,16 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({ onSelectProduc
   useEffect(() => {
     fetchProducts();
   }, [includeArchived, typeFilter, categoryFilter]);
+
+  if (viewMode === 'kanban') {
+    return (
+      <ProductKanbanPage
+        onSelectProduct={onSelectProduct}
+        onNewProduct={onNewProduct}
+        onToggleViewMode={() => setViewMode('list')}
+      />
+    );
+  }
 
   const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
 
@@ -113,6 +130,25 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({ onSelectProduc
       onNew={onNewProduct}
       includeArchived={includeArchived}
       onToggleArchived={setIncludeArchived}
+      extraControls={
+        <div className="flex items-center bg-brown-100/70 p-1 rounded-lg border border-brown-200">
+          <button
+            type="button"
+            className="p-1.5 rounded bg-surface text-brown-900 shadow-xs font-medium"
+            title="List View"
+          >
+            <List className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('kanban')}
+            className="p-1.5 rounded text-brown-600 hover:text-brown-900 transition-colors"
+            title="Kanban View"
+          >
+            <LayoutGrid className="w-4 h-4" />
+          </button>
+        </div>
+      }
       filterSlot={
         <div className="flex items-center gap-2">
           <select

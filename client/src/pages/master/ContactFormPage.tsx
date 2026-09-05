@@ -2,16 +2,28 @@ import React, { useState, useEffect, useRef } from 'react';
 import { FormView } from '../../components/FormView';
 import { ContactsApi } from '../../api/contacts.api';
 import { Contact, CreateContactInput, ContactType } from '@shared/schemas/contact.schema';
-import { Upload, User, Building2, MapPin, Mail, Phone, FileText } from 'lucide-react';
+import { Upload, User, Building2, MapPin, Mail, Phone, FileText, ShoppingCart, Receipt, BookOpen } from 'lucide-react';
+import { SmartButton } from '../../components/SmartButton';
 
 interface ContactFormPageProps {
   contactId?: number | null;
   onBack: () => void;
   onSaved: (id: number) => void;
   onHome: () => void;
+  onViewBills?: (vendorId: number) => void;
+  onViewPOs?: (vendorId: number) => void;
+  onViewStatement?: (contactId: number) => void;
 }
 
-export const ContactFormPage: React.FC<ContactFormPageProps> = ({ contactId, onBack, onSaved, onHome }) => {
+export const ContactFormPage: React.FC<ContactFormPageProps> = ({
+  contactId,
+  onBack,
+  onSaved,
+  onHome,
+  onViewBills,
+  onViewPOs,
+  onViewStatement,
+}) => {
   const isNew = !contactId;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -30,6 +42,14 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({ contactId, onB
   });
 
   const [contact, setContact] = useState<Contact | null>(null);
+  const [counts, setCounts] = useState<{
+    billCount: number;
+    poCount: number;
+    confirmedBillCount: number;
+    totalBilled: string;
+    totalPaid: string;
+    totalDue: string;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -38,9 +58,13 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({ contactId, onB
   useEffect(() => {
     if (contactId) {
       setLoading(true);
-      ContactsApi.getById(contactId)
-        .then(data => {
+      Promise.all([
+        ContactsApi.getById(contactId),
+        ContactsApi.getCounts(contactId).catch(() => null),
+      ])
+        .then(([data, countData]) => {
           setContact(data);
+          if (countData) setCounts(countData);
           setFormData({
             name: data.name,
             type: data.type,
@@ -123,6 +147,30 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({ contactId, onB
       onHome={onHome}
       loading={loading}
       error={error}
+      extraButtons={
+        !isNew && contactId ? (
+          <div className="flex items-center gap-2">
+            <SmartButton
+              label="Bills"
+              count={counts?.billCount ?? 0}
+              icon={Receipt}
+              onClick={() => onViewBills?.(contactId)}
+            />
+            <SmartButton
+              label="Purchase Orders"
+              count={counts?.poCount ?? 0}
+              icon={ShoppingCart}
+              onClick={() => onViewPOs?.(contactId)}
+            />
+            <SmartButton
+              label="Partner Statement"
+              count={counts?.totalDue ? `₹${counts.totalDue}` : 'View'}
+              icon={BookOpen}
+              onClick={() => onViewStatement?.(contactId)}
+            />
+          </div>
+        ) : undefined
+      }
     >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left Column: Image & Type */}

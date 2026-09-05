@@ -64,6 +64,34 @@ contactRouter.get('/:id', (req: Request, res: Response) => {
   }
 });
 
+// GET /api/contacts/:id/counts
+contactRouter.get('/:id/counts', (req: Request, res: Response) => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) return sendError(res, 'INVALID_ID', 'ID must be an integer');
+
+    const counts = ContactService.getSmartCounts(id);
+    return sendSuccess(res, counts);
+  } catch (err: any) {
+    return sendError(res, 'FETCH_FAILED', err.message);
+  }
+});
+
+// GET /api/contacts/:id/statement
+contactRouter.get('/:id/statement', (req: Request, res: Response) => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) return sendError(res, 'INVALID_ID', 'ID must be an integer');
+
+    const statement = ContactService.getStatement(id);
+    if (!statement) return sendError(res, 'NOT_FOUND', 'Contact not found', 'blocking', 404);
+
+    return sendSuccess(res, statement);
+  } catch (err: any) {
+    return sendError(res, 'FETCH_FAILED', err.message);
+  }
+});
+
 // POST /api/contacts
 contactRouter.post('/', (req: Request, res: Response) => {
   try {

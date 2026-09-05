@@ -1,5 +1,26 @@
 import { localDB } from '../db/db.js';
 import { CreateContactInput, UpdateContactInput, Contact } from '../../../shared/schemas/contact.schema.js';
+import { Decimal } from 'decimal.js';
+
+export interface StatementLine {
+  id: string;
+  date: string;
+  doc_number: string;
+  reference: string;
+  type: 'bill' | 'payment';
+  debit: string;
+  credit: string;
+  running_balance: string;
+}
+
+export interface ContactStatement {
+  contact: Contact;
+  opening_balance: string;
+  closing_balance: string;
+  total_billed: string;
+  total_paid: string;
+  lines: StatementLine[];
+}
 
 export class ContactService {
   static getAll(includeArchived = false, type?: string): Contact[] {
@@ -121,5 +142,103 @@ export class ContactService {
     });
 
     return updatedContact;
+  }
+
+  static getSmartCounts(id: number) {
+    const state = localDB.getState();
+    const bills = state.vendor_bills.filter(b => b.vendor_id === id);
+    const pos = state.purchase_orders.filter(p => p.vendor_id === id);
+
+    let totalBilled = new Decimal('0');
+    let totalPaid = new Decimal('0');
+    let totalDue = new Decimal('0');
+
+    bills.forEach(b => {
+      const grandTotal = new Decimal(b.grand_total || b.total_amount || '0');
+      const paid = new Decimal(b.amount_paid || '0');
+      totalBilled = totalBilled.plus(grandTotal);
+      totalPaid = totalPaid.plus(paid);
+      totalDue = totalDue.plus(grandTotal.minus(paid));
+    });
+
+    return {
+      billCount: bills.length,
+      poCount: pos.length,
+      confirmedBillCount: bills.filter(b => b.status === 'confirmed').length,
+      totalBilled: totalBilled.toFixed(2),
+      totalPaid: totalPaid.toFixed(2),
+      totalDue: totalDue.toFixed(2),
+    };
+  }
+
+  static getStatement(id: number): ContactStatement | null {
+    const contact = this.getById(id);
+    if (!contact) return null;
+
+    const state = localDB.getState();
+    const bills = state.vendor_bills
+      .filter(b => b.vendor_id === id && b.status === 'confirmed')
+      .map(b => ({
+        id: `bill-${b.id}`,
+        date: b.bill_date,
+        doc_number: b.number,
+        reference: b.bill_reference || 'Vendor Bill',
+        type: 'bill' as const,
+        amount: new Decimal(b.grand_total || b.total_amount || '0'),
+        paid: new Decimal(b.amount_paid || '0'),
+      }));
+
+    // Sort chronologically
+    const allEvents = [...bills].sort((a, b) => a.date.localeCompare(b.date));
+
+    let runningBalance = new Decimal('0');
+    let totalBilled = new Decimal('0');
+    let totalPaid = new Decimal('0');
+
+    const statementLines: StatementLine[] = [];
+
+    for (const evt of allEvents) {
+      if (evt.type === 'bill') {
+        runningBalance = runningBalance.plus(evt.amount);
+        totalBilled = totalBilled.plus(evt.amount);
+
+        statementLines.push({
+          id: evt.id,
+          date: evt.date,
+          doc_number: evt.doc_number,
+          reference: evt.reference,
+          type: 'bill',
+          debit: evt.amount.toFixed(2),
+          credit: '0.00',
+          running_balance: runningBalance.toFixed(2),
+        });
+
+        // If part of the bill has been settled
+        if (evt.paid.greaterThan(0)) {
+          runningBalance = runningBalance.minus(evt.paid);
+          totalPaid = totalPaid.plus(evt.paid);
+
+          statementLines.push({
+            id: `${evt.id}-pay`,
+            date: evt.date,
+            doc_number: `PAY/${evt.doc_number}`,
+            reference: `Payment for ${evt.doc_number}`,
+            type: 'payment',
+            debit: '0.00',
+            credit: evt.paid.toFixed(2),
+            running_balance: runningBalance.toFixed(2),
+          });
+        }
+      }
+    }
+
+    return {
+      contact,
+      opening_balance: '0.00',
+      closing_balance: runningBalance.toFixed(2),
+      total_billed: totalBilled.toFixed(2),
+      total_paid: totalPaid.toFixed(2),
+      lines: statementLines,
+    };
   }
 }

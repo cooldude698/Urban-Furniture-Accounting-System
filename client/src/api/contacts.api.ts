@@ -43,4 +43,33 @@ export const ContactsApi = {
     if (json.error) throw new Error(json.error.message);
     return json.data;
   },
+
+  getCounts: (id: number) =>
+    apiRequest<{
+      billCount: number;
+      poCount: number;
+      confirmedBillCount: number;
+      totalBilled: string;
+      totalPaid: string;
+      totalDue: string;
+    }>(`/api/contacts/${id}/counts`),
+
+  getStatement: (id: number) =>
+    apiRequest<{
+      contact: Contact;
+      opening_balance: string;
+      closing_balance: string;
+      total_billed: string;
+      total_paid: string;
+      lines: Array<{
+        id: string;
+        date: string;
+        doc_number: string;
+        reference: string;
+        type: 'bill' | 'payment';
+        debit: string;
+        credit: string;
+        running_balance: string;
+      }>;
+    }>(`/api/contacts/${id}/statement`),
 };

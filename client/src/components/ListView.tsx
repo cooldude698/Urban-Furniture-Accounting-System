@@ -20,6 +20,7 @@ interface ListViewProps<T> {
   includeArchived: boolean;
   onToggleArchived: (val: boolean) => void;
   filterSlot?: React.ReactNode;
+  extraControls?: React.ReactNode;
   searchPlaceholder?: string;
 }
 
@@ -34,6 +35,7 @@ export function ListView<T extends { id?: number; is_archived?: boolean }>({
   includeArchived,
   onToggleArchived,
   filterSlot,
+  extraControls,
   searchPlaceholder = 'Search records...',
 }: ListViewProps<T>) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -53,6 +55,7 @@ export function ListView<T extends { id?: number; is_archived?: boolean }>({
           {subtitle && <p className="text-sm text-brown-500 mt-0.5">{subtitle}</p>}
         </div>
         <div className="flex items-center gap-3">
+          {extraControls}
           {onNew && (
             <button
               onClick={onNew}
