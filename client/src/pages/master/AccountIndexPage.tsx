@@ -1,14 +1,15 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Landmark, FileBarChart, Users, Package, BookOpen, PieChart } from 'lucide-react';
+import { Users, Package, PieChart, FileBarChart, Landmark, BookOpen, CheckCircle2 } from 'lucide-react';
 
 const ACCOUNT_NAV = [
-  { label: 'Chart of Accounts', to: '/account/coa', icon: Landmark },
-  { label: 'Budgets', to: '/account/budgets', icon: FileBarChart },
-  { label: 'Contacts', to: '/account/contacts', icon: Users },
-  { label: 'Products & Services', to: '/account/products', icon: Package },
+  { label: 'Contact', to: '/account/contacts', icon: Users },
+  { label: 'Product', to: '/account/products', icon: Package },
+  { label: 'Analyticals', to: '/account/analytics', icon: PieChart },
+  { label: 'Analytical Budget', to: '/account/budgets', icon: FileBarChart },
+  { label: 'Chart of Account', to: '/account/coa', icon: Landmark },
   { label: 'Journals', to: '/account/journals', icon: BookOpen },
-  { label: 'Analytic Accounts', to: '/account/analytics', icon: PieChart },
+  { label: 'Journal Entries', to: '/verify', icon: CheckCircle2 },
 ];
 
 export default function AccountIndexPage() {

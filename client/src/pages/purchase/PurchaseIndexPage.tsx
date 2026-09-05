@@ -1,11 +1,11 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { ShoppingCart, FileText, Landmark } from 'lucide-react';
+import { ShoppingCart, FileText, CreditCard } from 'lucide-react';
 
 const PURCHASE_NAV = [
-  { label: 'Purchase Orders', to: '/purchase/orders', icon: ShoppingCart },
-  { label: 'Vendor Bills', to: '/purchase/bills', icon: FileText },
-  { label: 'Vendor Statements', to: '/purchase/statements', icon: Landmark },
+  { label: 'Purchase Order', to: '/purchase/orders', icon: ShoppingCart },
+  { label: 'Purchase Bill', to: '/purchase/bills', icon: FileText },
+  { label: 'Payment', to: '/purchase/statements', icon: CreditCard },
 ];
 
 export default function PurchaseIndexPage() {

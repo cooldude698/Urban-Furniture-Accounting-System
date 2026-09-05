@@ -251,7 +251,7 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
                 }`}
               >
                 <TrendingUp className="w-3.5 h-3.5" />
-                Sales Orders
+                Sales order
               </button>
 
               <button
@@ -263,19 +263,19 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
                 }`}
               >
                 <FileText className="w-3.5 h-3.5" />
-                Sale Invoices
+                Sale Invoice
               </button>
 
               <button
-                onClick={() => setActiveView('receivables')}
+                onClick={() => setActiveView('register-payment')}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors ${
-                  activeView === 'receivables' || activeView === 'register-payment'
+                  activeView === 'register-payment'
                     ? 'bg-brown-700 text-cream shadow-xs'
                     : 'text-brown-700 hover:bg-brown-200/60'
                 }`}
               >
                 <Receipt className="w-3.5 h-3.5" />
-                Receipts & Receivables
+                Receipt
               </button>
             </div>
           </div>
@@ -294,7 +294,7 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
                 }`}
               >
                 <ShoppingCart className="w-3.5 h-3.5" />
-                Purchase Orders
+                Purchase Order
               </button>
 
               <button
@@ -306,7 +306,7 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
                 }`}
               >
                 <FileText className="w-3.5 h-3.5" />
-                Vendor Bills
+                Purchase Bill
               </button>
 
               <button
@@ -318,7 +318,7 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
                 }`}
               >
                 <CreditCard className="w-3.5 h-3.5" />
-                Payments & Statements
+                Payment
               </button>
             </div>
           </div>
@@ -337,7 +337,7 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
                 }`}
               >
                 <Users className="w-3.5 h-3.5" />
-                Contacts
+                Contact
               </button>
 
               <button
@@ -349,7 +349,7 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
                 }`}
               >
                 <Package className="w-3.5 h-3.5" />
-                Products & Services
+                Product
               </button>
 
               <button
@@ -385,7 +385,7 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
                 }`}
               >
                 <Landmark className="w-3.5 h-3.5" />
-                Chart of Accounts
+                Chart of Account
               </button>
 
               <button
@@ -398,6 +398,14 @@ export function App({ initialTab = 'Dashboard', initialView = 'dashboard-home', 
               >
                 <BookOpen className="w-3.5 h-3.5" />
                 Journals
+              </button>
+
+              <button
+                onClick={() => setActiveView('journal-list')}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors text-brown-700 hover:bg-brown-200/60"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Journal Entries
               </button>
             </div>
           </div>

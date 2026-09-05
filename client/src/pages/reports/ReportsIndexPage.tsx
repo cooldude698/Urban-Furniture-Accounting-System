@@ -1,12 +1,11 @@
 import React from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { Scale, TrendingUp, FileBarChart, ShieldCheck } from 'lucide-react';
+import { Scale, TrendingUp, FileBarChart } from 'lucide-react';
 
 const REPORT_NAV = [
-  { label: 'Balance Sheet', to: '/report/balance-sheet', icon: Scale },
-  { label: 'Profit & Loss', to: '/report/profit-loss', icon: TrendingUp },
+  { label: 'Balancesheet', to: '/report/balance-sheet', icon: Scale },
+  { label: 'Profit and Loss', to: '/report/profit-loss', icon: TrendingUp },
   { label: 'Budget Report', to: '/report/budget', icon: FileBarChart },
-  { label: 'Ledger Audit (/verify)', to: '/verify', icon: ShieldCheck },
 ];
 
 export default function ReportsIndexPage() {
