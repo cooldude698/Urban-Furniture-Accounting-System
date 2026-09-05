@@ -8,29 +8,30 @@ export interface PortalUser {
   full_name: string;
 }
 
-interface PortalAuthContextValue {
+export interface PortalAuthContextValue {
   user: PortalUser | null;
   logout: () => Promise<void>;
+  checking?: boolean;
 }
 
-const PortalAuthContext = createContext<PortalAuthContextValue | null>(null);
+const PortalAuthContext = createContext<PortalAuthContextValue>({
+  user: null,
+  logout: async () => {},
+  checking: false,
+});
 
 export function usePortalAuth(): PortalAuthContextValue {
-  const ctx = useContext(PortalAuthContext);
-  if (!ctx) {
-    throw new Error('usePortalAuth must be used inside PortalAuthGuard');
-  }
-  return ctx;
+  return useContext(PortalAuthContext);
 }
 
-export const PortalAuthGuard: React.FC = () => {
+export const PortalAuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<PortalUser | null>(null);
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
     fetch('/api/portal/me')
-      .then(res => res.json())
-      .then(json => {
+      .then((res) => res.json())
+      .then((json) => {
         if (json.data?.user) {
           setUser(json.data.user);
         } else {
@@ -50,6 +51,16 @@ export const PortalAuthGuard: React.FC = () => {
     setUser(null);
   };
 
+  return (
+    <PortalAuthContext.Provider value={{ user, logout, checking }}>
+      {children}
+    </PortalAuthContext.Provider>
+  );
+};
+
+export const PortalAuthGuard: React.FC = () => {
+  const { user, checking } = usePortalAuth();
+
   if (checking) {
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center text-brown-800 font-display text-sm font-semibold">
@@ -62,9 +73,5 @@ export const PortalAuthGuard: React.FC = () => {
     return <Navigate to="/portal/login" replace />;
   }
 
-  return (
-    <PortalAuthContext.Provider value={{ user, logout }}>
-      <Outlet />
-    </PortalAuthContext.Provider>
-  );
+  return <Outlet />;
 };

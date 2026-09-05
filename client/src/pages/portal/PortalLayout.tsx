@@ -18,8 +18,16 @@ export const PortalLayout: React.FC = () => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--cream)', color: 'var(--brown-900)', display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-body)' }}>
-
+    <div
+      style={{
+        minHeight: '100vh',
+        background: 'var(--cream)',
+        color: 'var(--brown-900)',
+        display: 'flex',
+        flexDirection: 'column',
+        fontFamily: 'var(--font-body)',
+      }}
+    >
       {/* ── Portal Header — brown-900 bg, cream text ── */}
       <header
         style={{
@@ -45,121 +53,188 @@ export const PortalLayout: React.FC = () => {
           subtitle="Customer Portal Surface"
         />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          {/* Tab navigation — pill switcher inside the dark header */}
-          <nav
-            style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              padding: 4,
-              borderRadius: 10,
-              backgroundColor: 'rgba(255,255,255,0.08)',
-              border: '1px solid rgba(255,255,255,0.12)',
-            }}
-          >
-            {[
-              { to: '/portal/catalogue', label: 'Catalogue' },
-              { to: '/portal/invoices', label: 'Customer Invoices' },
-              { to: '/portal/payments', label: 'Payment Logs' },
-              { to: '/portal/bills', label: 'Vendor Bills' },
-            ].map(({ to, label }) => (
-              <NavLink
-                key={to}
-                to={to}
-                style={({ isActive }) => ({
+        {/* Right side: back-to-ERP (staff only) + user info + sign out / in */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          {/* ← Back to Internal App — only visible to internal staff */}
+          {isInternalStaff && (
+            <a
+              href="/dashboard"
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                fontFamily: 'var(--font-body)',
+                color: 'var(--brown-300)',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '4px 0',
+                borderBottom: '1px solid transparent',
+                transition: 'color 120ms ease, border-color 120ms ease',
+                whiteSpace: 'nowrap',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'var(--cream)';
+                e.currentTarget.style.borderBottomColor = 'var(--cream)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--brown-300)';
+                e.currentTarget.style.borderBottomColor = 'transparent';
+              }}
+              title="Return to the Internal ERP"
+            >
+              <span style={{ fontSize: 10, opacity: 0.8 }}>←</span>
+              <span>Internal App</span>
+            </a>
+          )}
+
+          {user ? (
+            <>
+              {/* User name + email */}
+              <div style={{ textAlign: 'right' }}>
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: 'var(--cream)',
+                    display: 'block',
+                    fontFamily: 'var(--font-body)',
+                  }}
+                >
+                  {user.full_name}
+                </span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontFamily: 'var(--font-mono)',
+                    color: 'var(--brown-300)',
+                    display: 'block',
+                  }}
+                >
+                  {user.email}
+                </span>
+              </div>
+
+              {/* Sign out */}
+              <button
+                onClick={handleLogout}
+                style={{
                   padding: '6px 14px',
                   fontSize: 12,
-                  fontFamily: 'var(--font-display)',
-                  fontWeight: 700,
-                  borderRadius: 7,
-                  textDecoration: 'none',
-                  transition: 'all 120ms ease-out',
-                  backgroundColor: isActive ? 'var(--cream)' : 'transparent',
-                  color: isActive ? 'var(--brown-900)' : 'var(--brown-300)',
-                })}
-              >
-                {label}
-              </NavLink>
-            ))}
-          </nav>
-
-          {/* Right side: back-to-ERP (staff only) + user info + sign out */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-
-            {/* ← Back to Internal App — only visible to internal staff */}
-            {isInternalStaff && (
-              <a
-                href="/dashboard"
-                style={{
-                  fontSize: 11,
-                  fontWeight: 600,
                   fontFamily: 'var(--font-body)',
-                  color: 'var(--brown-300)',
-                  textDecoration: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 4,
-                  padding: '4px 0',
-                  borderBottom: '1px solid transparent',
-                  transition: 'color 120ms ease, border-color 120ms ease',
-                  whiteSpace: 'nowrap',
+                  fontWeight: 600,
+                  color: 'var(--cream)',
+                  background: 'transparent',
+                  border: '1px solid rgba(255,255,255,0.20)',
+                  borderRadius: 'var(--radius-sm)',
+                  cursor: 'pointer',
+                  transition: 'background 120ms ease-out',
                 }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.color = 'var(--cream)';
-                  e.currentTarget.style.borderBottomColor = 'var(--cream)';
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.10)';
                 }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.color = 'var(--brown-300)';
-                  e.currentTarget.style.borderBottomColor = 'transparent';
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent';
                 }}
-                title="Return to the Internal ERP"
               >
-                <span style={{ fontSize: 10, opacity: 0.8 }}>←</span>
-                <span>Internal App</span>
-              </a>
-            )}
-
-            {/* User name + email */}
-            <div style={{ textAlign: 'right' }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--cream)', display: 'block', fontFamily: 'var(--font-body)' }}>
-                {user.full_name}
-              </span>
-              <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--brown-300)', display: 'block' }}>
-                {user.email}
-              </span>
-            </div>
-
-            {/* Sign out */}
+                Sign Out
+              </button>
+            </>
+          ) : (
             <button
-              onClick={handleLogout}
+              onClick={() => navigate('/portal/login')}
               style={{
                 padding: '6px 14px',
                 fontSize: 12,
-                fontFamily: 'var(--font-body)',
+                fontFamily: 'var(--font-display)',
                 fontWeight: 600,
                 color: 'var(--cream)',
-                background: 'transparent',
-                border: '1px solid rgba(255,255,255,0.20)',
+                backgroundColor: 'rgba(255,255,255,0.12)',
+                border: '1px solid rgba(255,255,255,0.22)',
                 borderRadius: 'var(--radius-sm)',
                 cursor: 'pointer',
                 transition: 'background 120ms ease-out',
               }}
-              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.20)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.12)';
+              }}
             >
-              Sign Out
+              Sign In
             </button>
-          </div>
+          )}
         </div>
       </header>
+
+      {/* ── Sub-header Navigation Bar ── */}
+      <nav
+        style={{
+          backgroundColor: 'var(--surface)',
+          borderBottom: '1px solid rgba(208, 174, 146, 0.35)',
+          padding: '0 32px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 28,
+          height: 48,
+          boxShadow: 'var(--shadow-sm)',
+          position: 'sticky',
+          top: 56,
+          zIndex: 35,
+        }}
+      >
+        {/* My Invoices — visible ONLY when logged in */}
+        {user && (
+          <NavLink
+            to="/portal/invoices"
+            style={({ isActive }) => ({
+              padding: '13px 4px',
+              fontSize: 13,
+              fontFamily: 'var(--font-display)',
+              fontWeight: isActive ? 700 : 500,
+              color: isActive ? 'var(--brown-900)' : 'var(--brown-700)',
+              textDecoration: 'none',
+              borderBottom: isActive ? '2px solid var(--brown-900)' : '2px solid transparent',
+              transition: 'all 120ms ease-out',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            })}
+          >
+            My Invoices
+          </NavLink>
+        )}
+
+        {/* Furniture Catalogue — visible when logged in AND when logged out (public browseable) */}
+        <NavLink
+          to="/portal/catalogue"
+          style={({ isActive }) => ({
+            padding: '13px 4px',
+            fontSize: 13,
+            fontFamily: 'var(--font-display)',
+            fontWeight: isActive ? 700 : 500,
+            color: isActive ? 'var(--brown-900)' : 'var(--brown-700)',
+            textDecoration: 'none',
+            borderBottom: isActive ? '2px solid var(--brown-900)' : '2px solid transparent',
+            transition: 'all 120ms ease-out',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+          })}
+        >
+          Furniture Catalogue
+        </NavLink>
+      </nav>
 
       {/* ── Main content — cream background ── */}
       <main
         style={{
           flex: 1,
-          maxWidth: '72rem',
+          maxWidth: '85rem',
           width: '100%',
           margin: '0 auto',
-          padding: '32px 24px 64px',
+          padding: '24px 24px 64px',
           fontFamily: 'var(--font-body)',
         }}
       >
@@ -184,3 +259,5 @@ export const PortalLayout: React.FC = () => {
     </div>
   );
 };
+
+export default PortalLayout;
