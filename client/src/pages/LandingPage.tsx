@@ -1,9 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Building2, 
-  UserCheck, 
-  X, 
   ArrowRight, 
   CheckCircle2, 
   Scale, 
@@ -16,37 +13,9 @@ import { ChairIcon } from '../components/ui/BrandLogo';
 
 export default function LandingPage() {
   const navigate = useNavigate();
-  const [isPortalModalOpen, setIsPortalModalOpen] = useState(false);
 
-  // Close modal on Escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isPortalModalOpen) {
-        setIsPortalModalOpen(false);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isPortalModalOpen]);
-
-  // Lock body scroll when modal is open
-  useEffect(() => {
-    if (isPortalModalOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isPortalModalOpen]);
-
-  const handleOpenAdmin = () => {
+  const handleEnterPortal = () => {
     navigate('/login');
-  };
-
-  const handleOpenCustomer = () => {
-    navigate('/login?portal=customer');
   };
 
   return (
@@ -69,7 +38,7 @@ export default function LandingPage() {
           </div>
 
           <button
-            onClick={() => setIsPortalModalOpen(true)}
+            onClick={handleEnterPortal}
             className="group relative inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[#4A3A34] text-[#F9F2E4] font-medium text-sm hover:bg-[#5E453A] active:scale-[0.98] transition-all duration-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#77574A] focus:ring-offset-2 focus:ring-offset-[#F9F2E4]"
             aria-label="Enter to the Portal"
           >
@@ -103,7 +72,7 @@ export default function LandingPage() {
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 w-full sm:w-auto">
               <button
-                onClick={() => setIsPortalModalOpen(true)}
+                onClick={handleEnterPortal}
                 className="w-full sm:w-auto px-8 py-4 rounded-xl bg-[#4A3A34] text-[#F9F2E4] font-semibold text-base sm:text-lg hover:bg-[#5E453A] active:scale-[0.98] transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-3 group focus:outline-none focus:ring-2 focus:ring-[#77574A] focus:ring-offset-2 focus:ring-offset-[#F9F2E4]"
               >
                 <span>ENTER TO THE PORTAL</span>
@@ -480,7 +449,7 @@ export default function LandingPage() {
               </p>
             </div>
             <button
-              onClick={() => setIsPortalModalOpen(true)}
+              onClick={handleEnterPortal}
               className="w-full md:w-auto px-7 py-3.5 rounded-xl bg-[#F9F2E4] text-[#4A3A34] font-semibold text-sm hover:bg-[#FAF5EE] active:scale-[0.98] transition-all duration-150 shadow flex items-center justify-center gap-2 group whitespace-nowrap"
             >
               <span>ENTER TO THE PORTAL</span>
@@ -504,114 +473,6 @@ export default function LandingPage() {
         </div>
       </footer>
 
-      {/* ── Modal Dialog: "Choose Your Portal" ──────────────────────────── */}
-      {isPortalModalOpen && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="portal-modal-title"
-        >
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 bg-[#4A3A34]/60 backdrop-blur-sm transition-opacity"
-            onClick={() => setIsPortalModalOpen(false)}
-            aria-hidden="true"
-          />
-
-          {/* Modal Card */}
-          <div className="relative w-full max-w-2xl bg-[#FFFFFF] rounded-2xl shadow-2xl border border-[#D0AE92] p-6 sm:p-8 z-10 animate-scale-up">
-            
-            {/* Header & Close Button */}
-            <div className="flex items-start justify-between pb-5 border-b border-[#EBD7BE]">
-              <div>
-                <h3 id="portal-modal-title" className="font-display text-2xl sm:text-3xl font-bold text-[#4A3A34]">
-                  Choose Your Portal
-                </h3>
-                <p className="text-sm text-[#77574A] mt-1 font-body">
-                  Select your destination to access the system.
-                </p>
-              </div>
-              <button
-                onClick={() => setIsPortalModalOpen(false)}
-                className="p-2 rounded-lg text-[#77574A] hover:bg-[#F9F2E4] hover:text-[#4A3A34] transition-colors focus:outline-none focus:ring-2 focus:ring-[#77574A]"
-                aria-label="Close dialog"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Exactly Two Portal Options */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-6">
-              
-              {/* Option 1: Admin / Internal ERP */}
-              <div className="p-6 rounded-xl border-2 border-[#D0AE92] bg-[#FAF5EE]/70 hover:border-[#4A3A34] hover:bg-[#FAF5EE] transition-all flex flex-col justify-between group">
-                <div>
-                  <div className="w-12 h-12 rounded-lg bg-[#4A3A34] text-[#F9F2E4] flex items-center justify-center mb-4 shadow-sm group-hover:scale-105 transition-transform">
-                    <Building2 size={24} />
-                  </div>
-                  <h4 className="font-display font-bold text-lg text-[#4A3A34]">
-                    ADMIN / INTERNAL ERP
-                  </h4>
-                  <p className="text-xs text-[#5E453A] mt-2 leading-relaxed font-body">
-                    Manage procurement, sales, inventory, accounting, budgets, payments and financial reports.
-                  </p>
-                  <div className="mt-4 pt-3 border-t border-[#D0AE92]/50">
-                    <span className="text-[11px] font-mono text-[#77574A]">
-                      Full Management & GL Engine
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleOpenAdmin}
-                  className="mt-6 w-full py-3 px-4 rounded-lg bg-[#4A3A34] text-[#F9F2E4] font-semibold text-sm hover:bg-[#5E453A] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#77574A] focus:ring-offset-1"
-                >
-                  <span>ENTER ADMIN PORTAL</span>
-                  <ArrowRight size={15} />
-                </button>
-              </div>
-
-              {/* Option 2: Customer Portal */}
-              <div className="p-6 rounded-xl border-2 border-[#D0AE92] bg-[#FAF5EE]/70 hover:border-[#5F7052] hover:bg-[#FAF5EE] transition-all flex flex-col justify-between group">
-                <div>
-                  <div className="w-12 h-12 rounded-lg bg-[#5F7052] text-[#F9F2E4] flex items-center justify-center mb-4 shadow-sm group-hover:scale-105 transition-transform">
-                    <UserCheck size={24} />
-                  </div>
-                  <h4 className="font-display font-bold text-lg text-[#4A3A34]">
-                    CUSTOMER PORTAL
-                  </h4>
-                  <p className="text-xs text-[#5E453A] mt-2 leading-relaxed font-body">
-                    View your invoices, outstanding balances and customer-side payment information.
-                  </p>
-                  <div className="mt-4 pt-3 border-t border-[#D0AE92]/50">
-                    <span className="text-[11px] font-mono text-[#5F7052] font-medium">
-                      Invoices & Statements
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleOpenCustomer}
-                  className="mt-6 w-full py-3 px-4 rounded-lg bg-[#5F7052] text-[#F9F2E4] font-semibold text-sm hover:bg-[#4E5D43] active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-[#5F7052] focus:ring-offset-1"
-                >
-                  <span>ENTER CUSTOMER PORTAL</span>
-                  <ArrowRight size={15} />
-                </button>
-              </div>
-
-            </div>
-
-            {/* Modal Bottom Note */}
-            <div className="mt-6 pt-4 border-t border-[#EBD7BE] text-center">
-              <span className="text-xs text-[#77574A] font-body">
-                Secured access with role-based permissions and audit logging.
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* ── Embedded CSS for Entrance Animation & prefers-reduced-motion ── */}
       <style>{`
         @keyframes fadeInSlow {
@@ -625,27 +486,12 @@ export default function LandingPage() {
           }
         }
 
-        @keyframes scaleUpSubtle {
-          from {
-            opacity: 0;
-            transform: scale(0.96);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-
         .hero-text-reveal {
           animation: fadeInSlow 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
         .hero-furniture-reveal {
           animation: fadeInSlow 1.1s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
-        }
-
-        .animate-scale-up {
-          animation: scaleUpSubtle 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
 
         /* Ambient calm showroom animation on furniture elements */
@@ -663,7 +509,6 @@ export default function LandingPage() {
         @media (prefers-reduced-motion: reduce) {
           .hero-text-reveal,
           .hero-furniture-reveal,
-          .animate-scale-up,
           .furniture-item-credenza,
           .furniture-item-table,
           .furniture-item-chair {
