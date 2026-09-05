@@ -3,6 +3,7 @@ import Decimal from 'decimal.js';
 import { pool } from '../db/pool';
 import { withTransaction } from '../db/withTransaction';
 import { SequenceService } from './sequenceService';
+import { AuditService } from './auditService';
 import { CreateJournalEntryInput } from '../shared/schemas/journalEntry';
 
 export interface JournalEntryListItem {
@@ -199,6 +200,17 @@ export class JournalEntryService {
           ]
         );
       }
+
+      await AuditService.log(
+        {
+          tableName: 'journal_entries',
+          recordId: createdId,
+          action: 'create',
+          userId: userId || null,
+          afterData: { number, journalId: input.journal_id },
+        },
+        tx
+      );
     });
 
     const full = await this.getEntryById(createdId);
@@ -244,6 +256,15 @@ export class JournalEntryService {
       await tx.query(
         "UPDATE journal_entries SET status = 'posted' WHERE id = $1 AND status = 'draft'",
         [id]
+      );
+      await AuditService.log(
+        {
+          tableName: 'journal_entries',
+          recordId: id,
+          action: 'post',
+          afterData: { status: 'posted' },
+        },
+        tx
       );
     });
 
@@ -320,6 +341,17 @@ export class JournalEntryService {
       await tx.query(
         "UPDATE journal_entries SET status = 'posted' WHERE id = $1",
         [reversalId]
+      );
+
+      await AuditService.log(
+        {
+          tableName: 'journal_entries',
+          recordId: reversalId,
+          action: 'reverse',
+          userId: userId || null,
+          afterData: { reversalOf: original.id, number: reversalNumber },
+        },
+        tx
       );
     });
 

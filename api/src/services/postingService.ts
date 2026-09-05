@@ -1,6 +1,7 @@
 import { PoolClient } from 'pg';
 import Decimal from 'decimal.js';
 import { SequenceService } from './sequenceService';
+import { AuditService } from './auditService';
 
 export type DocumentType = 'bill' | 'invoice' | 'payment';
 
@@ -201,6 +202,16 @@ export class PostingService {
       [entryId, bill.id]
     );
 
+    await AuditService.log(
+      {
+        tableName: 'vendor_bills',
+        recordId: bill.id,
+        action: 'post',
+        afterData: { journalEntryId: entryId, status: 'confirmed' },
+      },
+      tx
+    );
+
     return { entryId };
   }
 
@@ -333,6 +344,16 @@ export class PostingService {
       [entryId, invoice.id]
     );
 
+    await AuditService.log(
+      {
+        tableName: 'customer_invoices',
+        recordId: invoice.id,
+        action: 'post',
+        afterData: { journalEntryId: entryId, status: 'confirmed' },
+      },
+      tx
+    );
+
     return { entryId };
   }
 
@@ -429,6 +450,16 @@ export class PostingService {
     await tx.query(
       'UPDATE payments SET journal_entry_id = $1 WHERE id = $2',
       [entryId, payment.id]
+    );
+
+    await AuditService.log(
+      {
+        tableName: 'payments',
+        recordId: payment.id,
+        action: 'pay',
+        afterData: { journalEntryId: entryId },
+      },
+      tx
     );
 
     return { entryId };

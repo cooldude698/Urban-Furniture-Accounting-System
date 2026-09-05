@@ -14,6 +14,7 @@ import { reportRouter } from './routes/reportRoutes';
 import { agingRouter } from './routes/agingRoutes';
 import { ledgerRouter } from './routes/ledgerRoutes';
 import { verifyRouter } from './routes/verifyRoutes';
+import { auditRouter } from './routes/auditRoutes';
 import { sendError } from './utils/response';
 
 dotenv.config();
@@ -50,6 +51,7 @@ app.use('/api/contacts', contactRouter);
 app.use('/api/reports', reportRouter);
 app.use('/api/ledger', ledgerRouter);
 app.use('/api/verify', verifyRouter);
+app.use('/api/audit', auditRouter);
 
 
 // 404 handler
