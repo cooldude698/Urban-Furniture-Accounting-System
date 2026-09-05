@@ -45,6 +45,12 @@ export default function Login() {
             </div>
           </div>
 
+          {/* Navigation Tabs: Sign In / Create Account */}
+          <div style={styles.tabHeader}>
+            <span style={styles.activeTab}>Sign In</span>
+            <Link to="/create-user" style={styles.inactiveTab}>Create Account</Link>
+          </div>
+
           <form onSubmit={handleSubmit} style={styles.form} noValidate>
             {/* Login Id - */}
             <div style={styles.row}>
@@ -118,11 +124,13 @@ export default function Login() {
               </button>
             </div>
 
-            {/* Forgot Password | Sign Up footer */}
+            {/* Forgot Password | Sign Up | Create Account footer */}
             <div style={styles.linksRow}>
               <Link to="/forgot-password" style={styles.link}>Forgot Password</Link>
               <span style={styles.linkDivider}>|</span>
               <Link to="/signup" style={styles.link}>Sign Up</Link>
+              <span style={styles.linkDivider}>|</span>
+              <Link to="/create-user" style={styles.link}>Create Account</Link>
             </div>
           </form>
 
@@ -323,5 +331,42 @@ const styles = {
     fontWeight: 600,
     color: 'var(--brown-700, #77574A)',
     textDecoration: 'none',
+  } as React.CSSProperties,
+  tabHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    background: 'rgba(235, 215, 190, 0.45)',
+    border: '1px solid var(--brown-300, #D0AE92)',
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 24,
+  } as React.CSSProperties,
+  activeTab: {
+    flex: 1,
+    textAlign: 'center' as const,
+    padding: '7px 14px',
+    background: 'var(--brown-900, #4A3A34)',
+    color: 'var(--cream, #F9F2E4)',
+    borderRadius: 8,
+    fontWeight: 700,
+    fontSize: 13,
+    fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
+    letterSpacing: '0.02em',
+    boxShadow: '0 1px 3px rgba(74, 58, 52, 0.15)',
+  } as React.CSSProperties,
+  inactiveTab: {
+    flex: 1,
+    textAlign: 'center' as const,
+    padding: '7px 14px',
+    color: 'var(--brown-700, #77574A)',
+    borderRadius: 8,
+    fontWeight: 600,
+    fontSize: 13,
+    fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
+    letterSpacing: '0.02em',
+    textDecoration: 'none',
+    transition: 'background-color 150ms ease, color 150ms ease',
   } as React.CSSProperties,
 };
