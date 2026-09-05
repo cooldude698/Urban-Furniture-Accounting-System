@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import Decimal from 'decimal.js';
 
 interface BillLine {
@@ -35,15 +36,11 @@ interface BillDetail {
   payments: PaymentHistoryItem[];
 }
 
-interface PortalBillDetailProps {
-  billId: number;
-  onBack: () => void;
-}
 
-export const PortalBillDetail: React.FC<PortalBillDetailProps> = ({
-  billId,
-  onBack,
-}) => {
+export const PortalBillDetail: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const billId = Number(id);
   const [bill, setBill] = useState<BillDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -140,7 +137,7 @@ export const PortalBillDetail: React.FC<PortalBillDetailProps> = ({
           <h2 className="font-bold text-base mb-1 font-display">Access Error</h2>
           <p className="text-sm">{error || 'Vendor bill not found or unauthorized'}</p>
           <button
-            onClick={onBack}
+            onClick={() => navigate('/portal/bills')}
             className="mt-4 px-4 py-1.5 bg-surface hover:bg-brown-100 text-brown-900 border border-brown-300 rounded-[8px] text-xs font-semibold cursor-pointer"
           >
             ← Back to Bills
@@ -157,7 +154,7 @@ export const PortalBillDetail: React.FC<PortalBillDetailProps> = ({
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <button
-          onClick={onBack}
+          onClick={() => navigate('/portal/bills')}
           className="text-xs font-semibold text-brown-700 hover:text-brown-900 flex items-center gap-1 transition-colors font-body cursor-pointer"
         >
           ← Return to Bills

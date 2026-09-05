@@ -1,4 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Decimal from 'decimal.js';
+import { ListView } from '../../components/ui/ListView';
+import type { ListColumn } from '../../components/ui/ListView';
+import StatusBadge from '../../components/ui/StatusBadge';
+import { formatINRCompact, formatINR } from '../../lib/money';
 
 export interface PortalInvoiceListItem {
   id: number;
@@ -11,11 +17,158 @@ export interface PortalInvoiceListItem {
   paymentStatus: string;
 }
 
-interface PortalInvoiceListProps {
-  onSelectInvoice: (id: number) => void;
+/* ── KPI summary card ─────────────────────────────────────────────────── */
+interface SummaryCardProps {
+  label: string;
+  value: string;
+  subtext?: string;
+  accent?: string; /* var(--token) for the value text */
 }
 
-export const PortalInvoiceList: React.FC<PortalInvoiceListProps> = ({ onSelectInvoice }) => {
+function SummaryCard({ label, value, subtext, accent }: SummaryCardProps) {
+  return (
+    <div
+      style={{
+        background: 'var(--surface)',
+        border: '1px solid rgba(208, 174, 146, 0.40)',
+        borderRadius: 'var(--radius-md)',
+        boxShadow: 'var(--shadow-sm)',
+        padding: '20px 24px',
+        flex: '1 1 0',
+        minWidth: 0,
+      }}
+    >
+      <p
+        style={{
+          fontFamily: 'var(--font-body)',
+          fontSize: '11px',
+          fontWeight: 600,
+          textTransform: 'uppercase',
+          letterSpacing: '0.07em',
+          color: 'var(--brown-600)',
+          margin: '0 0 8px',
+        }}
+      >
+        {label}
+      </p>
+      <p
+        style={{
+          fontFamily: 'var(--font-mono)',
+          fontVariantNumeric: 'tabular-nums',
+          fontSize: '24px',
+          fontWeight: 600,
+          color: accent ?? 'var(--brown-900)',
+          margin: 0,
+          lineHeight: 1.2,
+        }}
+      >
+        {value}
+      </p>
+      {subtext && (
+        <p
+          style={{
+            fontFamily: 'var(--font-body)',
+            fontSize: '11px',
+            color: 'var(--brown-500)',
+            marginTop: '4px',
+          }}
+        >
+          {subtext}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ── column definition ─────────────────────────────────────────────────── */
+const columns: ListColumn<PortalInvoiceListItem>[] = [
+  {
+    key: 'number',
+    label: 'Invoice #',
+    type: 'text',
+    render: (row) => (
+      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 13 }}>
+        {row.number}
+      </span>
+    ),
+  },
+  {
+    key: 'invoiceDate',
+    label: 'Invoice Date',
+    type: 'date',
+  },
+  {
+    key: 'dueDate',
+    label: 'Due Date',
+    type: 'date',
+  },
+  {
+    key: 'paymentStatus',
+    label: 'Status',
+    type: 'text',
+    render: (row) => (
+      <StatusBadge
+        status={
+          row.paymentStatus === 'paid'
+            ? 'paid'
+            : row.paymentStatus === 'partial'
+              ? 'partial'
+              : 'not_paid'
+        }
+      />
+    ),
+  },
+  {
+    key: 'total',
+    label: 'Total',
+    type: 'money',
+    align: 'right',
+  },
+  {
+    key: 'amountPaid',
+    label: 'Paid',
+    type: 'money',
+    align: 'right',
+    render: (row) => (
+      <span
+        style={{
+          fontFamily: 'var(--font-mono)',
+          fontVariantNumeric: 'tabular-nums',
+          fontSize: 13,
+          color: 'var(--posted)',
+        }}
+      >
+        {formatINR(row.amountPaid)}
+      </span>
+    ),
+  },
+  {
+    key: 'amountDue',
+    label: 'Outstanding',
+    type: 'money',
+    align: 'right',
+    render: (row) => {
+      const due = new Decimal(row.amountDue || '0');
+      return (
+        <span
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontVariantNumeric: 'tabular-nums',
+            fontSize: 13,
+            fontWeight: due.gt(0) ? 700 : 400,
+            color: due.gt(0) ? 'var(--danger)' : 'var(--brown-500)',
+          }}
+        >
+          {formatINR(row.amountDue)}
+        </span>
+      );
+    },
+  },
+];
+
+/* ── main component ─────────────────────────────────────────────────────── */
+export const PortalInvoiceList: React.FC = () => {
+  const navigate = useNavigate();
   const [invoices, setInvoices] = useState<PortalInvoiceListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,127 +188,89 @@ export const PortalInvoiceList: React.FC<PortalInvoiceListProps> = ({ onSelectIn
       .finally(() => setLoading(false));
   }, []);
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'paid':
-        return (
-          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-posted-bg text-posted border border-posted/30">
-            Paid
-          </span>
-        );
-      case 'partial':
-        return (
-          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-warning-bg text-warning border border-warning/30">
-            Partial
-          </span>
-        );
-      case 'not_paid':
-      default:
-        return (
-          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider bg-danger-bg text-danger border border-danger/30">
-            Not Paid
-          </span>
-        );
-    }
-  };
+  /* ── derived KPIs ── */
+  const totalCount = invoices.length;
 
-  const totalOutstanding = invoices
-    .reduce((acc, i) => acc + Number(i.amountDue || 0), 0)
+  const amountOutstanding = invoices
+    .filter(i => i.paymentStatus !== 'paid')
+    .reduce((acc, i) => acc.plus(new Decimal(i.amountDue || '0')), new Decimal(0))
+    .toFixed(2);
+
+  const amountPaidTotal = invoices
+    .reduce((acc, i) => acc.plus(new Decimal(i.amountPaid || '0')), new Decimal(0))
     .toFixed(2);
 
   return (
-    <div className="font-body">
-      {/* Overview Banner */}
-      <div className="bg-surface border border-brown-300 rounded-[14px] p-6 shadow-sm mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold font-display text-brown-900">Your Invoices</h1>
-          <p className="text-xs text-brown-600 mt-1 font-body">
-            Access, inspect, and settle statements billed to your account
-          </p>
-        </div>
-        <div className="bg-brown-100/60 border border-brown-300 rounded-[10px] px-5 py-3 text-right">
-          <span className="text-[11px] font-semibold text-brown-700 uppercase tracking-wider block font-body">
-            Total Outstanding
-          </span>
-          <span className="text-xl font-bold font-mono text-brown-900 block">
-            ₹{Number(totalOutstanding).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-          </span>
-        </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', fontFamily: 'var(--font-body)' }}>
+
+      {/* ── Page heading ── */}
+      <div>
+        <h1
+          style={{
+            fontFamily: 'var(--font-display)',
+            fontWeight: 700,
+            fontSize: '22px',
+            color: 'var(--brown-900)',
+            margin: 0,
+          }}
+        >
+          Your Invoices
+        </h1>
+        <p style={{ fontSize: '12px', color: 'var(--brown-600)', marginTop: '4px' }}>
+          View, inspect, and settle all invoices billed to your account
+        </p>
       </div>
 
+      {/* ── Error ── */}
       {error && (
-        <div className="p-4 bg-danger-bg border border-danger text-danger text-xs rounded-md mb-6 font-medium font-body">
+        <div
+          style={{
+            padding: '10px 14px',
+            background: 'var(--danger-bg)',
+            border: '1px solid var(--danger)',
+            borderRadius: 'var(--radius-sm)',
+            color: 'var(--danger)',
+            fontSize: '12px',
+            fontFamily: 'var(--font-body)',
+            fontWeight: 500,
+          }}
+        >
           {error}
         </div>
       )}
 
-      {/* Table */}
-      <div className="bg-surface border border-brown-300 rounded-[14px] overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-sm">
-            <thead>
-              <tr className="bg-brown-100/75 text-brown-800 font-semibold border-b border-brown-300 text-xs uppercase tracking-wider font-body">
-                <th className="p-4">Invoice #</th>
-                <th className="p-4">Date</th>
-                <th className="p-4">Due Date</th>
-                <th className="p-4">Status</th>
-                <th className="p-4 text-right">Total Amount</th>
-                <th className="p-4 text-right">Amount Paid</th>
-                <th className="p-4 text-right">Amount Due</th>
-                <th className="p-4 text-center">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-brown-100/60">
-              {loading ? (
-                <tr>
-                  <td colSpan={8} className="p-8 text-center text-brown-500 font-body">
-                    Loading your invoices...
-                  </td>
-                </tr>
-              ) : invoices.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="p-8 text-center text-brown-600 font-body">
-                    No invoices recorded for your customer profile.
-                  </td>
-                </tr>
-              ) : (
-                invoices.map(inv => (
-                  <tr
-                    key={inv.id}
-                    onClick={() => onSelectInvoice(inv.id)}
-                    className="hover:bg-brown-100/40 cursor-pointer transition-colors"
-                  >
-                    <td className="p-4 font-mono font-bold text-brown-900">{inv.number}</td>
-                    <td className="p-4 text-brown-700 text-xs font-mono">{inv.invoiceDate}</td>
-                    <td className="p-4 text-brown-700 text-xs font-mono">{inv.dueDate || '—'}</td>
-                    <td className="p-4">{getStatusBadge(inv.paymentStatus)}</td>
-                    <td className="p-4 text-right font-mono font-semibold text-brown-900">
-                      ₹{Number(inv.total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="p-4 text-right font-mono text-posted font-medium">
-                      ₹{Number(inv.amountPaid).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="p-4 text-right font-mono font-bold text-danger">
-                      ₹{Number(inv.amountDue).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="p-4 text-center">
-                      <button
-                        onClick={e => {
-                          e.stopPropagation();
-                          onSelectInvoice(inv.id);
-                        }}
-                        className="px-3.5 py-1 bg-brown-900 hover:bg-brown-800 text-cream font-display font-bold text-xs uppercase tracking-wider rounded-[6px] transition-colors shadow-xs cursor-pointer"
-                      >
-                        Inspect →
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+      {/* ── Three summary KPI cards ── */}
+      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+        <SummaryCard
+          label="Total Invoices"
+          value={String(totalCount)}
+          subtext={loading ? 'Loading…' : totalCount === 1 ? '1 invoice on record' : `${totalCount} invoices on record`}
+        />
+        <SummaryCard
+          label="Amount Outstanding"
+          value={loading ? '—' : formatINRCompact(amountOutstanding)}
+          subtext={loading ? undefined : `Full: ${formatINR(amountOutstanding)}`}
+          accent="var(--danger)"
+        />
+        <SummaryCard
+          label="Amount Paid"
+          value={loading ? '—' : formatINRCompact(amountPaidTotal)}
+          subtext={loading ? undefined : `Full: ${formatINR(amountPaidTotal)}`}
+          accent="var(--posted)"
+        />
       </div>
+
+      {/* ── Invoice table via ListView ── */}
+      <ListView<PortalInvoiceListItem>
+        columns={columns}
+        data={invoices}
+        loading={loading}
+        rowKey="id"
+        searchable
+        searchPlaceholder="Search by invoice #, date…"
+        emptyText="No invoices recorded for your account."
+        onRowClick={row => navigate(`/portal/invoices/${row.id}`)}
+      />
     </div>
   );
 };

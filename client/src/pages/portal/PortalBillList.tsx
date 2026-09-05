@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 export interface PortalBillListItem {
   id: number;
@@ -12,11 +13,10 @@ export interface PortalBillListItem {
   paymentStatus: string;
 }
 
-interface PortalBillListProps {
-  onSelectBill: (id: number) => void;
-}
 
-export const PortalBillList: React.FC<PortalBillListProps> = ({ onSelectBill }) => {
+
+export const PortalBillList: React.FC = () => {
+  const navigate = useNavigate();
   const [bills, setBills] = useState<PortalBillListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -124,7 +124,7 @@ export const PortalBillList: React.FC<PortalBillListProps> = ({ onSelectBill }) 
                 bills.map(bill => (
                   <tr
                     key={bill.id}
-                    onClick={() => onSelectBill(bill.id)}
+                    onClick={() => navigate(`/portal/bills/${bill.id}`)}
                     className="hover:bg-brown-50/70 transition-colors cursor-pointer group"
                   >
                     <td className="p-4 font-mono font-semibold text-brown-900">
@@ -155,7 +155,7 @@ export const PortalBillList: React.FC<PortalBillListProps> = ({ onSelectBill }) 
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onSelectBill(bill.id);
+                          navigate(`/portal/bills/${bill.id}`);
                         }}
                         className="px-3 py-1 bg-brown-100 group-hover:bg-brown-800 group-hover:text-cream text-brown-800 text-xs font-semibold rounded-[6px] transition-colors font-body"
                       >

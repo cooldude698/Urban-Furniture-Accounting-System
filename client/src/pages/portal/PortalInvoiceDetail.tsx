@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import Decimal from 'decimal.js';
-import { loadRazorpayScript } from '../../lib/razorpay';
+import StatusBadge from '../../components/ui/StatusBadge';
+import { formatINR } from '../../lib/money';
 
+/* ─── types ──────────────────────────────────────────────────────────── */
 interface InvoiceLine {
   lineNo: number;
   productName: string;
@@ -38,31 +41,88 @@ interface InvoiceDetail {
   payments: PaymentHistoryItem[];
 }
 
-interface PortalInvoiceDetailProps {
-  invoiceId: number;
-  onBack: () => void;
+type PayMethod = 'cash' | 'bank';
+type PayStep = 'form' | 'confirm' | 'success';
+
+/* ─── helpers ────────────────────────────────────────────────────────── */
+function MetaField({ label, value, mono = false, color }: {
+  label: string;
+  value: React.ReactNode;
+  mono?: boolean;
+  color?: string;
+}) {
+  return (
+    <div>
+      <p style={{ fontSize: 11, fontFamily: 'var(--font-body)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--brown-600)', margin: '0 0 4px' }}>
+        {label}
+      </p>
+      <p style={{ fontSize: 14, fontFamily: mono ? 'var(--font-mono)' : 'var(--font-body)', fontWeight: 600, color: color ?? 'var(--brown-900)', margin: 0, fontVariantNumeric: mono ? 'tabular-nums' : undefined }}>
+        {value}
+      </p>
+    </div>
+  );
 }
 
-export const PortalInvoiceDetail: React.FC<PortalInvoiceDetailProps> = ({
-  invoiceId,
-  onBack,
-}) => {
+function MethodToggle({ value, onChange }: { value: PayMethod; onChange: (m: PayMethod) => void }) {
+  const btn = (m: PayMethod, label: string) => {
+    const active = value === m;
+    return (
+      <button
+        type="button"
+        onClick={() => onChange(m)}
+        style={{
+          flex: 1,
+          padding: '8px 0',
+          fontSize: 12,
+          fontFamily: 'var(--font-display)',
+          fontWeight: 700,
+          border: '1px solid',
+          borderColor: active ? 'var(--brown-900)' : 'var(--brown-300)',
+          background: active ? 'var(--brown-900)' : 'var(--surface)',
+          color: active ? 'var(--cream)' : 'var(--brown-700)',
+          borderRadius: 'var(--radius-sm)',
+          cursor: 'pointer',
+          transition: 'all 120ms ease-out',
+        }}
+      >
+        {label}
+      </button>
+    );
+  };
+  return (
+    <div style={{ display: 'flex', gap: 8 }}>
+      {btn('cash', '💵 Cash')}
+      {btn('bank', '🏦 Bank Transfer')}
+    </div>
+  );
+}
+
+/* ─── main component ─────────────────────────────────────────────────── */
+export const PortalInvoiceDetail: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const invoiceId = Number(id);
+
   const [invoice, setInvoice] = useState<InvoiceDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Payment modal state
-  const [showPayModal, setShowPayModal] = useState(false);
-  const [payMethod, setPayMethod] = useState<'razorpay' | 'bank' | 'cash'>('razorpay');
+  /* payment inline-panel state */
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [payMethod, setPayMethod] = useState<PayMethod>('bank');
   const [payAmount, setPayAmount] = useState('');
+  const [payStep, setPayStep] = useState<PayStep>('form');
   const [paySubmitting, setPaySubmitting] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
-  const [paySuccess, setPaySuccess] = useState<string | null>(null);
+  const [paySuccessMsg, setPaySuccessMsg] = useState<string | null>(null);
+
+  /* PDF download loading */
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const fetchInvoice = () => {
     setLoading(true);
     fetch(`/api/portal/invoices/${invoiceId}`)
-      .then(res => res.json())
+      .then(r => r.json())
       .then(json => {
         if (json.data) {
           setInvoice(json.data);
@@ -75,159 +135,105 @@ export const PortalInvoiceDetail: React.FC<PortalInvoiceDetailProps> = ({
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => {
-    fetchInvoice();
-  }, [invoiceId]);
+  useEffect(() => { fetchInvoice(); }, [invoiceId]);
 
-  const handleRazorpayPayment = async (customAmt?: string) => {
+  /* ── payment handlers ── */
+  const openPanel = () => {
+    if (!invoice) return;
+    setPayAmount(invoice.amountDue);
+    setPayStep('form');
     setPayError(null);
-    setPaySuccess(null);
-    const amt = new Decimal(customAmt || payAmount || invoice?.amountDue || '0');
-    if (amt.lessThanOrEqualTo(0)) {
-      setPayError('Payment amount must be greater than zero');
-      return;
-    }
-
-    setPaySubmitting(true);
-    try {
-      const scriptLoaded = await loadRazorpayScript();
-      if (!scriptLoaded) {
-        throw new Error('Could not load Razorpay SDK. Please check your internet connection.');
-      }
-
-      const res = await fetch(`/api/portal/invoices/${invoiceId}/razorpay/create-order`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: amt.toFixed(2) }),
-      });
-      const orderJson = await res.json();
-      if (!res.ok || orderJson.error) {
-        throw new Error(orderJson.error?.message || 'Failed to create Razorpay payment order');
-      }
-
-      const orderData = orderJson.data;
-      const rzp = new (window as any).Razorpay({
-        key: orderData.keyId,
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: 'Urban Furniture',
-        description: `Settlement for Invoice #${invoice?.number}`,
-        order_id: orderData.orderId,
-        handler: async (response: any) => {
-          try {
-            const verifyRes = await fetch(`/api/portal/invoices/${invoiceId}/razorpay/verify-payment`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                amount: amt.toFixed(2),
-              }),
-            });
-            const verifyJson = await verifyRes.json();
-            if (!verifyRes.ok || verifyJson.error) {
-              throw new Error(verifyJson.error?.message || 'Signature verification failed');
-            }
-            setPaySuccess(`Payment of ₹${amt.toFixed(2)} completed via Razorpay (Ref: ${response.razorpay_payment_id})!`);
-            setShowPayModal(false);
-            fetchInvoice();
-          } catch (vErr: any) {
-            setPayError(vErr.message || 'Payment verification failed');
-          } finally {
-            setPaySubmitting(false);
-          }
-        },
-        prefill: {
-          name: invoice?.customerName || '',
-        },
-        theme: {
-          color: '#4A3A34',
-        },
-      });
-
-      rzp.on('payment.failed', function (resp: any) {
-        setPayError(`Payment failed: ${resp.error?.description || 'Cancelled'}`);
-        setPaySubmitting(false);
-      });
-
-      rzp.open();
-    } catch (err: any) {
-      setPayError(err.message || 'Razorpay initialization failed');
-      setPaySubmitting(false);
-    }
+    setPaySuccessMsg(null);
+    setPanelOpen(true);
   };
 
-  const handleRecordPayment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (payMethod === 'razorpay') {
-      return handleRazorpayPayment();
-    }
-
+  const closePanel = () => {
+    setPanelOpen(false);
+    setPayStep('form');
     setPayError(null);
-    setPaySuccess(null);
+  };
 
+  const handlePayFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPayError(null);
     const amt = new Decimal(payAmount || '0');
-    if (amt.lessThanOrEqualTo(0)) {
-      setPayError('Payment amount must be greater than zero');
+    if (amt.lte(0)) { setPayError('Amount must be greater than zero'); return; }
+    if (invoice && amt.gt(new Decimal(invoice.amountDue))) {
+      setPayError(`Cannot exceed outstanding amount of ${formatINR(invoice.amountDue)}`);
       return;
     }
+    setPayStep('confirm');
+  };
 
-    if (invoice && amt.greaterThan(new Decimal(invoice.amountDue))) {
-      setPayError(
-        `Payment cannot exceed total amount due of ₹${invoice.amountDue}`
-      );
-      return;
-    }
-
+  const handlePayConfirm = async () => {
     setPaySubmitting(true);
+    setPayError(null);
     try {
       const res = await fetch(`/api/portal/invoices/${invoiceId}/pay`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: amt.toFixed(2),
-          method: payMethod,
-        }),
+        body: JSON.stringify({ amount: new Decimal(payAmount).toFixed(2), method: payMethod }),
       });
-
       const json = await res.json();
-      if (!res.ok || json.error) {
-        throw new Error(json.error?.message || 'Payment processing failed');
-      }
-
-      setPaySuccess(
-        `Payment of ₹${amt.toFixed(2)} recorded! The ledger balance was immediately settled.`
-      );
-      setTimeout(() => {
-        setShowPayModal(false);
-        setPaySuccess(null);
-        fetchInvoice();
-      }, 1200);
+      if (!res.ok || json.error) throw new Error(json.error?.message || 'Payment failed');
+      setPaySuccessMsg(`${formatINR(new Decimal(payAmount).toFixed(2))} via ${payMethod === 'bank' ? 'Bank Transfer' : 'Cash'} recorded successfully.`);
+      setPayStep('success');
+      setTimeout(() => { closePanel(); fetchInvoice(); }, 1800);
     } catch (err: any) {
       setPayError(err.message || 'Payment submission failed');
+      setPayStep('form');
     } finally {
       setPaySubmitting(false);
     }
   };
 
+  /* ── PDF download ── */
+  const handleDownloadPdf = async () => {
+    if (pdfLoading) return;
+    setPdfLoading(true);
+    try {
+      const res = await fetch(`/api/portal/invoices/${invoiceId}/pdf`);
+      const contentType = res.headers.get('content-type') ?? '';
+      if (contentType.includes('application/pdf')) {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Invoice-${invoice?.number ?? invoiceId}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        /* fallback: server returned HTML (Puppeteer unavailable) — open print view */
+        const html = await res.text();
+        const win = window.open('', '_blank');
+        if (win) { win.document.write(html); win.document.close(); win.print(); }
+      }
+    } catch {
+      /* silently open in new tab as last resort */
+      window.open(`/api/portal/invoices/${invoiceId}/pdf`, '_blank');
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  /* ─── loading / error states ─────────────────────────────────────── */
   if (loading) {
     return (
-      <div className="py-16 text-center text-brown-600 font-body text-sm">
-        Loading invoice details...
+      <div style={{ padding: '64px 0', textAlign: 'center', color: 'var(--brown-600)', fontFamily: 'var(--font-body)', fontSize: 13 }}>
+        Loading invoice details…
       </div>
     );
   }
 
   if (error || !invoice) {
     return (
-      <div className="py-8 font-body">
-        <div className="bg-danger-bg border border-danger text-danger p-6 rounded-xl">
-          <h2 className="font-bold text-base mb-1 font-display">Access Error</h2>
-          <p className="text-sm">{error || 'Invoice not found or unauthorized'}</p>
+      <div style={{ padding: '32px 0', fontFamily: 'var(--font-body)' }}>
+        <div style={{ background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-md)', padding: '24px', color: 'var(--danger)' }}>
+          <p style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, margin: '0 0 8px' }}>Access Error</p>
+          <p style={{ fontSize: 13, margin: '0 0 16px' }}>{error || 'Invoice not found or unauthorized'}</p>
           <button
-            onClick={onBack}
-            className="mt-4 px-4 py-1.5 bg-surface hover:bg-brown-100 text-brown-900 border border-brown-300 rounded-[8px] text-xs font-semibold cursor-pointer"
+            onClick={() => navigate('/portal/invoices')}
+            style={{ padding: '6px 14px', background: 'var(--surface)', border: '1px solid var(--brown-300)', borderRadius: 'var(--radius-sm)', fontSize: 12, fontFamily: 'var(--font-body)', fontWeight: 600, color: 'var(--brown-900)', cursor: 'pointer' }}
           >
             ← Back to Invoices
           </button>
@@ -236,341 +242,361 @@ export const PortalInvoiceDetail: React.FC<PortalInvoiceDetailProps> = ({
     );
   }
 
-  const isFullyPaid = Number(invoice.amountDue) <= 0;
+  const isFullyPaid = new Decimal(invoice.amountDue).lte(0);
+  const paidPct = new Decimal(invoice.total).gt(0)
+    ? Math.min(100, new Decimal(invoice.amountPaid).div(invoice.total).mul(100).toNumber())
+    : 0;
+
+  const methodLabel = payMethod === 'bank' ? 'Bank Transfer' : 'Cash';
 
   return (
-    <div className="space-y-6 font-body">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <button
-          onClick={onBack}
-          className="text-xs font-semibold text-brown-700 hover:text-brown-900 flex items-center gap-1 transition-colors font-body cursor-pointer"
-        >
-          ← Return to Invoices
-        </button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, fontFamily: 'var(--font-body)' }}>
 
-        <div className="flex items-center space-x-3">
-          {!isFullyPaid && (
-            <>
-              <button
-                onClick={() => handleRazorpayPayment()}
-                disabled={paySubmitting}
-                className="px-4 py-2 bg-blue-800 hover:bg-blue-700 text-white font-bold font-display text-xs uppercase tracking-wider rounded-[8px] transition-colors shadow-sm active:scale-[0.99] cursor-pointer flex items-center gap-1.5"
-              >
-                <span>⚡</span> Pay with Razorpay (₹{invoice.amountDue})
-              </button>
-              <button
-                onClick={() => setShowPayModal(true)}
-                className="px-3.5 py-2 bg-brown-900 hover:bg-brown-800 text-cream font-bold font-display text-xs uppercase tracking-wider rounded-[8px] transition-colors shadow-sm active:scale-[0.99] cursor-pointer"
-              >
-                Offline Pay
-              </button>
-            </>
-          )}
-          <a
-            href={`/api/portal/invoices/${invoice.id}/pdf`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-3.5 py-2 bg-surface border border-brown-300 hover:bg-brown-100/50 text-brown-800 font-semibold text-xs rounded-[8px] transition-colors shadow-xs font-body cursor-pointer flex items-center gap-1.5"
+      {/* ── Sticky top bar ────────────────────────────────────────────── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 12,
+          padding: '12px 16px',
+          background: 'var(--surface)',
+          border: '1px solid rgba(208, 174, 146, 0.4)',
+          borderRadius: 'var(--radius-md)',
+          boxShadow: 'var(--shadow-sm)',
+          position: 'sticky',
+          top: 80, /* clear the portal header */
+          zIndex: 20,
+        }}
+      >
+        {/* Left: back + invoice number + status */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <button
+            onClick={() => navigate('/portal/invoices')}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12, fontWeight: 600, color: 'var(--brown-700)', fontFamily: 'var(--font-body)', display: 'flex', alignItems: 'center', gap: 4 }}
+          >
+            ← Invoices
+          </button>
+          <div style={{ width: 1, height: 16, background: 'var(--brown-300)' }} />
+          <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 15, color: 'var(--brown-900)' }}>
+            {invoice.number}
+          </span>
+          <StatusBadge
+            status={
+              invoice.paymentStatus === 'paid' ? 'paid'
+              : invoice.paymentStatus === 'partial' ? 'partial'
+              : 'not_paid'
+            }
+          />
+        </div>
+
+        {/* Right: action buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            onClick={handleDownloadPdf}
+            disabled={pdfLoading}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '7px 14px', fontSize: 12, fontFamily: 'var(--font-body)', fontWeight: 600,
+              background: 'var(--surface)', border: '1px solid var(--brown-300)', borderRadius: 'var(--radius-sm)',
+              color: 'var(--brown-800)', cursor: pdfLoading ? 'wait' : 'pointer',
+              boxShadow: 'var(--shadow-sm)', transition: 'background 120ms ease-out',
+              opacity: pdfLoading ? 0.65 : 1,
+            }}
           >
             <span>📄</span>
-            <span>Print / PDF</span>
-          </a>
+            <span>{pdfLoading ? 'Generating…' : 'Download PDF'}</span>
+          </button>
+
+          {!isFullyPaid && (
+            <button
+              onClick={openPanel}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '7px 14px', fontSize: 12, fontFamily: 'var(--font-display)', fontWeight: 700,
+                background: 'var(--brown-900)', border: 'none', borderRadius: 'var(--radius-sm)',
+                color: 'var(--cream)', cursor: 'pointer', boxShadow: 'var(--shadow-sm)',
+                transition: 'background 120ms ease-out', letterSpacing: '0.04em',
+              }}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--brown-700)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'var(--brown-900)')}
+            >
+              <span>⚡</span>
+              <span>Record Payment</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Main Invoice Card */}
-      <div className="bg-surface border border-brown-300 rounded-[14px] p-8 shadow-sm">
-        {/* Document Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-6 border-b border-brown-200/60 gap-4">
-          <div>
-            <span className="text-[11px] font-semibold text-brown-500 uppercase tracking-widest block font-mono">
+      {/* ── Two-column layout ─────────────────────────────────────────── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,2fr) minmax(0,1fr)', gap: 24, alignItems: 'start' }}>
+
+        {/* ── LEFT COLUMN ─────────────────────────────────────────────── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
+
+          {/* Invoice header */}
+          <div style={{ background: 'var(--surface)', border: '1px solid rgba(208, 174, 146, 0.4)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)', padding: '24px 28px' }}>
+            <p style={{ fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--brown-500)', margin: '0 0 6px' }}>
               Official Tax Invoice
-            </span>
-            <h1 className="text-3xl font-bold font-display text-brown-900 mt-1">
+            </p>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 26, color: 'var(--brown-900)', margin: '0 0 20px' }}>
               {invoice.number}
             </h1>
-          </div>
-          <div className="text-right">
-            <span
-              className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
-                invoice.paymentStatus === 'paid'
-                  ? 'bg-posted-bg text-posted border-posted/30'
-                  : invoice.paymentStatus === 'partial'
-                  ? 'bg-warning-bg text-warning border-warning/30'
-                  : 'bg-danger-bg text-danger border-danger/30'
-              }`}
-            >
-              {invoice.paymentStatus.replace('_', ' ')}
-            </span>
-          </div>
-        </div>
 
-        {/* Dates Ribbon */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 py-6 border-b border-brown-200/60 text-xs">
-          <div>
-            <span className="text-brown-600 block mb-1 font-body">Invoice Date</span>
-            <span className="font-mono font-semibold text-brown-900 text-sm">
-              {invoice.invoiceDate}
-            </span>
+            {/* Meta fields grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '16px 24px' }}>
+              <MetaField label="Invoice Date" value={invoice.invoiceDate} mono />
+              <MetaField label="Due Date" value={invoice.dueDate || 'Immediate'} mono />
+              {invoice.customerName && <MetaField label="Billed To" value={invoice.customerName} />}
+            </div>
           </div>
-          <div>
-            <span className="text-brown-600 block mb-1 font-body">Due Date</span>
-            <span className="font-mono font-semibold text-brown-900 text-sm">
-              {invoice.dueDate || 'Immediate'}
-            </span>
-          </div>
-          <div>
-            <span className="text-brown-600 block mb-1 font-body">Total Amount</span>
-            <span className="font-mono font-bold text-brown-900 text-sm">
-              ₹{Number(invoice.total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-            </span>
-          </div>
-          <div>
-            <span className="text-brown-600 block mb-1 font-body">Balance Due</span>
-            <span className={`font-mono font-bold text-sm ${isFullyPaid ? 'text-posted' : 'text-danger'}`}>
-              ₹{Number(invoice.amountDue).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-            </span>
-          </div>
-        </div>
 
-        {/* Line Items Table */}
-        <div className="py-6">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-brown-700 mb-3 font-body">
-            Billed Products & Materials
-          </h3>
-          <div className="border border-brown-300 rounded-[8px] overflow-hidden">
-            <table className="w-full text-left border-collapse text-xs font-body">
-              <thead>
-                <tr className="bg-brown-100/75 text-brown-800 font-semibold border-b border-brown-300 uppercase tracking-wider text-[11px] font-body">
-                  <th className="p-3 w-12 text-center">#</th>
-                  <th className="p-3">Product Description</th>
-                  <th className="p-3 text-right w-24">Qty</th>
-                  <th className="p-3 text-right w-28">Unit Price</th>
-                  <th className="p-3 text-right w-24">Tax Rate</th>
-                  <th className="p-3 text-right w-32">Total</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-brown-100/60">
-                {invoice.lines.map(line => (
-                  <tr key={line.lineNo}>
-                    <td className="p-3 text-center text-brown-500 font-mono">{line.lineNo}</td>
-                    <td className="p-3 font-semibold text-brown-900">{line.productName}</td>
-                    <td className="p-3 text-right font-mono text-brown-800">{line.qty}</td>
-                    <td className="p-3 text-right font-mono text-brown-800">₹{line.unitPrice}</td>
-                    <td className="p-3 text-right font-mono text-brown-800">{line.taxRate}%</td>
-                    <td className="p-3 text-right font-mono font-bold text-brown-900">
-                      ₹{line.total}
-                    </td>
+          {/* Line items table */}
+          <div style={{ background: 'var(--surface)', border: '1px solid rgba(208, 174, 146, 0.4)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid rgba(208, 174, 146, 0.4)' }}>
+              <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 13, color: 'var(--brown-900)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Billed Items
+              </p>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: 'var(--brown-100)' }}>
+                    {['#', 'Product / Description', 'Qty', 'Unit Price', 'Tax', 'Total'].map((h, i) => (
+                      <th key={i} style={{
+                        padding: '10px 14px', fontSize: 11, fontFamily: 'var(--font-body)', fontWeight: 600,
+                        textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--brown-700)',
+                        textAlign: i === 0 ? 'center' : i >= 2 ? 'right' : 'left',
+                        borderBottom: '1px solid rgba(208, 174, 146, 0.4)', whiteSpace: 'nowrap',
+                      }}>
+                        {h}
+                      </th>
+                    ))}
                   </tr>
+                </thead>
+                <tbody>
+                  {invoice.lines.map(line => (
+                    <tr key={line.lineNo} style={{ borderBottom: '1px solid rgba(208, 174, 146, 0.22)' }}>
+                      <td style={{ padding: '10px 14px', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--brown-500)' }}>{line.lineNo}</td>
+                      <td style={{ padding: '10px 14px', fontFamily: 'var(--font-body)', fontSize: 13, fontWeight: 600, color: 'var(--brown-900)' }}>{line.productName}</td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--brown-800)', fontVariantNumeric: 'tabular-nums' }}>{line.qty}</td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--brown-800)', fontVariantNumeric: 'tabular-nums' }}>{formatINR(line.unitPrice)}</td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--brown-600)', fontVariantNumeric: 'tabular-nums' }}>{line.taxRate}%</td>
+                      <td style={{ padding: '10px 14px', textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700, color: 'var(--brown-900)', fontVariantNumeric: 'tabular-nums' }}>{formatINR(line.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Subtotal / Tax / Total summary */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '16px 20px', borderTop: '1px solid rgba(208, 174, 146, 0.4)' }}>
+              <div style={{ width: 260, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {[
+                  { label: 'Subtotal', value: invoice.subtotal, color: 'var(--brown-700)', size: 13 },
+                  { label: 'GST / Tax', value: invoice.taxTotal, color: 'var(--brown-700)', size: 13 },
+                ].map(row => (
+                  <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: row.size, color: row.color }}>
+                    <span style={{ fontFamily: 'var(--font-body)' }}>{row.label}</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>{formatINR(row.value)}</span>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Totals Summary Card */}
-        <div className="flex justify-end pt-4 border-t border-brown-200/60">
-          <div className="w-72 space-y-2 text-xs font-body">
-            <div className="flex justify-between text-brown-700">
-              <span>Subtotal:</span>
-              <span className="font-mono">
-                ₹{Number(invoice.subtotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-            <div className="flex justify-between text-brown-700">
-              <span>GST Tax Amount:</span>
-              <span className="font-mono">
-                ₹{Number(invoice.taxTotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-            <div className="pt-2 border-t border-brown-300 flex justify-between font-bold text-brown-900 text-sm">
-              <span>Grand Total:</span>
-              <span className="font-mono">
-                ₹{Number(invoice.total).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-            <div className="flex justify-between text-posted font-medium">
-              <span>Amount Paid:</span>
-              <span className="font-mono">
-                ₹{Number(invoice.amountPaid).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-            <div className="pt-2 border-t border-brown-300 flex justify-between font-bold text-danger text-sm">
-              <span>Amount Due:</span>
-              <span className="font-mono">
-                ₹{Number(invoice.amountDue).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Payment Settlement History */}
-      <div className="bg-surface border border-brown-300 rounded-[14px] p-8 shadow-sm font-body">
-        <h3 className="text-sm font-bold font-display text-brown-900 mb-1">
-          Receipt & Settlement Trail
-        </h3>
-        <p className="text-xs text-brown-600 mb-4 font-body">
-          Direct allocations against this invoice verified on the double-entry ledger
-        </p>
-
-        {invoice.payments.length === 0 ? (
-          <div className="py-6 text-center text-brown-500 text-xs bg-cream/40 rounded-lg font-body">
-            No payments have been recorded for this invoice yet.
-          </div>
-        ) : (
-          <div className="border border-brown-300 rounded-[8px] overflow-hidden">
-            <table className="w-full text-left border-collapse text-xs font-body">
-              <thead>
-                <tr className="bg-brown-100/75 text-brown-800 font-semibold border-b border-brown-300">
-                  <th className="p-3">Payment Date</th>
-                  <th className="p-3">Reference #</th>
-                  <th className="p-3">Method</th>
-                  <th className="p-3 text-right">Settled Amount</th>
-                  <th className="p-3 text-right">Remaining Due</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-brown-100/60">
-                {invoice.payments.map(item => (
-                  <tr key={item.allocationId}>
-                    <td className="p-3 font-mono text-brown-700">{item.paymentDate}</td>
-                    <td className="p-3 font-mono font-bold text-brown-900">{item.paymentNumber}</td>
-                    <td className="p-3">
-                      <span className="px-2 py-0.5 rounded bg-brown-100/70 text-brown-800 font-medium capitalize">
-                        {item.method}
-                      </span>
-                    </td>
-                    <td className="p-3 text-right font-mono font-bold text-posted">
-                      ₹{Number(item.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="p-3 text-right font-mono text-brown-700">
-                      ₹{Number(item.runningRemaining).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Pay Modal */}
-      {showPayModal && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-brown-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-surface rounded-[14px] shadow-lg max-w-md w-full p-6 border border-brown-300 font-body">
-            <div className="flex items-center justify-between pb-3 border-b border-brown-200/60 mb-4">
-              <div>
-                <h3 className="text-base font-bold font-display text-brown-900">
-                  Record Invoice Payment
-                </h3>
-                <span className="text-xs text-brown-600 font-mono">{invoice.number}</span>
-              </div>
-              <button
-                onClick={() => setShowPayModal(false)}
-                className="text-brown-500 hover:text-brown-900 text-sm font-bold cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            {payError && (
-              <div className="p-3 bg-danger-bg border border-danger text-danger text-xs rounded-md mb-4 font-medium font-body">
-                {payError}
-              </div>
-            )}
-            {paySuccess && (
-              <div className="p-3 bg-posted-bg border border-posted text-posted text-xs rounded-md mb-4 font-medium font-body">
-                {paySuccess}
-              </div>
-            )}
-
-            <form onSubmit={handleRecordPayment} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-brown-700 mb-1.5 font-body">
-                  Payment Method
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setPayMethod('razorpay')}
-                    className={`py-2 px-2 text-xs font-bold rounded-[8px] border transition-all cursor-pointer ${
-                      payMethod === 'razorpay'
-                        ? 'bg-blue-800 text-white border-blue-800 shadow-xs font-display'
-                        : 'bg-surface text-blue-900 border-blue-200 hover:bg-blue-50 font-body'
-                    }`}
-                  >
-                    ⚡ Razorpay Online
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPayMethod('bank')}
-                    className={`py-2 px-2 text-xs font-bold rounded-[8px] border transition-all cursor-pointer ${
-                      payMethod === 'bank'
-                        ? 'bg-brown-900 text-cream border-brown-900 shadow-xs font-display'
-                        : 'bg-surface text-brown-800 border-brown-300 hover:bg-brown-100/50 font-body'
-                    }`}
-                  >
-                    🏦 Bank Transfer
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPayMethod('cash')}
-                    className={`py-2 px-2 text-xs font-bold rounded-[8px] border transition-all cursor-pointer ${
-                      payMethod === 'cash'
-                        ? 'bg-brown-900 text-cream border-brown-900 shadow-xs font-display'
-                        : 'bg-surface text-brown-800 border-brown-300 hover:bg-brown-100/50 font-body'
-                    }`}
-                  >
-                    💵 Cash
-                  </button>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 15, fontWeight: 700, color: 'var(--brown-900)', paddingTop: 8, borderTop: '2px solid var(--brown-300)', marginTop: 2 }}>
+                  <span style={{ fontFamily: 'var(--font-body)' }}>Grand Total</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontVariantNumeric: 'tabular-nums' }}>{formatINR(invoice.total)}</span>
                 </div>
               </div>
-
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-brown-700 mb-1.5 font-body">
-                  Amount to Pay (₹)
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={payAmount}
-                  onChange={e => setPayAmount(e.target.value)}
-                  className="w-full bg-cream/30 border border-brown-300 rounded-[8px] px-3 py-2 text-base font-bold font-mono text-brown-900 focus:bg-surface focus:border-brown-700 focus:ring-1 focus:ring-brown-700 outline-none"
-                />
-                <span className="text-[11px] text-brown-600 mt-1 block font-body">
-                  Partial payment allowed. Outstanding due: ₹{invoice.amountDue}
-                </span>
-              </div>
-
-              <div className="pt-4 border-t border-brown-200/60 flex items-center justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setShowPayModal(false)}
-                  className="px-3.5 py-2 text-xs font-semibold text-brown-700 hover:text-brown-900 cursor-pointer font-body"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={paySubmitting}
-                  className={`px-5 py-2 font-bold font-display text-xs uppercase tracking-wider rounded-[8px] transition-colors shadow-sm disabled:opacity-60 cursor-pointer ${
-                    payMethod === 'razorpay'
-                      ? 'bg-blue-800 hover:bg-blue-700 text-white'
-                      : 'bg-brown-900 hover:bg-brown-800 text-cream'
-                  }`}
-                >
-                  {paySubmitting
-                    ? 'PROCESSING…'
-                    : payMethod === 'razorpay'
-                    ? '⚡ PAY VIA RAZORPAY'
-                    : 'CONFIRM & SETTLE'}
-                </button>
-              </div>
-            </form>
+            </div>
           </div>
         </div>
-      )}
+
+        {/* ── RIGHT COLUMN ─────────────────────────────────────────────── */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
+
+          {/* Payment status card */}
+          <div style={{ background: 'var(--surface)', border: '1px solid rgba(208, 174, 146, 0.4)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)', padding: '20px' }}>
+            <p style={{ margin: '0 0 16px', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--brown-700)' }}>
+              Payment Status
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[
+                { label: 'Invoice Total', value: invoice.total, color: 'var(--brown-900)' },
+                { label: 'Amount Paid', value: invoice.amountPaid, color: 'var(--posted)' },
+                { label: 'Outstanding', value: invoice.amountDue, color: isFullyPaid ? 'var(--posted)' : 'var(--danger)', bold: true },
+              ].map(row => (
+                <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <span style={{ fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--brown-600)' }}>{row.label}</span>
+                  <span style={{ fontSize: 14, fontFamily: 'var(--font-mono)', fontWeight: row.bold ? 700 : 500, color: row.color, fontVariantNumeric: 'tabular-nums' }}>
+                    {formatINR(row.value)}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Progress bar */}
+            <div style={{ marginTop: 14, height: 6, borderRadius: 99, background: 'var(--brown-100)', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${paidPct}%`, background: 'var(--posted)', borderRadius: 99, transition: 'width 400ms ease-out' }} />
+            </div>
+            <p style={{ marginTop: 6, fontSize: 11, fontFamily: 'var(--font-body)', color: 'var(--brown-500)', textAlign: 'right' }}>
+              {paidPct.toFixed(0)}% paid
+            </p>
+          </div>
+
+          {/* ── Inline payment panel ─────────────────────────────────── */}
+          {panelOpen && (
+            <div style={{ background: 'var(--surface)', border: '1px solid rgba(208, 174, 146, 0.4)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)', padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--brown-700)' }}>
+                  Record Payment
+                </p>
+                <button onClick={closePanel} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 15, color: 'var(--brown-500)', lineHeight: 1, padding: 2 }}>✕</button>
+              </div>
+
+              {payError && (
+                <div style={{ padding: '8px 12px', background: 'var(--danger-bg)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-sm)', color: 'var(--danger)', fontSize: 12, fontFamily: 'var(--font-body)', marginBottom: 12 }}>
+                  {payError}
+                </div>
+              )}
+
+              {payStep === 'success' && (
+                <div style={{ padding: '10px 12px', background: 'var(--posted-bg)', border: '1px solid var(--posted)', borderRadius: 'var(--radius-sm)', color: 'var(--posted)', fontSize: 12, fontFamily: 'var(--font-body)' }}>
+                  ✓ {paySuccessMsg}
+                </div>
+              )}
+
+              {payStep === 'form' && (
+                <form onSubmit={handlePayFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {/* Method toggle */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-body)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--brown-700)', marginBottom: 8 }}>
+                      Payment Method
+                    </label>
+                    <MethodToggle value={payMethod} onChange={setPayMethod} />
+                  </div>
+
+                  {/* Amount input */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: 11, fontFamily: 'var(--font-body)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--brown-700)', marginBottom: 6 }}>
+                      Amount (₹)
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={payAmount}
+                      onChange={e => setPayAmount(e.target.value)}
+                      style={{ width: '100%', boxSizing: 'border-box', background: 'var(--cream)', border: '1px solid var(--brown-300)', borderRadius: 'var(--radius-sm)', padding: '8px 12px', fontSize: 15, fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--brown-900)', outline: 'none', fontVariantNumeric: 'tabular-nums' }}
+                    />
+                    <p style={{ margin: '5px 0 0', fontSize: 11, fontFamily: 'var(--font-body)', color: 'var(--brown-500)' }}>
+                      Outstanding: {formatINR(invoice.amountDue)}. Partial payment allowed.
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <button type="button" onClick={closePanel} style={{ padding: '7px 14px', fontSize: 12, fontFamily: 'var(--font-body)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brown-600)' }}>
+                      Cancel
+                    </button>
+                    <button type="submit" style={{ padding: '7px 16px', fontSize: 12, fontFamily: 'var(--font-display)', fontWeight: 700, letterSpacing: '0.04em', background: 'var(--brown-900)', color: 'var(--cream)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}>
+                      Review →
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {payStep === 'confirm' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {/* Confirmation summary */}
+                  <div style={{ background: 'var(--cream)', border: '1px solid var(--brown-300)', borderRadius: 'var(--radius-sm)', padding: '14px 16px' }}>
+                    <p style={{ margin: '0 0 10px', fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--brown-600)', fontWeight: 600 }}>
+                      Confirm this payment?
+                    </p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span style={{ fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--brown-700)' }}>Amount</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 15, color: 'var(--brown-900)', fontVariantNumeric: 'tabular-nums' }}>
+                        {formatINR(new Decimal(payAmount).toFixed(2))}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--brown-700)' }}>Method</span>
+                      <span style={{ fontSize: 12, fontFamily: 'var(--font-body)', fontWeight: 600, color: 'var(--brown-900)' }}>{methodLabel}</span>
+                    </div>
+                    <p style={{ margin: '10px 0 0', fontSize: 11, fontFamily: 'var(--font-body)', color: 'var(--brown-500)' }}>
+                      This will post a ledger entry and update the invoice balance immediately.
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <button onClick={() => setPayStep('form')} style={{ padding: '7px 14px', fontSize: 12, fontFamily: 'var(--font-body)', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--brown-600)' }}>
+                      ← Edit
+                    </button>
+                    <button
+                      onClick={handlePayConfirm}
+                      disabled={paySubmitting}
+                      style={{ padding: '7px 16px', fontSize: 12, fontFamily: 'var(--font-display)', fontWeight: 700, letterSpacing: '0.04em', background: paySubmitting ? 'var(--brown-600)' : 'var(--posted)', color: 'var(--cream)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: paySubmitting ? 'wait' : 'pointer', opacity: paySubmitting ? 0.72 : 1 }}
+                    >
+                      {paySubmitting ? 'Processing…' : 'Confirm Payment'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Payment history */}
+          <div style={{ background: 'var(--surface)', border: '1px solid rgba(208, 174, 146, 0.4)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-sm)', overflow: 'hidden' }}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid rgba(208, 174, 146, 0.4)' }}>
+              <p style={{ margin: 0, fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--brown-700)' }}>
+                Payment History
+              </p>
+            </div>
+
+            {invoice.payments.length === 0 ? (
+              <div style={{ padding: '24px 20px', textAlign: 'center', fontSize: 12, fontFamily: 'var(--font-body)', color: 'var(--brown-500)' }}>
+                No payments recorded yet.
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--brown-100)' }}>
+                      {['Date', 'Ref #', 'Method', 'Amount', 'Remaining'].map((h, i) => (
+                        <th key={i} style={{ padding: '8px 14px', fontSize: 11, fontFamily: 'var(--font-body)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--brown-700)', textAlign: i >= 3 ? 'right' : 'left', borderBottom: '1px solid rgba(208, 174, 146, 0.4)', whiteSpace: 'nowrap' }}>
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invoice.payments.map(p => (
+                      <tr key={p.allocationId} style={{ borderBottom: '1px solid rgba(208, 174, 146, 0.20)' }}>
+                        <td style={{ padding: '8px 14px', fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--brown-700)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{p.paymentDate}</td>
+                        <td style={{ padding: '8px 14px', fontSize: 12, fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--brown-900)', whiteSpace: 'nowrap' }}>{p.paymentNumber}</td>
+                        <td style={{ padding: '8px 14px' }}>
+                          <span style={{ fontSize: 11, fontFamily: 'var(--font-body)', fontWeight: 600, textTransform: 'capitalize', padding: '2px 8px', borderRadius: 99, background: 'var(--brown-100)', color: 'var(--brown-800)' }}>
+                            {p.method}
+                          </span>
+                        </td>
+                        <td style={{ padding: '8px 14px', textAlign: 'right', fontSize: 13, fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--posted)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{formatINR(p.amount)}</td>
+                        <td style={{ padding: '8px 14px', textAlign: 'right', fontSize: 12, fontFamily: 'var(--font-mono)', color: 'var(--brown-600)', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{formatINR(p.runningRemaining)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Responsive: collapse to single column on small screens ─────── */}
+      <style>{`
+        @media (max-width: 768px) {
+          .portal-detail-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   );
 };
