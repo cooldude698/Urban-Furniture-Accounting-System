@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Sparkles,
   ArrowRight,
@@ -16,6 +16,10 @@ import {
   Compass,
   LogIn,
   Layers,
+  ExternalLink,
+  ArrowUpRight,
+  BadgeAlert,
+  Zap,
 } from 'lucide-react';
 import { usePortalAuth } from './PortalAuthGuard';
 import { formatINR } from '../../lib/money';
@@ -27,946 +31,976 @@ interface InvoiceSummary {
   count: number;
 }
 
+interface ProductItem {
+  id: number;
+  name: string;
+  category: string;
+  sales_price: string;
+  mrp: string | null;
+  image_url: string | null;
+  model_url: string | null;
+}
+
+interface RecentInvoice {
+  id: number;
+  number: string;
+  invoiceDate: string;
+  total: string;
+  amountDue: string;
+  paymentStatus: string;
+}
+
 export const PortalDashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = usePortalAuth();
 
-  const [activeRoom, setActiveRoom] = useState<'living' | 'bedroom' | 'dining' | 'study'>('living');
+  const [activeRoom, setActiveRoom] = useState<'lounge' | 'bedroom' | 'dining' | 'study'>('lounge');
   const [invoiceSummary, setInvoiceSummary] = useState<InvoiceSummary>({
     totalDue: '0.00',
     totalInvoiced: '0.00',
     count: 0,
   });
-  const [loadingFinancials, setLoadingFinancials] = useState(false);
+  const [recentInvoices, setRecentInvoices] = useState<RecentInvoice[]>([]);
+  const [featuredProducts, setFeaturedProducts] = useState<ProductItem[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
-    setLoadingFinancials(true);
-    api.get('/api/portal/invoices')
+    // 1. Fetch featured products
+    api.get('/api/portal/catalogue')
       .then((res) => {
-        const json = res.data;
-        if (json?.data && Array.isArray(json.data)) {
-          let due = 0;
-          let invoiced = 0;
-          json.data.forEach((inv: any) => {
-            due += parseFloat(inv.amountDue || '0');
-            invoiced += parseFloat(inv.total || '0');
-          });
-          setInvoiceSummary({
-            totalDue: due.toFixed(2),
-            totalInvoiced: invoiced.toFixed(2),
-            count: json.data.length,
-          });
+        if (res.data?.data && Array.isArray(res.data.data)) {
+          // Pick top curated items across categories with working images
+          const curated = res.data.data.slice(0, 8);
+          setFeaturedProducts(curated);
         }
       })
-      .catch(() => {})
-      .finally(() => setLoadingFinancials(false));
+      .catch(() => {});
+
+    // 2. Fetch customer invoices if authenticated
+    if (user) {
+      setLoading(true);
+      api.get('/api/portal/invoices')
+        .then((res) => {
+          const json = res.data;
+          if (json?.data && Array.isArray(json.data)) {
+            let due = 0;
+            let invoiced = 0;
+            json.data.forEach((inv: any) => {
+              due += parseFloat(inv.amountDue || '0');
+              invoiced += parseFloat(inv.total || '0');
+            });
+            setInvoiceSummary({
+              totalDue: due.toFixed(2),
+              totalInvoiced: invoiced.toFixed(2),
+              count: json.data.length,
+            });
+            setRecentInvoices(json.data.slice(0, 4));
+          }
+        })
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }
   }, [user]);
 
   const rooms = [
     {
-      id: 'living',
-      title: 'Living Room',
-      subtitle: '5 handcrafted pieces',
-      category: 'Seating',
+      id: 'lounge',
+      title: 'Minimalist Lounge',
+      subtitle: 'Serene low-profile living collection',
+      category: 'Seating & Tables',
       icon: Armchair,
-      highlight: 'Royal Velvet Sofa & Ash Tables',
-      image: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=1200&q=80',
-    },
-    {
-      id: 'bedroom',
-      title: 'Master Bedroom',
-      subtitle: '3 handcrafted pieces',
-      category: 'Beds',
-      icon: Bed,
-      highlight: 'Solid Teak Bed & Mattresses',
-      image: 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=1200&q=80',
-    },
-    {
-      id: 'dining',
-      title: 'Dining & Kitchen',
-      subtitle: '2 handcrafted pieces',
-      category: 'Tables',
-      icon: Utensils,
-      highlight: 'Nordic Solid Oak Farmhouse Set',
-      image: 'https://images.unsplash.com/photo-1615066390971-03e4e1c36ddf?auto=format&fit=crop&w=1200&q=80',
+      highlight: 'Velvet 3-Seater Sofa, Round Ash Coffee Table & Accent Chair',
+      image: '/images/products/aspen-lounge-sofa.jpg',
+      preset: 'lounge',
+      piecesCount: 3,
     },
     {
       id: 'study',
       title: 'Executive Study',
-      subtitle: '4 handcrafted pieces',
-      category: 'Storage',
+      subtitle: 'Ergonomic precision meets solid hardwood',
+      category: 'Storage & Work',
       icon: Briefcase,
-      highlight: 'Ergonomic Chair & Oak Desks',
-      image: 'https://images.unsplash.com/photo-1524758631624-e2822e304c36?auto=format&fit=crop&w=1200&q=80',
+      highlight: 'Oak Writing Desk, Mesh Executive Chair & 5-Tier Bookshelf',
+      image: '/images/products/oakridge-writing-desk.jpg',
+      preset: 'study',
+      piecesCount: 3,
+    },
+    {
+      id: 'bedroom',
+      title: 'Zen Bedroom Suite',
+      subtitle: 'Restful architecture in solid natural timber',
+      category: 'Beds & Nightstands',
+      icon: Bed,
+      highlight: 'Upholstered Double Bed Frame, Nightstands & Solid Wood Drawers',
+      image: '/images/products/upholstered-queen-bed.jpg',
+      preset: 'bedroom',
+      piecesCount: 3,
+    },
+    {
+      id: 'dining',
+      title: 'Nordic Dining Space',
+      subtitle: 'Crafted dining tables & console storage',
+      category: 'Dining & Kitchen',
+      icon: Utensils,
+      highlight: 'Solid Oak Dining Table, Marlow Console & Dining Seating',
+      image: '/images/products/dining-table-oak.jpg',
+      preset: 'lounge',
+      piecesCount: 4,
     },
   ] as const;
 
   const currentRoom = rooms.find((r) => r.id === activeRoom) || rooms[0];
 
   return (
-    <div style={{ width: '100%', fontFamily: 'var(--font-body)', display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* ── Top Header Greeting ── */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 36 }}>
+      {/* ── 1. Hero Architectural Showcase Banner ── */}
       <div
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: 16,
-          padding: '4px 0',
-        }}
-      >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <span
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                color: 'var(--brown-700)',
-                fontFamily: 'var(--font-display)',
-              }}
-            >
-              Customer Studio Surface
-            </span>
-            <span style={{ color: 'var(--brown-300)' }}>•</span>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 4,
-                fontSize: 11,
-                fontWeight: 700,
-                color: 'var(--posted)',
-                backgroundColor: 'var(--posted-bg)',
-                padding: '2px 8px',
-                borderRadius: 999,
-              }}
-            >
-              <Sparkles size={11} />
-              Japandi Architecture 2026
-            </span>
-          </div>
-
-          <h1
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 28,
-              fontWeight: 700,
-              color: 'var(--brown-900)',
-              margin: 0,
-              letterSpacing: '-0.02em',
-            }}
-          >
-            {user ? `Welcome back, ${user.full_name}` : 'Urban Furniture Customer Studio'}
-          </h1>
-          <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--brown-700)' }}>
-            Curated architectural furniture concepts, interactive 3D spaces, and your account ledger.
-          </p>
-        </div>
-
-        {/* Right Status Indicators */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '6px 14px',
-              borderRadius: 999,
-              backgroundColor: 'var(--surface)',
-              border: '1px solid rgba(208, 174, 146, 0.4)',
-              fontSize: 12,
-              fontWeight: 600,
-              color: 'var(--brown-900)',
-              boxShadow: 'var(--shadow-sm)',
-            }}
-          >
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                backgroundColor: 'var(--posted)',
-                display: 'inline-block',
-              }}
-            />
-            <span>Showroom Online</span>
-          </div>
-
-          {user && (
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '6px 14px',
-                borderRadius: 999,
-                backgroundColor: 'var(--posted-bg)',
-                border: '1px solid rgba(95, 112, 82, 0.25)',
-                fontSize: 12,
-                fontWeight: 600,
-                color: 'var(--posted)',
-              }}
-            >
-              <ShieldCheck size={14} />
-              <span>Verified Customer Contact</span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Top Main Layout: Hero Showcase (65%) + Curated Spaces (35%) ── */}
-      <div
-        style={{
+          position: 'relative',
+          borderRadius: 24,
+          overflow: 'hidden',
+          backgroundColor: '#2E221D',
+          color: '#FAF6F0',
+          boxShadow: '0 20px 48px rgba(46, 34, 29, 0.16)',
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-          gap: 24,
-          alignItems: 'stretch',
+          gridTemplateColumns: '1.2fr 1fr',
+          minHeight: 380,
         }}
       >
-        {/* ── 1. Architectural Hero Showcase ── */}
+        {/* Left: Atmospheric Branding & CTAs */}
         <div
           style={{
-            gridColumn: 'span 2',
-            minHeight: 440,
-            borderRadius: 24,
-            overflow: 'hidden',
-            position: 'relative',
-            boxShadow: 'var(--shadow-md)',
-            backgroundImage: `url(${currentRoom.image})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
+            padding: '48px 44px',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            padding: 28,
-            transition: 'background-image 300ms ease-in-out',
+            zIndex: 2,
+            background: 'linear-gradient(135deg, rgba(46, 34, 29, 0.98) 0%, rgba(56, 42, 36, 0.92) 100%)',
           }}
         >
-          {/* Subtle warm ambient overlay */}
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontFamily: 'var(--font-display)',
+                  fontWeight: 800,
+                  letterSpacing: '0.12em',
+                  textTransform: 'uppercase',
+                  color: 'var(--brown-300)',
+                }}
+              >
+                URBAN ARCHITECTURE 2026
+              </span>
+              <span style={{ color: 'rgba(208, 174, 146, 0.4)' }}>•</span>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: '#A3D9A5',
+                  backgroundColor: 'rgba(95, 112, 82, 0.35)',
+                  padding: '3px 10px',
+                  borderRadius: 999,
+                  border: '1px solid rgba(163, 217, 165, 0.3)',
+                }}
+              >
+                <Sparkles size={11} />
+                Real-Time 3D Engine
+              </span>
+            </div>
+
+            <h1
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 36,
+                lineHeight: 1.15,
+                fontWeight: 800,
+                letterSpacing: '-0.03em',
+                color: '#FAF6F0',
+                margin: '0 0 14px',
+              }}
+            >
+              {user ? `Welcome back, ${user.full_name}` : 'Handcrafted Living, Defined in 3D.'}
+            </h1>
+
+            <p
+              style={{
+                fontSize: 15,
+                lineHeight: 1.6,
+                color: 'rgba(235, 215, 190, 0.85)',
+                margin: 0,
+                maxWidth: 480,
+              }}
+            >
+              Experience our curated showroom of solid teak, walnut, and linen furniture. Design room layouts interactively in 3D and inspect your official accounting ledger in real-time.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 32, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => navigate('/portal/studio')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '12px 24px',
+                borderRadius: 999,
+                backgroundColor: '#F9F2E4',
+                color: '#2E221D',
+                border: 'none',
+                fontSize: 13,
+                fontWeight: 700,
+                fontFamily: 'var(--font-display)',
+                cursor: 'pointer',
+                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
+                transition: 'all 160ms cubic-bezier(0.4, 0, 0.2, 1)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.backgroundColor = '#FFFFFF';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'none';
+                e.currentTarget.style.backgroundColor = '#F9F2E4';
+              }}
+            >
+              <Compass size={16} />
+              <span>Launch 3D Room Studio</span>
+              <ArrowRight size={14} />
+            </button>
+
+            <button
+              onClick={() => navigate('/portal/catalogue')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '12px 22px',
+                borderRadius: 999,
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                color: '#FAF6F0',
+                border: '1px solid rgba(208, 174, 146, 0.4)',
+                fontSize: 13,
+                fontWeight: 600,
+                fontFamily: 'var(--font-display)',
+                cursor: 'pointer',
+                transition: 'all 160ms ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.16)';
+                e.currentTarget.style.borderColor = '#FAF6F0';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)';
+                e.currentTarget.style.borderColor = 'rgba(208, 174, 146, 0.4)';
+              }}
+            >
+              <Layers size={15} />
+              <span>Browse 320 Products</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Right: Architectural Imagery Showcase */}
+        <div style={{ position: 'relative', overflow: 'hidden' }}>
+          <img
+            src={currentRoom.image}
+            alt={currentRoom.title}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              transition: 'transform 600ms cubic-bezier(0.4, 0, 0.2, 1)',
+            }}
+          />
           <div
             style={{
               position: 'absolute',
               inset: 0,
-              background: 'linear-gradient(180deg, rgba(254, 243, 199, 0.15) 0%, rgba(74, 58, 52, 0.75) 100%)',
-              pointerEvents: 'none',
+              background: 'linear-gradient(to right, rgba(46, 34, 29, 0.75) 0%, transparent 40%, rgba(46, 34, 29, 0.2) 100%)',
             }}
           />
 
-          {/* Top Pill Badges */}
+          {/* Floating Pill Overlay */}
           <div
             style={{
-              position: 'relative',
-              zIndex: 2,
+              position: 'absolute',
+              bottom: 24,
+              right: 24,
+              backgroundColor: 'rgba(255, 255, 255, 0.92)',
+              backdropFilter: 'blur(12px)',
+              padding: '8px 16px',
+              borderRadius: 999,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: 10,
+              gap: 8,
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)',
             }}
           >
-            <div
+            <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: 'var(--posted)' }} />
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--brown-900)', fontFamily: 'var(--font-display)' }}>
+              {currentRoom.title}
+            </span>
+            <span style={{ fontSize: 11, color: 'var(--brown-600)', fontFamily: 'var(--font-mono)' }}>
+              ({currentRoom.piecesCount} 3D Pieces)
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 2. Financial Ledger Summary (When Authenticated) ── */}
+      {user && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h2
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 18,
+                  fontWeight: 800,
+                  color: 'var(--brown-900)',
+                  margin: 0,
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                Account Ledger &amp; Invoices
+              </h2>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontFamily: 'var(--font-mono)',
+                  color: 'var(--brown-600)',
+                  backgroundColor: 'rgba(208, 174, 146, 0.3)',
+                  padding: '2px 8px',
+                  borderRadius: 999,
+                }}
+              >
+                {invoiceSummary.count} Total Records
+              </span>
+            </div>
+
+            <Link
+              to="/portal/invoices"
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '6px 14px',
-                borderRadius: 999,
-                backgroundColor: 'rgba(255, 255, 255, 0.92)',
-                backdropFilter: 'blur(8px)',
                 fontSize: 12,
                 fontWeight: 700,
+                fontFamily: 'var(--font-display)',
                 color: 'var(--brown-900)',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
               }}
             >
-              <Sparkles size={13} color="var(--brown-700)" />
-              <span>Architectural Space</span>
-            </div>
-
-            <div
-              style={{
-                padding: '6px 14px',
-                borderRadius: 999,
-                backgroundColor: 'rgba(255, 255, 255, 0.88)',
-                backdropFilter: 'blur(8px)',
-                fontSize: 11,
-                fontWeight: 600,
-                color: 'var(--brown-900)',
-              }}
-            >
-              Natural Teak & Solid Oak
-            </div>
+              <span>View All Invoices</span>
+              <ArrowRight size={13} />
+            </Link>
           </div>
 
-          {/* Bottom Hero Content */}
-          <div
-            style={{
-              position: 'relative',
-              zIndex: 2,
-              maxWidth: 580,
-            }}
-          >
-            <span
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+            {/* KPI 1: Outstanding Balance */}
+            <div
               style={{
-                display: 'inline-block',
-                fontSize: 11,
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.1em',
-                color: '#F9F2E4',
-                marginBottom: 6,
-                textShadow: '0 1px 2px rgba(0,0,0,0.4)',
+                backgroundColor: 'var(--surface)',
+                borderRadius: 16,
+                padding: '22px 24px',
+                border: parseFloat(invoiceSummary.totalDue) > 0 ? '1px solid rgba(158, 74, 56, 0.4)' : '1px solid rgba(208, 174, 146, 0.35)',
+                boxShadow: '0 4px 16px rgba(74, 58, 52, 0.05)',
+                position: 'relative',
+                overflow: 'hidden',
               }}
             >
-              {currentRoom.title} Concept
-            </span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--brown-600)' }}>
+                  Outstanding Balance
+                </span>
+                {parseFloat(invoiceSummary.totalDue) > 0 ? (
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--danger)', backgroundColor: 'var(--danger-bg)', padding: '2px 8px', borderRadius: 999 }}>
+                    Action Required
+                  </span>
+                ) : (
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--posted)', backgroundColor: 'var(--posted-bg)', padding: '2px 8px', borderRadius: 999 }}>
+                    All Clear
+                  </span>
+                )}
+              </div>
+
+              <div
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 28,
+                  fontWeight: 800,
+                  color: parseFloat(invoiceSummary.totalDue) > 0 ? 'var(--danger)' : 'var(--posted)',
+                  fontVariantNumeric: 'tabular-nums',
+                  marginBottom: 12,
+                }}
+              >
+                {formatINR(invoiceSummary.totalDue)}
+              </div>
+
+              {parseFloat(invoiceSummary.totalDue) > 0 ? (
+                <button
+                  onClick={() => navigate('/portal/invoices')}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 14px',
+                    borderRadius: 999,
+                    backgroundColor: 'var(--brown-900)',
+                    color: 'var(--cream)',
+                    border: 'none',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-display)',
+                    cursor: 'pointer',
+                    transition: 'all 140ms ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#2E221D';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'var(--brown-900)';
+                  }}
+                >
+                  <Zap size={12} color="#F2C94C" />
+                  <span>Settle via Razorpay</span>
+                </button>
+              ) : (
+                <div style={{ fontSize: 12, color: 'var(--brown-600)', display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <CheckCircle2 size={13} color="var(--posted)" />
+                  <span>No outstanding dues on your account</span>
+                </div>
+              )}
+            </div>
+
+            {/* KPI 2: Total Invoiced */}
+            <div
+              style={{
+                backgroundColor: 'var(--surface)',
+                borderRadius: 16,
+                padding: '22px 24px',
+                border: '1px solid rgba(208, 174, 146, 0.35)',
+                boxShadow: '0 4px 16px rgba(74, 58, 52, 0.05)',
+              }}
+            >
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--brown-600)', marginBottom: 8 }}>
+                Total Lifetime Invoiced
+              </div>
+              <div
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 28,
+                  fontWeight: 800,
+                  color: 'var(--brown-900)',
+                  fontVariantNumeric: 'tabular-nums',
+                  marginBottom: 12,
+                }}
+              >
+                {formatINR(invoiceSummary.totalInvoiced)}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--brown-600)' }}>
+                Across {invoiceSummary.count} order invoice {invoiceSummary.count === 1 ? 'batch' : 'batches'}
+              </div>
+            </div>
+
+            {/* KPI 3: Verified Client Status */}
+            <div
+              style={{
+                backgroundColor: 'var(--surface)',
+                borderRadius: 16,
+                padding: '22px 24px',
+                border: '1px solid rgba(208, 174, 146, 0.35)',
+                boxShadow: '0 4px 16px rgba(74, 58, 52, 0.05)',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--brown-600)', marginBottom: 8 }}>
+                  Security &amp; Billing
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <ShieldCheck size={18} color="var(--posted)" />
+                  <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--brown-900)', fontFamily: 'var(--font-display)' }}>
+                    Verified Client Account
+                  </span>
+                </div>
+                <p style={{ fontSize: 11, color: 'var(--brown-600)', margin: 0 }}>
+                  Client Ledger synchronized with Urban Furniture ERP.
+                </p>
+              </div>
+
+              <div style={{ marginTop: 12 }}>
+                <Link
+                  to="/portal/invoices"
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-display)',
+                    color: 'var(--brown-700)',
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  <span>Download Signed Invoices</span>
+                  <ExternalLink size={11} />
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 3. Interactive Room Archetypes Studio Switcher ── */}
+      <div
+        style={{
+          backgroundColor: 'var(--surface)',
+          borderRadius: 24,
+          padding: '32px',
+          border: '1px solid rgba(208, 174, 146, 0.35)',
+          boxShadow: '0 8px 24px rgba(74, 58, 52, 0.06)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 24,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--brown-600)' }}>
+                3D Japandi Room Spaces
+              </span>
+            </div>
             <h2
               style={{
                 fontFamily: 'var(--font-display)',
-                fontSize: 30,
-                fontWeight: 700,
-                color: '#FFFFFF',
-                margin: '0 0 10px',
-                lineHeight: '36px',
-                textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                fontSize: 22,
+                fontWeight: 800,
+                color: 'var(--brown-900)',
+                margin: 0,
+                letterSpacing: '-0.02em',
               }}
             >
-              The Japandi {currentRoom.title}
+              Explore Architectural Spaces
             </h2>
-            <p
+          </div>
+
+          {/* Room Pill Switcher */}
+          <div
+            style={{
+              display: 'flex',
+              gap: 6,
+              backgroundColor: 'rgba(249, 246, 240, 0.8)',
+              padding: 4,
+              borderRadius: 999,
+              border: '1px solid rgba(208, 174, 146, 0.35)',
+            }}
+          >
+            {rooms.map((room) => {
+              const Icon = room.icon;
+              const isSelected = activeRoom === room.id;
+              return (
+                <button
+                  key={room.id}
+                  onClick={() => setActiveRoom(room.id as any)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '7px 14px',
+                    borderRadius: 999,
+                    border: 'none',
+                    fontSize: 12,
+                    fontWeight: isSelected ? 700 : 500,
+                    fontFamily: 'var(--font-display)',
+                    backgroundColor: isSelected ? 'var(--brown-900)' : 'transparent',
+                    color: isSelected ? 'var(--cream)' : 'var(--brown-800)',
+                    cursor: 'pointer',
+                    boxShadow: isSelected ? '0 2px 6px rgba(74, 58, 52, 0.2)' : 'none',
+                    transition: 'all 140ms ease',
+                  }}
+                >
+                  <Icon size={13} />
+                  <span>{room.title}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Selected Room Preview Card */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1.2fr 1fr',
+            borderRadius: 16,
+            overflow: 'hidden',
+            backgroundColor: '#FDFBF7',
+            border: '1px solid rgba(208, 174, 146, 0.35)',
+          }}
+        >
+          <div style={{ position: 'relative', height: 320, overflow: 'hidden' }}>
+            <img
+              src={currentRoom.image}
+              alt={currentRoom.title}
               style={{
-                fontSize: 13,
-                color: '#F3E8DF',
-                margin: '0 0 18px',
-                lineHeight: '20px',
-                textShadow: '0 1px 2px rgba(0,0,0,0.4)',
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                transition: 'transform 400ms ease',
+              }}
+            />
+            <div
+              style={{
+                position: 'absolute',
+                top: 16,
+                left: 16,
+                backgroundColor: 'rgba(255, 255, 255, 0.94)',
+                backdropFilter: 'blur(10px)',
+                padding: '6px 12px',
+                borderRadius: 999,
+                fontSize: 11,
+                fontWeight: 700,
+                color: 'var(--brown-900)',
+                fontFamily: 'var(--font-display)',
+                boxShadow: 'var(--shadow-sm)',
               }}
             >
-              Harmonising Japanese minimalism with Scandinavian craftsmanship. Features {currentRoom.highlight}.
-            </p>
+              {currentRoom.category}
+            </div>
+          </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          <div
+            style={{
+              padding: '32px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontFamily: 'var(--font-mono)',
+                  color: 'var(--posted)',
+                  fontWeight: 700,
+                  backgroundColor: 'var(--posted-bg)',
+                  padding: '2px 8px',
+                  borderRadius: 999,
+                  textTransform: 'uppercase',
+                }}
+              >
+                Verified Concept
+              </span>
+              <h3
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 22,
+                  fontWeight: 800,
+                  color: 'var(--brown-900)',
+                  margin: '10px 0 6px',
+                }}
+              >
+                {currentRoom.title}
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--brown-700)', lineHeight: 1.5, margin: '0 0 16px' }}>
+                {currentRoom.subtitle}
+              </p>
+
+              <div
+                style={{
+                  backgroundColor: 'rgba(235, 215, 190, 0.35)',
+                  borderRadius: 12,
+                  padding: '12px 14px',
+                  border: '1px solid rgba(208, 174, 146, 0.3)',
+                  marginBottom: 16,
+                }}
+              >
+                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--brown-600)', marginBottom: 4 }}>
+                  Curated Ensemble Includes:
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--brown-900)', lineHeight: 1.4 }}>
+                  {currentRoom.highlight}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <button
-                type="button"
                 onClick={() => navigate('/portal/studio')}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 8,
-                  padding: '11px 22px',
-                  borderRadius: 'var(--radius-sm)',
+                  padding: '11px 20px',
+                  borderRadius: 999,
                   backgroundColor: 'var(--brown-900)',
                   color: 'var(--cream)',
+                  border: 'none',
                   fontSize: 13,
                   fontWeight: 700,
                   fontFamily: 'var(--font-display)',
-                  border: '1px solid rgba(255,255,255,0.2)',
                   cursor: 'pointer',
-                  boxShadow: 'var(--shadow-md)',
-                  transition: 'transform 120ms ease',
+                  boxShadow: '0 3px 10px rgba(74, 58, 52, 0.18)',
+                  transition: 'all 140ms ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-1px)')}
-                onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                  e.currentTarget.style.backgroundColor = '#2E221D';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'none';
+                  e.currentTarget.style.backgroundColor = 'var(--brown-900)';
+                }}
               >
-                <Box size={16} />
-                <span>Enter 3D Room Studio</span>
-                <ArrowRight size={14} />
+                <Sparkles size={14} />
+                <span>Customize in 3D Studio</span>
               </button>
 
               <button
-                type="button"
-                onClick={() => navigate(`/portal/catalogue`)}
+                onClick={() => navigate('/portal/catalogue')}
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 6,
                   padding: '11px 18px',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'rgba(255,255,255,0.92)',
-                  backdropFilter: 'blur(8px)',
+                  borderRadius: 999,
+                  backgroundColor: 'transparent',
                   color: 'var(--brown-900)',
-                  fontSize: 13,
+                  border: '1px solid rgba(208, 174, 146, 0.6)',
+                  fontSize: 12,
                   fontWeight: 600,
                   fontFamily: 'var(--font-display)',
-                  border: 'none',
                   cursor: 'pointer',
-                  boxShadow: 'var(--shadow-sm)',
+                  transition: 'all 140ms ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(235, 215, 190, 0.4)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
-                <span>Browse {currentRoom.category}</span>
+                <span>View Products</span>
               </button>
             </div>
           </div>
         </div>
-
-        {/* ── 2. Curated Spaces & Rooms Sidebar ── */}
-        <div
-          style={{
-            backgroundColor: 'var(--surface)',
-            borderRadius: 24,
-            padding: 24,
-            boxShadow: 'var(--shadow-sm)',
-            border: '1px solid rgba(208, 174, 146, 0.35)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                marginBottom: 16,
-              }}
-            >
-              <div>
-                <h3
-                  style={{
-                    fontFamily: 'var(--font-display)',
-                    fontSize: 18,
-                    fontWeight: 700,
-                    color: 'var(--brown-900)',
-                    margin: 0,
-                  }}
-                >
-                  Curated Spaces
-                </h3>
-                <span style={{ fontSize: 11, color: 'var(--brown-600)' }}>4 architectural room collections</span>
-              </div>
-              <Compass size={20} color="var(--brown-700)" />
-            </div>
-
-            {/* Room List */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {rooms.map((room) => {
-                const isActive = room.id === activeRoom;
-                const IconComponent = room.icon;
-                return (
-                  <button
-                    key={room.id}
-                    type="button"
-                    onClick={() => setActiveRoom(room.id as any)}
-                    style={{
-                      width: '100%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      padding: '12px 16px',
-                      borderRadius: 14,
-                      backgroundColor: isActive ? 'var(--cream)' : 'transparent',
-                      border: isActive ? '1px solid rgba(74, 58, 52, 0.25)' : '1px solid transparent',
-                      cursor: 'pointer',
-                      transition: 'all 150ms ease',
-                      textAlign: 'left',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isActive) e.currentTarget.style.backgroundColor = 'rgba(235, 215, 190, 0.35)';
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isActive) e.currentTarget.style.backgroundColor = 'transparent';
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div
-                        style={{
-                          width: 36,
-                          height: 36,
-                          borderRadius: 10,
-                          backgroundColor: isActive ? 'var(--brown-900)' : 'var(--brown-100)',
-                          color: isActive ? 'var(--cream)' : 'var(--brown-900)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          transition: 'all 150ms ease',
-                        }}
-                      >
-                        <IconComponent size={18} />
-                      </div>
-                      <div>
-                        <div
-                          style={{
-                            fontSize: 13,
-                            fontWeight: isActive ? 700 : 600,
-                            fontFamily: 'var(--font-display)',
-                            color: 'var(--brown-900)',
-                          }}
-                        >
-                          {room.title}
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--brown-600)' }}>{room.subtitle}</div>
-                      </div>
-                    </div>
-                    <ChevronRight size={16} color={isActive ? 'var(--brown-900)' : 'var(--brown-400)'} />
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Bottom Explore Button */}
-          <button
-            type="button"
-            onClick={() => navigate('/portal/catalogue')}
-            style={{
-              marginTop: 20,
-              width: '100%',
-              padding: '12px 16px',
-              borderRadius: 14,
-              backgroundColor: 'var(--brown-900)',
-              color: 'var(--cream)',
-              fontFamily: 'var(--font-display)',
-              fontSize: 12,
-              fontWeight: 700,
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              boxShadow: 'var(--shadow-sm)',
-              transition: 'opacity 120ms ease',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
-            onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
-          >
-            <span>Explore Full Catalogue</span>
-            <ArrowRight size={14} />
-          </button>
-        </div>
       </div>
 
-      {/* ── Bottom 3-Card Responsive Grid ── */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-          gap: 24,
-        }}
-      >
-        {/* ── Card 1: Interactive 3D Model Spotlight ── */}
-        <div
-          style={{
-            backgroundColor: 'var(--surface)',
-            borderRadius: 24,
-            padding: 24,
-            boxShadow: 'var(--shadow-sm)',
-            border: '1px solid rgba(208, 174, 146, 0.35)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-          }}
-        >
+      {/* ── 4. Featured Furniture Showcase Grid ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    color: 'var(--brown-700)',
-                    fontFamily: 'var(--font-display)',
-                  }}
-                >
-                  3D Interactive Spotlight
-                </span>
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: 'var(--posted)',
-                    backgroundColor: 'var(--posted-bg)',
-                    padding: '2px 6px',
-                    borderRadius: 999,
-                  }}
-                >
-                  Ready
-                </span>
-              </div>
-              <Box size={18} color="var(--brown-700)" />
-            </div>
-
-            {/* Product visual preview box */}
-            <div
+            <h2
               style={{
-                position: 'relative',
-                height: 180,
-                borderRadius: 16,
-                backgroundColor: 'var(--cream)',
-                overflow: 'hidden',
-                marginBottom: 16,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundImage:
-                  'url(https://images.unsplash.com/photo-1580481077195-c3a821a78f4b?auto=format&fit=crop&w=600&q=80)',
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
+                fontFamily: 'var(--font-display)',
+                fontSize: 20,
+                fontWeight: 800,
+                color: 'var(--brown-900)',
+                margin: 0,
+                letterSpacing: '-0.01em',
               }}
             >
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  background: 'linear-gradient(180deg, transparent 40%, rgba(74, 58, 52, 0.75) 100%)',
-                }}
-              />
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: 12,
-                  left: 14,
-                  right: 14,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  color: '#FFFFFF',
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-display)' }}>
-                    Executive Office Chair
-                  </div>
-                  <div style={{ fontSize: 11, color: '#EBD7BE' }}>SKU: SEAT-OFF-001</div>
-                </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 700, color: '#FFFFFF' }}>
-                  ₹8,500
-                </div>
-              </div>
-            </div>
-
-            {/* Spec Chips Row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-              <span
-                style={{
-                  fontSize: 11,
-                  padding: '4px 8px',
-                  borderRadius: 6,
-                  backgroundColor: 'var(--cream)',
-                  color: 'var(--brown-900)',
-                  fontWeight: 600,
-                }}
-              >
-                Solid Ash
-              </span>
-              <span
-                style={{
-                  fontSize: 11,
-                  padding: '4px 8px',
-                  borderRadius: 6,
-                  backgroundColor: 'var(--cream)',
-                  color: 'var(--brown-900)',
-                  fontWeight: 600,
-                }}
-              >
-                GST 18%
-              </span>
-              <span
-                style={{
-                  fontSize: 11,
-                  padding: '4px 8px',
-                  borderRadius: 6,
-                  backgroundColor: 'var(--posted-bg)',
-                  color: 'var(--posted)',
-                  fontWeight: 600,
-                }}
-              >
-                In Stock (25)
-              </span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => navigate('/portal/catalogue/315')}
-            style={{
-              width: '100%',
-              padding: '11px 16px',
-              borderRadius: 'var(--radius-sm)',
-              backgroundColor: 'var(--brown-900)',
-              color: 'var(--cream)',
-              fontFamily: 'var(--font-display)',
-              fontSize: 12,
-              fontWeight: 700,
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              boxShadow: 'var(--shadow-sm)',
-            }}
-          >
-            <Box size={15} />
-            <span>Inspect in 3D Showroom</span>
-          </button>
-        </div>
-
-        {/* ── Card 2: 3D Room Planner Studio ── */}
-        <div
-          style={{
-            backgroundColor: 'var(--surface)',
-            borderRadius: 24,
-            padding: 24,
-            boxShadow: 'var(--shadow-sm)',
-            border: '1px solid rgba(208, 174, 146, 0.35)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <div>
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    color: 'var(--brown-700)',
-                    fontFamily: 'var(--font-display)',
-                  }}
-                >
-                  Interactive Architecture
-                </span>
-                <h4 style={{ margin: '2px 0 0', fontSize: 16, fontWeight: 700, color: 'var(--brown-900)' }}>
-                  3D Room Studio Planner
-                </h4>
-              </div>
-              <Layers size={18} color="var(--brown-700)" />
-            </div>
-
-            <p style={{ fontSize: 13, color: 'var(--brown-700)', lineHeight: '20px', margin: '0 0 16px' }}>
-              Arrange real 3D furniture pieces inside our architectural blank room pad. Drag, rotate, toggle ambient lighting, and visualise floor layouts in full 3D.
+              Featured Masterpieces
+            </h2>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--brown-600)' }}>
+              Handcrafted solid woods, organic linens, and architectural silhouettes with 3D models.
             </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--brown-900)' }}>
-                <CheckCircle2 size={15} color="var(--posted)" />
-                <span>Drag & drop pieces directly across the floor</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--brown-900)' }}>
-                <CheckCircle2 size={15} color="var(--posted)" />
-                <span>Morning, Studio & Dusk lighting environments</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--brown-900)' }}>
-                <CheckCircle2 size={15} color="var(--posted)" />
-                <span>Wall mounts, ceiling pendants & standing lamps</span>
-              </div>
-            </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => navigate('/portal/studio')}
+          <Link
+            to="/portal/catalogue"
             style={{
-              width: '100%',
-              padding: '11px 16px',
-              borderRadius: 'var(--radius-sm)',
-              backgroundColor: 'var(--brown-900)',
-              color: 'var(--cream)',
-              fontFamily: 'var(--font-display)',
-              fontSize: 12,
-              fontWeight: 700,
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              boxShadow: 'var(--shadow-sm)',
+              gap: 6,
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: 'var(--font-display)',
+              color: 'var(--brown-900)',
+              textDecoration: 'none',
+              padding: '6px 14px',
+              borderRadius: 999,
+              backgroundColor: 'rgba(235, 215, 190, 0.4)',
+              border: '1px solid rgba(208, 174, 146, 0.5)',
+              transition: 'all 140ms ease',
             }}
           >
-            <Layers size={15} />
-            <span>Open 3D Room Studio</span>
-          </button>
+            <span>Explore Full Catalogue</span>
+            <ArrowRight size={13} />
+          </Link>
         </div>
 
-        {/* ── Card 3: Customer Financials & Order Status ── */}
-        <div
-          style={{
-            backgroundColor: 'var(--surface)',
-            borderRadius: 24,
-            padding: 24,
-            boxShadow: 'var(--shadow-sm)',
-            border: '1px solid rgba(208, 174, 146, 0.35)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-              <div>
-                <span
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 18 }}>
+          {featuredProducts.map((p) => (
+            <div
+              key={p.id}
+              onClick={() => navigate(`/portal/catalogue/${p.id}`)}
+              style={{
+                backgroundColor: 'var(--surface)',
+                borderRadius: 16,
+                overflow: 'hidden',
+                border: '1px solid rgba(208, 174, 146, 0.35)',
+                boxShadow: '0 4px 16px rgba(74, 58, 52, 0.05)',
+                cursor: 'pointer',
+                transition: 'all 200ms cubic-bezier(0.4, 0, 0.2, 1)',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-4px)';
+                e.currentTarget.style.boxShadow = '0 12px 28px rgba(74, 58, 52, 0.12)';
+                e.currentTarget.style.borderColor = 'var(--brown-700)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'none';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(74, 58, 52, 0.05)';
+                e.currentTarget.style.borderColor = 'rgba(208, 174, 146, 0.35)';
+              }}
+            >
+              {/* Image Preview with 3D Pill */}
+              <div style={{ position: 'relative', height: 180, overflow: 'hidden', backgroundColor: '#F6F2EC' }}>
+                <img
+                  src={p.image_url || '/images/products/aspen-lounge-sofa.jpg'}
+                  alt={p.name}
                   style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.08em',
-                    color: 'var(--brown-700)',
-                    fontFamily: 'var(--font-display)',
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    transition: 'transform 300ms ease',
                   }}
-                >
-                  Accounting & Invoices
-                </span>
-                <h4 style={{ margin: '2px 0 0', fontSize: 16, fontWeight: 700, color: 'var(--brown-900)' }}>
-                  Your Account Ledger
-                </h4>
-              </div>
-              <CreditCard size={18} color="var(--brown-700)" />
-            </div>
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'scale(1.05)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'scale(1.0)';
+                  }}
+                />
 
-            {user ? (
-              <div>
-                {/* Financial KPI stats */}
+                {p.model_url && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 10,
+                      right: 10,
+                      backgroundColor: 'rgba(74, 58, 52, 0.88)',
+                      backdropFilter: 'blur(8px)',
+                      color: 'var(--cream)',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      fontFamily: 'var(--font-display)',
+                      padding: '3px 8px',
+                      borderRadius: 999,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    <Box size={11} />
+                    <span>3D Model</span>
+                  </div>
+                )}
+
                 <div
                   style={{
-                    padding: '16px',
-                    borderRadius: 14,
-                    backgroundColor: 'var(--cream)',
-                    marginBottom: 16,
+                    position: 'absolute',
+                    bottom: 10,
+                    left: 10,
+                    backgroundColor: 'rgba(255, 255, 255, 0.92)',
+                    backdropFilter: 'blur(8px)',
+                    color: 'var(--brown-900)',
+                    fontSize: 10,
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: 6,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
                   }}
                 >
+                  {p.category}
+                </div>
+              </div>
+
+              {/* Product Details */}
+              <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', flex: 1, justifyContent: 'space-between' }}>
+                <div>
+                  <h3
+                    style={{
+                      fontFamily: 'var(--font-display)',
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: 'var(--brown-900)',
+                      margin: '0 0 8px',
+                      lineHeight: 1.3,
+                      display: '-webkit-box',
+                      WebkitLineClamp: 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                    }}
+                    title={p.name}
+                  >
+                    {p.name}
+                  </h3>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 10 }}>
+                  <div>
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 16,
+                        fontWeight: 800,
+                        color: 'var(--brown-900)',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
+                      {formatINR(p.sales_price)}
+                    </span>
+                    {p.mrp && parseFloat(p.mrp) > parseFloat(p.sales_price) && (
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontFamily: 'var(--font-mono)',
+                          color: 'var(--brown-500)',
+                          textDecoration: 'line-through',
+                          marginLeft: 6,
+                        }}
+                      >
+                        {formatINR(p.mrp)}
+                      </span>
+                    )}
+                  </div>
+
                   <span
                     style={{
                       fontSize: 11,
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      color: 'var(--brown-600)',
-                      display: 'block',
-                      marginBottom: 4,
-                    }}
-                  >
-                    Outstanding Due
-                  </span>
-                  <div
-                    style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 26,
                       fontWeight: 700,
-                      color: parseFloat(invoiceSummary.totalDue) > 0 ? 'var(--danger)' : 'var(--posted)',
-                    }}
-                  >
-                    {formatINR(invoiceSummary.totalDue)}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: 11,
-                      color: 'var(--brown-600)',
-                      marginTop: 4,
-                      display: 'flex',
+                      fontFamily: 'var(--font-display)',
+                      color: 'var(--brown-700)',
+                      display: 'inline-flex',
                       alignItems: 'center',
-                      justifyContent: 'space-between',
+                      gap: 2,
                     }}
                   >
-                    <span>Total Invoiced: {formatINR(invoiceSummary.totalInvoiced)}</span>
-                    <span>{invoiceSummary.count} invoices</span>
-                  </div>
-                </div>
-
-                {/* Account status badge */}
-                <div
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: 10,
-                    backgroundColor: parseFloat(invoiceSummary.totalDue) > 0 ? 'var(--warning-bg)' : 'var(--posted-bg)',
-                    border: `1px solid ${
-                      parseFloat(invoiceSummary.totalDue) > 0
-                        ? 'rgba(192, 138, 62, 0.3)'
-                        : 'rgba(95, 112, 82, 0.25)'
-                    }`,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    fontSize: 12,
-                    color: parseFloat(invoiceSummary.totalDue) > 0 ? 'var(--warning)' : 'var(--posted)',
-                    fontWeight: 600,
-                    marginBottom: 16,
-                  }}
-                >
-                  <CheckCircle2 size={16} />
-                  <span>
-                    {parseFloat(invoiceSummary.totalDue) > 0
-                      ? 'Payment balance pending on active invoices'
-                      : 'All customer invoices fully settled'}
+                    Inspect <ChevronRight size={12} />
                   </span>
                 </div>
               </div>
-            ) : (
-              <div
-                style={{
-                  padding: '20px 14px',
-                  borderRadius: 14,
-                  backgroundColor: 'var(--cream)',
-                  textAlign: 'center',
-                  marginBottom: 16,
-                }}
-              >
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--brown-900)', marginBottom: 6 }}>
-                  Sign in to view your ledger
-                </div>
-                <p style={{ fontSize: 11, color: 'var(--brown-600)', margin: '0 0 14px' }}>
-                  Invited customer contacts can check payment history and settle invoices.
-                </p>
-                <button
-                  type="button"
-                  onClick={() => navigate('/login?portal=customer')}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    padding: '8px 16px',
-                    borderRadius: 'var(--radius-sm)',
-                    backgroundColor: 'var(--brown-900)',
-                    color: 'var(--cream)',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    border: 'none',
-                    cursor: 'pointer',
-                  }}
-                >
-                  <LogIn size={14} />
-                  <span>Sign In as Customer</span>
-                </button>
-              </div>
-            )}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => navigate('/portal/invoices')}
-            style={{
-              width: '100%',
-              padding: '11px 16px',
-              borderRadius: 'var(--radius-sm)',
-              backgroundColor: 'var(--surface)',
-              color: 'var(--brown-900)',
-              fontFamily: 'var(--font-display)',
-              fontSize: 12,
-              fontWeight: 700,
-              border: '1px solid rgba(208, 174, 146, 0.5)',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              boxShadow: 'var(--shadow-sm)',
-            }}
-          >
-            <CreditCard size={15} />
-            <span>Manage My Invoices</span>
-          </button>
+            </div>
+          ))}
         </div>
       </div>
     </div>
   );
 };
+
+export default PortalDashboardPage;

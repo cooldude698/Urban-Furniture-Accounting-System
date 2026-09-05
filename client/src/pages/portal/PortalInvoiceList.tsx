@@ -1,12 +1,28 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Decimal from 'decimal.js';
-import { ListView } from '../../components/ui/ListView';
-import type { ListColumn } from '../../components/ui/ListView';
 import StatusBadge from '../../components/ui/StatusBadge';
-import { formatINRCompact, formatINR } from '../../lib/money';
+import { formatINR } from '../../lib/money';
 import { loadRazorpayScript } from '../../lib/razorpay';
 import api from '../../lib/axios';
+import {
+  Receipt,
+  FileText,
+  CreditCard,
+  Zap,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  Search,
+  Filter,
+  ArrowRight,
+  Download,
+  ExternalLink,
+  ShieldCheck,
+  ChevronRight,
+  X,
+  Sparkles,
+} from 'lucide-react';
 
 export interface PortalInvoiceListItem {
   id: number;
@@ -19,70 +35,6 @@ export interface PortalInvoiceListItem {
   paymentStatus: string;
 }
 
-/* ── KPI summary card ─────────────────────────────────────────────────── */
-interface SummaryCardProps {
-  label: string;
-  value: string;
-  subtext?: string;
-  accent?: string; /* var(--token) for the value text */
-}
-
-function SummaryCard({ label, value, subtext, accent }: SummaryCardProps) {
-  return (
-    <div
-      style={{
-        background: 'var(--surface)',
-        border: '1px solid rgba(208, 174, 146, 0.40)',
-        borderRadius: 'var(--radius-md)',
-        boxShadow: 'var(--shadow-sm)',
-        padding: '20px 24px',
-        flex: '1 1 0',
-        minWidth: 0,
-      }}
-    >
-      <p
-        style={{
-          fontFamily: 'var(--font-body)',
-          fontSize: '11px',
-          fontWeight: 600,
-          textTransform: 'uppercase',
-          letterSpacing: '0.07em',
-          color: 'var(--brown-600)',
-          margin: '0 0 8px',
-        }}
-      >
-        {label}
-      </p>
-      <p
-        style={{
-          fontFamily: 'var(--font-mono)',
-          fontVariantNumeric: 'tabular-nums',
-          fontSize: '24px',
-          fontWeight: 600,
-          color: accent ?? 'var(--brown-900)',
-          margin: 0,
-          lineHeight: 1.2,
-        }}
-      >
-        {value}
-      </p>
-      {subtext && (
-        <p
-          style={{
-            fontFamily: 'var(--font-body)',
-            fontSize: '11px',
-            color: 'var(--brown-500)',
-            marginTop: '4px',
-          }}
-        >
-          {subtext}
-        </p>
-      )}
-    </div>
-  );
-}
-
-/* ── main component ─────────────────────────────────────────────────────── */
 export const PortalInvoiceList: React.FC = () => {
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState<PortalInvoiceListItem[]>([]);
@@ -91,18 +43,20 @@ export const PortalInvoiceList: React.FC = () => {
   const [payingId, setPayingId] = useState<number | null>(null);
   const [successNotice, setSuccessNotice] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'due' | 'paid'>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   const fetchInvoices = useCallback(() => {
     setLoading(true);
     api.get('/api/portal/invoices')
-      .then(res => {
+      .then((res) => {
         if (res.data?.data) {
           setInvoices(res.data.data);
         } else if (res.data?.error) {
           setError(res.data.error.message);
         }
       })
-      .catch(err => setError(err?.response?.data?.error?.message || err.message))
+      .catch((err) => setError(err?.response?.data?.error?.message || err.message))
       .finally(() => setLoading(false));
   }, []);
 
@@ -127,7 +81,10 @@ export const PortalInvoiceList: React.FC = () => {
         throw new Error(orderRes.data?.error?.message || 'Failed to create Razorpay payment order');
       }
 
-      const rzpKey = (window as any).__VITE_RAZORPAY_KEY_ID__ || (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || 'rzp_test_TYL9FJAZxMYoFc';
+      const rzpKey =
+        (window as any).__VITE_RAZORPAY_KEY_ID__ ||
+        (import.meta as any).env?.VITE_RAZORPAY_KEY_ID ||
+        'rzp_test_TYL9FJAZxMYoFc';
 
       const orderId = order.orderId || order.id;
 
@@ -138,7 +95,7 @@ export const PortalInvoiceList: React.FC = () => {
         name: 'Urban Furniture',
         description: `Payment for Invoice ${row.number}`,
         order_id: orderId,
-        theme: { color: '#77574A' },
+        theme: { color: '#4A3A34' },
         handler: async (response: any) => {
           try {
             const verifyRes = await api.post(`/api/portal/invoices/${row.id}/razorpay/verify-payment`, {
@@ -151,7 +108,9 @@ export const PortalInvoiceList: React.FC = () => {
               throw new Error(verifyRes.data.error.message || 'Payment signature verification failed');
             }
 
-            setSuccessNotice(`Payment ${response.razorpay_payment_id} verified & posted to General Ledger! PDF receipt dispatched.`);
+            setSuccessNotice(
+              `Payment ${response.razorpay_payment_id} verified & posted to General Ledger! Official PDF receipt generated.`
+            );
             fetchInvoices();
           } catch (vErr: any) {
             setActionError(vErr?.response?.data?.error?.message || vErr.message || 'Signature verification failed');
@@ -173,379 +132,737 @@ export const PortalInvoiceList: React.FC = () => {
     }
   };
 
-  /* ── column definition ─────────────────────────────────────────────────── */
-  const columns: ListColumn<PortalInvoiceListItem>[] = [
-    {
-      key: 'number',
-      label: 'Invoice #',
-      type: 'text',
-      render: (row) => (
-        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, fontSize: 13 }}>
-          {row.number}
-        </span>
-      ),
-    },
-    {
-      key: 'invoiceDate',
-      label: 'Invoice Date',
-      type: 'date',
-    },
-    {
-      key: 'dueDate',
-      label: 'Due Date',
-      type: 'date',
-    },
-    {
-      key: 'paymentStatus',
-      label: 'Status',
-      type: 'text',
-      render: (row) => (
-        <StatusBadge
-          status={
-            row.paymentStatus === 'paid'
-              ? 'paid'
-              : row.paymentStatus === 'partial'
-                ? 'partial'
-                : 'not_paid'
-          }
-        />
-      ),
-    },
-    {
-      key: 'total',
-      label: 'Total',
-      type: 'money',
-      align: 'right',
-    },
-    {
-      key: 'amountPaid',
-      label: 'Paid',
-      type: 'money',
-      align: 'right',
-      render: (row) => (
-        <span
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontVariantNumeric: 'tabular-nums',
-            fontSize: 13,
-            color: 'var(--posted)',
-          }}
-        >
-          {formatINR(row.amountPaid)}
-        </span>
-      ),
-    },
-    {
-      key: 'amountDue',
-      label: 'Outstanding',
-      type: 'money',
-      align: 'right',
-      render: (row) => {
-        const due = new Decimal(row.amountDue || '0');
-        return (
-          <span
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontVariantNumeric: 'tabular-nums',
-              fontSize: 13,
-              fontWeight: due.gt(0) ? 700 : 400,
-              color: due.gt(0) ? 'var(--danger)' : 'var(--brown-500)',
-            }}
-          >
-            {formatINR(row.amountDue)}
-          </span>
-        );
-      },
-    },
-    {
-      key: 'actions',
-      label: 'Actions & Settle',
-      type: 'text',
-      align: 'right',
-      render: (row) => {
-        const due = new Decimal(row.amountDue || '0');
-        const isPaying = payingId === row.id;
-        return (
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              justifyContent: 'flex-end',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {due.gt(0) ? (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleInitiateRazorpay(row);
-                }}
-                disabled={isPaying}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: '5px 12px',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  fontFamily: 'var(--font-display)',
-                  borderRadius: 'var(--radius-sm, 6px)',
-                  backgroundColor: '#77574A',
-                  color: '#FBF9F5',
-                  border: 'none',
-                  cursor: isPaying ? 'wait' : 'pointer',
-                  opacity: isPaying ? 0.7 : 1,
-                  boxShadow: 'var(--shadow-sm)',
-                  transition: 'background 120ms ease',
-                  whiteSpace: 'nowrap',
-                }}
-                onMouseEnter={(e) => {
-                  if (!isPaying) e.currentTarget.style.backgroundColor = '#5c4033';
-                }}
-                onMouseLeave={(e) => {
-                  if (!isPaying) e.currentTarget.style.backgroundColor = '#77574A';
-                }}
-                title={`Pay ${formatINR(row.amountDue)} instantly via Razorpay Online`}
-              >
-                <span>⚡</span>
-                <span>{isPaying ? 'Processing…' : 'Pay via Razorpay'}</span>
-              </button>
-            ) : (
-              <span
-                style={{
-                  fontSize: '11px',
-                  fontWeight: 600,
-                  fontFamily: 'var(--font-body)',
-                  color: 'var(--posted)',
-                  backgroundColor: 'rgba(56, 102, 65, 0.10)',
-                  border: '1px solid rgba(56, 102, 65, 0.25)',
-                  padding: '3px 8px',
-                  borderRadius: '4px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                <span>✓</span> Settled
-              </span>
-            )}
+  /* ── Derived KPIs ── */
+  const totalCount = invoices.length;
 
-            <a
-              href={`/api/portal/invoices/${row.id}/pdf`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
+  const amountOutstanding = useMemo(() => {
+    return invoices
+      .filter((i) => i.paymentStatus !== 'paid')
+      .reduce((acc, i) => acc.plus(new Decimal(i.amountDue || '0')), new Decimal(0))
+      .toFixed(2);
+  }, [invoices]);
+
+  const amountPaidTotal = useMemo(() => {
+    return invoices
+      .reduce((acc, i) => acc.plus(new Decimal(i.amountPaid || '0')), new Decimal(0))
+      .toFixed(2);
+  }, [invoices]);
+
+  const amountInvoicedTotal = useMemo(() => {
+    return invoices
+      .reduce((acc, i) => acc.plus(new Decimal(i.total || '0')), new Decimal(0))
+      .toFixed(2);
+  }, [invoices]);
+
+  const dueInvoicesCount = useMemo(() => {
+    return invoices.filter((i) => parseFloat(i.amountDue || '0') > 0).length;
+  }, [invoices]);
+
+  // Filtered list
+  const filteredInvoices = useMemo(() => {
+    return invoices.filter((inv) => {
+      // 1. Status filter
+      if (filterStatus === 'due' && parseFloat(inv.amountDue || '0') <= 0) return false;
+      if (filterStatus === 'paid' && inv.paymentStatus !== 'paid') return false;
+
+      // 2. Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchNum = inv.number.toLowerCase().includes(q);
+        const matchDate = inv.invoiceDate?.includes(q);
+        if (!matchNum && !matchDate) return false;
+      }
+
+      return true;
+    });
+  }, [invoices, filterStatus, searchQuery]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 32, width: '100%' }}>
+      {/* ── 1. Showroom Billing Header ── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 20,
+          borderBottom: '1px solid rgba(208, 174, 146, 0.3)',
+          paddingBottom: 24,
+        }}
+      >
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+                color: 'var(--brown-600)',
+                fontFamily: 'var(--font-display)',
+              }}
+            >
+              CLIENT ACCOUNTING LEDGER
+            </span>
+            <span style={{ color: 'var(--brown-300)' }}>•</span>
+            <span
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
-                padding: '4px 8px',
-                fontSize: '12px',
-                fontWeight: 500,
-                borderRadius: 'var(--radius-sm, 6px)',
-                backgroundColor: 'var(--surface)',
-                color: 'var(--brown-800)',
-                border: '1px solid rgba(208, 174, 146, 0.60)',
-                textDecoration: 'none',
-                whiteSpace: 'nowrap',
-                transition: 'background 120ms ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--brown-100)')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--surface)')}
-              title="Download official PDF invoice"
-            >
-              <span>📄</span>
-              <span>PDF</span>
-            </a>
-
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/portal/invoices/${row.id}`);
-              }}
-              style={{
-                padding: '4px 8px',
-                fontSize: '12px',
-                fontWeight: 500,
-                borderRadius: 'var(--radius-sm, 6px)',
-                backgroundColor: 'transparent',
-                color: 'var(--brown-700)',
-                border: '1px solid transparent',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(208, 174, 146, 0.50)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'transparent';
+                gap: 4,
+                fontSize: 11,
+                fontWeight: 700,
+                color: 'var(--posted)',
+                backgroundColor: 'var(--posted-bg)',
+                padding: '2px 9px',
+                borderRadius: 999,
               }}
             >
-              Details →
-            </button>
+              <ShieldCheck size={11} />
+              Double-Entry Synced
+            </span>
           </div>
-        );
-      },
-    },
-  ];
 
-  /* ── derived KPIs ── */
-  const totalCount = invoices.length;
+          <h1
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 34,
+              fontWeight: 800,
+              color: 'var(--brown-900)',
+              letterSpacing: '-0.03em',
+              margin: '0 0 8px',
+            }}
+          >
+            Invoices &amp; Settlements
+          </h1>
 
-  const amountOutstanding = invoices
-    .filter(i => i.paymentStatus !== 'paid')
-    .reduce((acc, i) => acc.plus(new Decimal(i.amountDue || '0')), new Decimal(0))
-    .toFixed(2);
+          <p style={{ margin: 0, fontSize: 15, color: 'var(--brown-700)', maxWidth: 640, lineHeight: 1.5 }}>
+            Inspect official invoices billed to your account, download signed PDFs, and settle outstanding balances instantly via Razorpay.
+          </p>
+        </div>
 
-  const amountPaidTotal = invoices
-    .reduce((acc, i) => acc.plus(new Decimal(i.amountPaid || '0')), new Decimal(0))
-    .toFixed(2);
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', fontFamily: 'var(--font-body)' }}>
-
-      {/* ── Page heading ── */}
-      <div>
-        <h1
+        {/* Status Pill Badge */}
+        <div
           style={{
-            fontFamily: 'var(--font-display)',
-            fontWeight: 700,
-            fontSize: '22px',
-            color: 'var(--brown-900)',
-            margin: 0,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 8,
+            backgroundColor: 'var(--surface)',
+            padding: '8px 16px',
+            borderRadius: 999,
+            border: '1px solid rgba(208, 174, 146, 0.45)',
+            boxShadow: '0 2px 8px rgba(74, 58, 52, 0.05)',
           }}
         >
-          Your Invoices
-        </h1>
-        <p style={{ fontSize: '12px', color: 'var(--brown-600)', marginTop: '4px' }}>
-          View, inspect, and settle all invoices billed to your account with instant Razorpay online checkout
-        </p>
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              backgroundColor: parseFloat(amountOutstanding) > 0 ? 'var(--danger)' : 'var(--posted)',
+            }}
+          />
+          <span style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-display)', color: 'var(--brown-900)' }}>
+            {parseFloat(amountOutstanding) > 0 ? `${dueInvoicesCount} Pending Invoices` : 'Account Fully Settled'}
+          </span>
+        </div>
       </div>
 
-      {/* ── Success Banner ── */}
+      {/* ── 2. Success / Error Banners ── */}
       {successNotice && (
         <div
           style={{
-            padding: '12px 16px',
-            background: 'rgba(56, 102, 65, 0.12)',
+            padding: '14px 18px',
+            background: 'rgba(95, 112, 82, 0.12)',
             border: '1px solid var(--posted)',
-            borderRadius: 'var(--radius-sm)',
+            borderRadius: 14,
             color: 'var(--posted)',
-            fontSize: '13px',
-            fontFamily: 'var(--font-body)',
+            fontSize: 13,
+            fontWeight: 600,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            boxShadow: '0 2px 8px rgba(95, 112, 82, 0.1)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <CheckCircle2 size={16} />
+            <span>{successNotice}</span>
+          </div>
+          <button
+            onClick={() => setSuccessNotice(null)}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'var(--posted)',
+              display: 'flex',
+            }}
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {actionError && (
+        <div
+          style={{
+            padding: '14px 18px',
+            background: 'var(--danger-bg)',
+            border: '1px solid var(--danger)',
+            borderRadius: 14,
+            color: 'var(--danger)',
+            fontSize: 13,
             fontWeight: 600,
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
           }}
         >
-          <span>✅ {successNotice}</span>
-          <button
-            onClick={() => setSuccessNotice(null)}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              color: 'var(--posted)',
-              fontWeight: 700,
-              fontSize: '14px',
-            }}
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      {/* ── Action Error ── */}
-      {actionError && (
-        <div
-          style={{
-            padding: '10px 14px',
-            background: 'var(--danger-bg)',
-            border: '1px solid var(--danger)',
-            borderRadius: 'var(--radius-sm)',
-            color: 'var(--danger)',
-            fontSize: '12px',
-            fontFamily: 'var(--font-body)',
-            fontWeight: 500,
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <span>⚠️ {actionError}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <AlertCircle size={16} />
+            <span>{actionError}</span>
+          </div>
           <button
             onClick={() => setActionError(null)}
             style={{
-              background: 'transparent',
+              background: 'none',
               border: 'none',
               cursor: 'pointer',
               color: 'var(--danger)',
-              fontWeight: 700,
+              display: 'flex',
             }}
           >
-            ✕
+            <X size={14} />
           </button>
         </div>
       )}
 
-      {/* ── Fetch Error ── */}
-      {error && (
+      {/* ── 3. KPI Summary Strip ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 18 }}>
+        {/* Outstanding Dues */}
         <div
           style={{
-            padding: '10px 14px',
-            background: 'var(--danger-bg)',
-            border: '1px solid var(--danger)',
-            borderRadius: 'var(--radius-sm)',
-            color: 'var(--danger)',
-            fontSize: '12px',
-            fontFamily: 'var(--font-body)',
-            fontWeight: 500,
+            backgroundColor: 'var(--surface)',
+            borderRadius: 18,
+            padding: '24px',
+            border: parseFloat(amountOutstanding) > 0 ? '1px solid rgba(158, 74, 56, 0.45)' : '1px solid rgba(208, 174, 146, 0.35)',
+            boxShadow: '0 4px 16px rgba(74, 58, 52, 0.05)',
+            position: 'relative',
+            overflow: 'hidden',
           }}
         >
-          {error}
-        </div>
-      )}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--brown-600)' }}>
+              Outstanding Balance
+            </span>
+            {parseFloat(amountOutstanding) > 0 ? (
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--danger)', backgroundColor: 'var(--danger-bg)', padding: '2px 8px', borderRadius: 999 }}>
+                {dueInvoicesCount} Due
+              </span>
+            ) : (
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--posted)', backgroundColor: 'var(--posted-bg)', padding: '2px 8px', borderRadius: 999 }}>
+                Paid in Full
+              </span>
+            )}
+          </div>
 
-      {/* ── Three summary KPI cards ── */}
-      <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-        <SummaryCard
-          label="Total Invoices"
-          value={String(totalCount)}
-          subtext={loading ? 'Loading…' : totalCount === 1 ? '1 invoice on record' : `${totalCount} invoices on record`}
-        />
-        <SummaryCard
-          label="Amount Outstanding"
-          value={loading ? '—' : formatINRCompact(amountOutstanding)}
-          subtext={loading ? undefined : `Full: ${formatINR(amountOutstanding)}`}
-          accent="var(--danger)"
-        />
-        <SummaryCard
-          label="Amount Paid"
-          value={loading ? '—' : formatINRCompact(amountPaidTotal)}
-          subtext={loading ? undefined : `Full: ${formatINR(amountPaidTotal)}`}
-          accent="var(--posted)"
-        />
+          <div
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 30,
+              fontWeight: 800,
+              color: parseFloat(amountOutstanding) > 0 ? 'var(--danger)' : 'var(--posted)',
+              fontVariantNumeric: 'tabular-nums',
+              marginBottom: 8,
+            }}
+          >
+            {formatINR(amountOutstanding)}
+          </div>
+
+          <p style={{ margin: 0, fontSize: 12, color: 'var(--brown-600)' }}>
+            {parseFloat(amountOutstanding) > 0
+              ? 'Instant online clearance via Razorpay UPI / Netbanking'
+              : 'All billed orders have been settled in the general ledger'}
+          </p>
+        </div>
+
+        {/* Total Settled / Paid */}
+        <div
+          style={{
+            backgroundColor: 'var(--surface)',
+            borderRadius: 18,
+            padding: '24px',
+            border: '1px solid rgba(208, 174, 146, 0.35)',
+            boxShadow: '0 4px 16px rgba(74, 58, 52, 0.05)',
+          }}
+        >
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--brown-600)', marginBottom: 10 }}>
+            Total Settled Payments
+          </div>
+          <div
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 30,
+              fontWeight: 800,
+              color: 'var(--posted)',
+              fontVariantNumeric: 'tabular-nums',
+              marginBottom: 8,
+            }}
+          >
+            {formatINR(amountPaidTotal)}
+          </div>
+          <p style={{ margin: 0, fontSize: 12, color: 'var(--brown-600)' }}>
+            Cleared and posted to double-entry ledger accounts
+          </p>
+        </div>
+
+        {/* Total Invoiced Volume */}
+        <div
+          style={{
+            backgroundColor: 'var(--surface)',
+            borderRadius: 18,
+            padding: '24px',
+            border: '1px solid rgba(208, 174, 146, 0.35)',
+            boxShadow: '0 4px 16px rgba(74, 58, 52, 0.05)',
+          }}
+        >
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--brown-600)', marginBottom: 10 }}>
+            Total Invoiced Volume
+          </div>
+          <div
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 30,
+              fontWeight: 800,
+              color: 'var(--brown-900)',
+              fontVariantNumeric: 'tabular-nums',
+              marginBottom: 8,
+            }}
+          >
+            {formatINR(amountInvoicedTotal)}
+          </div>
+          <p style={{ margin: 0, fontSize: 12, color: 'var(--brown-600)' }}>
+            Across {totalCount} total invoice {totalCount === 1 ? 'record' : 'records'}
+          </p>
+        </div>
       </div>
 
-      {/* ── Invoice table via ListView ── */}
-      <ListView<PortalInvoiceListItem>
-        columns={columns}
-        data={invoices}
-        loading={loading}
-        rowKey="id"
-        searchable
-        searchPlaceholder="Search by invoice #, date…"
-        emptyText="No invoices recorded for your account."
-        onRowClick={row => navigate(`/portal/invoices/${row.id}`)}
-      />
+      {/* ── 4. Filter & Search Toolbar ── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: 14,
+          backgroundColor: 'rgba(255, 255, 255, 0.85)',
+          backdropFilter: 'blur(12px)',
+          padding: '10px 16px',
+          borderRadius: 16,
+          border: '1px solid rgba(208, 174, 146, 0.4)',
+          boxShadow: '0 2px 8px rgba(74, 58, 52, 0.04)',
+        }}
+      >
+        {/* Status Filter Pills */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button
+            onClick={() => setFilterStatus('all')}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: filterStatus === 'all' ? 700 : 500,
+              fontFamily: 'var(--font-display)',
+              backgroundColor: filterStatus === 'all' ? 'var(--brown-900)' : 'transparent',
+              color: filterStatus === 'all' ? 'var(--cream)' : 'var(--brown-800)',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 120ms ease',
+            }}
+          >
+            All Invoices ({totalCount})
+          </button>
+
+          <button
+            onClick={() => setFilterStatus('due')}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: filterStatus === 'due' ? 700 : 500,
+              fontFamily: 'var(--font-display)',
+              backgroundColor: filterStatus === 'due' ? 'var(--brown-900)' : 'transparent',
+              color: filterStatus === 'due' ? 'var(--cream)' : 'var(--brown-800)',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 120ms ease',
+            }}
+          >
+            Outstanding Dues ({dueInvoicesCount})
+          </button>
+
+          <button
+            onClick={() => setFilterStatus('paid')}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: filterStatus === 'paid' ? 700 : 500,
+              fontFamily: 'var(--font-display)',
+              backgroundColor: filterStatus === 'paid' ? 'var(--brown-900)' : 'transparent',
+              color: filterStatus === 'paid' ? 'var(--cream)' : 'var(--brown-800)',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 120ms ease',
+            }}
+          >
+            Fully Settled ({totalCount - dueInvoicesCount})
+          </button>
+        </div>
+
+        {/* Search Input */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            backgroundColor: '#FAF7F2',
+            padding: '6px 14px',
+            borderRadius: 999,
+            border: '1px solid rgba(208, 174, 146, 0.45)',
+            width: 260,
+          }}
+        >
+          <Search size={14} color="var(--brown-600)" />
+          <input
+            type="text"
+            placeholder="Search invoice number..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              border: 'none',
+              outline: 'none',
+              backgroundColor: 'transparent',
+              fontSize: 12,
+              fontFamily: 'var(--font-body)',
+              color: 'var(--brown-900)',
+              width: '100%',
+            }}
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                padding: 0,
+                color: 'var(--brown-600)',
+                display: 'flex',
+              }}
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── 5. Invoices List / Table ── */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '64px 0', color: 'var(--brown-600)' }}>
+          <div style={{ fontSize: 15, fontWeight: 600 }}>Loading accounting invoices...</div>
+        </div>
+      ) : filteredInvoices.length === 0 ? (
+        <div
+          style={{
+            backgroundColor: 'var(--surface)',
+            borderRadius: 20,
+            padding: '64px 32px',
+            textAlign: 'center',
+            border: '1px solid rgba(208, 174, 146, 0.35)',
+          }}
+        >
+          <Receipt size={36} color="var(--brown-500)" style={{ margin: '0 auto 12px' }} />
+          <h3 style={{ fontSize: 18, fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--brown-900)', margin: '0 0 6px' }}>
+            No invoices found
+          </h3>
+          <p style={{ fontSize: 13, color: 'var(--brown-600)', margin: 0 }}>
+            No invoice records match your active search or status filter.
+          </p>
+        </div>
+      ) : (
+        <div
+          style={{
+            backgroundColor: 'var(--surface)',
+            borderRadius: 20,
+            overflow: 'hidden',
+            border: '1px solid rgba(208, 174, 146, 0.35)',
+            boxShadow: '0 4px 16px rgba(74, 58, 52, 0.05)',
+          }}
+        >
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <thead>
+              <tr
+                style={{
+                  backgroundColor: 'rgba(235, 215, 190, 0.4)',
+                  borderBottom: '1px solid rgba(208, 174, 146, 0.4)',
+                }}
+              >
+                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-display)', textTransform: 'uppercase', color: 'var(--brown-800)', letterSpacing: '0.04em' }}>
+                  Invoice #
+                </th>
+                <th style={{ padding: '14px 16px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-display)', textTransform: 'uppercase', color: 'var(--brown-800)', letterSpacing: '0.04em' }}>
+                  Dates
+                </th>
+                <th style={{ padding: '14px 16px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-display)', textTransform: 'uppercase', color: 'var(--brown-800)', letterSpacing: '0.04em' }}>
+                  Status
+                </th>
+                <th style={{ padding: '14px 16px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-display)', textTransform: 'uppercase', color: 'var(--brown-800)', letterSpacing: '0.04em', textAlign: 'right' }}>
+                  Total Invoiced
+                </th>
+                <th style={{ padding: '14px 16px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-display)', textTransform: 'uppercase', color: 'var(--brown-800)', letterSpacing: '0.04em', textAlign: 'right' }}>
+                  Paid Amount
+                </th>
+                <th style={{ padding: '14px 16px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-display)', textTransform: 'uppercase', color: 'var(--brown-800)', letterSpacing: '0.04em', textAlign: 'right' }}>
+                  Outstanding
+                </th>
+                <th style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, fontFamily: 'var(--font-display)', textTransform: 'uppercase', color: 'var(--brown-800)', letterSpacing: '0.04em', textAlign: 'right' }}>
+                  Action &amp; Settle
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredInvoices.map((row, idx) => {
+                const due = new Decimal(row.amountDue || '0');
+                const isPaying = payingId === row.id;
+                const isEven = idx % 2 === 0;
+
+                return (
+                  <tr
+                    key={row.id}
+                    onClick={() => navigate(`/portal/invoices/${row.id}`)}
+                    style={{
+                      backgroundColor: isEven ? '#FFFFFF' : 'rgba(249, 246, 240, 0.5)',
+                      borderBottom: '1px solid rgba(208, 174, 146, 0.25)',
+                      cursor: 'pointer',
+                      transition: 'background 120ms ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'rgba(235, 215, 190, 0.35)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = isEven ? '#FFFFFF' : 'rgba(249, 246, 240, 0.5)';
+                    }}
+                  >
+                    {/* Invoice Number */}
+                    <td style={{ padding: '16px 20px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <FileText size={15} color="var(--brown-600)" />
+                        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 13, color: 'var(--brown-900)' }}>
+                          {row.number}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* Dates */}
+                    <td style={{ padding: '16px 16px', fontSize: 12 }}>
+                      <div style={{ fontWeight: 600, color: 'var(--brown-900)' }}>
+                        {row.invoiceDate ? new Date(row.invoiceDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--brown-500)', marginTop: 2 }}>
+                        Due: {row.dueDate ? new Date(row.dueDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                      </div>
+                    </td>
+
+                    {/* Status */}
+                    <td style={{ padding: '16px 16px' }}>
+                      <StatusBadge
+                        status={
+                          row.paymentStatus === 'paid'
+                            ? 'paid'
+                            : row.paymentStatus === 'partial'
+                            ? 'partial'
+                            : 'not_paid'
+                        }
+                      />
+                    </td>
+
+                    {/* Total Invoiced */}
+                    <td
+                      style={{
+                        padding: '16px 16px',
+                        textAlign: 'right',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: 'var(--brown-900)',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
+                      {formatINR(row.total)}
+                    </td>
+
+                    {/* Paid Amount */}
+                    <td
+                      style={{
+                        padding: '16px 16px',
+                        textAlign: 'right',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: 'var(--posted)',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
+                      {formatINR(row.amountPaid)}
+                    </td>
+
+                    {/* Outstanding */}
+                    <td
+                      style={{
+                        padding: '16px 16px',
+                        textAlign: 'right',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 14,
+                        fontWeight: 800,
+                        color: due.gt(0) ? 'var(--danger)' : 'var(--posted)',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
+                      {formatINR(row.amountDue)}
+                    </td>
+
+                    {/* Action & Settle Buttons */}
+                    <td style={{ padding: '16px 20px', textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end' }}>
+                        {due.gt(0) ? (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleInitiateRazorpay(row);
+                            }}
+                            disabled={isPaying}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              padding: '7px 14px',
+                              borderRadius: 999,
+                              backgroundColor: 'var(--brown-900)',
+                              color: 'var(--cream)',
+                              border: 'none',
+                              fontSize: 12,
+                              fontWeight: 700,
+                              fontFamily: 'var(--font-display)',
+                              cursor: isPaying ? 'wait' : 'pointer',
+                              boxShadow: '0 2px 8px rgba(74, 58, 52, 0.18)',
+                              transition: 'all 140ms ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isPaying) e.currentTarget.style.backgroundColor = '#2E221D';
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isPaying) e.currentTarget.style.backgroundColor = 'var(--brown-900)';
+                            }}
+                          >
+                            <Zap size={12} color="#F2C94C" />
+                            <span>{isPaying ? 'Processing…' : 'Pay via Razorpay'}</span>
+                          </button>
+                        ) : (
+                          <span
+                            style={{
+                              fontSize: 11,
+                              fontWeight: 700,
+                              fontFamily: 'var(--font-display)',
+                              color: 'var(--posted)',
+                              backgroundColor: 'var(--posted-bg)',
+                              padding: '5px 12px',
+                              borderRadius: 999,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
+                            }}
+                          >
+                            <CheckCircle2 size={13} />
+                            <span>Settled</span>
+                          </span>
+                        )}
+
+                        <a
+                          href={`/api/portal/invoices/${row.id}/pdf`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Download signed PDF invoice"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            backgroundColor: 'rgba(235, 215, 190, 0.4)',
+                            border: '1px solid rgba(208, 174, 146, 0.5)',
+                            color: 'var(--brown-800)',
+                            textDecoration: 'none',
+                            transition: 'all 120ms ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'var(--brown-900)';
+                            e.currentTarget.style.color = 'var(--cream)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'rgba(235, 215, 190, 0.4)';
+                            e.currentTarget.style.color = 'var(--brown-800)';
+                          }}
+                        >
+                          <Download size={13} />
+                        </a>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/portal/invoices/${row.id}`);
+                          }}
+                          title="View detailed lines"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            backgroundColor: 'transparent',
+                            border: '1px solid rgba(208, 174, 146, 0.4)',
+                            color: 'var(--brown-700)',
+                            cursor: 'pointer',
+                            transition: 'all 120ms ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = 'var(--brown-900)';
+                            e.currentTarget.style.color = 'var(--brown-900)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = 'rgba(208, 174, 146, 0.4)';
+                            e.currentTarget.style.color = 'var(--brown-700)';
+                          }}
+                        >
+                          <ChevronRight size={14} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };
 
 export default PortalInvoiceList;
-
