@@ -69,24 +69,10 @@ INSERT INTO users (login_id, email, full_name, password_hash, role) VALUES
    'admin');
 
 -- ============================================================
--- Opening capital entry — answers "where did the money come from?"
--- DR Cash 500000 / CR Capital 500000
+-- Opening capital entry is NOT seeded here — db/seed_data.sql (generated
+-- by gen_seed.py) posts it as journal entry #1 along with the rest of the
+-- transaction history. Seeding it twice would double-post capital and
+-- collide with seed_data.sql's own id=1 journal entry.
 -- ============================================================
-
-INSERT INTO journal_entries (number, journal_id, entry_date, reference, status, source_type, source_id)
-SELECT next_doc_number('JE'), j.id, CURRENT_DATE, 'Opening capital', 'draft', NULL, NULL
-FROM journals j WHERE j.name = 'Cash';
-
-INSERT INTO journal_entry_lines (entry_id, account_id, debit, credit, description)
-SELECT je.id, a.id, 500000.00, 0, 'Opening capital — cash introduced'
-FROM journal_entries je, accounts a
-WHERE je.reference = 'Opening capital' AND a.name = 'Cash';
-
-INSERT INTO journal_entry_lines (entry_id, account_id, debit, credit, description)
-SELECT je.id, a.id, 0, 500000.00, 'Opening capital — cash introduced'
-FROM journal_entries je, accounts a
-WHERE je.reference = 'Opening capital' AND a.name = 'Capital';
-
-UPDATE journal_entries SET status = 'posted' WHERE reference = 'Opening capital';
 
 COMMIT;
