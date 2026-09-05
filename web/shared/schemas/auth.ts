@@ -17,12 +17,21 @@ export const signupSchema = z.object({
       passwordRegex,
       'Password must contain at least one lowercase letter, one uppercase letter, and one special character'
     ),
+  role: z.enum(['admin', 'user', 'accountant', 'manager', 'contact']).optional(),
 });
 
 export const loginSchema = z.object({
-  login_id: z.string().min(1, 'Login ID is required'),
+  login_id: z.string().min(1, 'Login ID is required').optional(),
+  loginId: z.string().min(1, 'Login ID is required').optional(),
   password: z.string().min(1, 'Password is required'),
-});
+}).refine(data => Boolean(data.login_id || data.loginId), {
+  message: 'Login ID is required',
+  path: ['login_id'],
+}).transform(data => ({
+  login_id: (data.login_id || data.loginId) as string,
+  password: data.password,
+}));
 
 export type SignupInput = z.infer<typeof signupSchema>;
-export type LoginInput = z.infer<typeof loginSchema>;
+export type LoginInput = { login_id: string; password: string };
+
