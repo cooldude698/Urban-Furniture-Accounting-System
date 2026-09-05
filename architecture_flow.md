@@ -78,6 +78,53 @@ Agree this in the first 30 minutes.
 
 **Money crosses the wire as a string.** `"5000.00"`, parsed with decimal.js both ends. One JSON float and the correctness demo dies.
 
+## Confirmed API routes (additions — Vedesh owns all)
+
+### Dashboard (Phase 3 frontend dependency)
+
+```
+GET /api/dashboard/stats
+→ { sales: { all, confirmed, draft },
+    purchase: { all, confirmed, draft },
+    budget: { achieved, budget, committed } }   // all numbers
+
+GET /api/dashboard/kpi
+→ { cash, bank, receivable, payable, netIncomeThisMonth }  // all strings ("5000.00")
+```
+
+### PDF generation (Phase 5 frontend dependency — server-side Puppeteer)
+
+```
+POST /api/reports/:type/pdf     type = balance-sheet | profit-loss | budget
+body: same query params as the corresponding GET report
+→ application/pdf blob
+
+POST /api/invoices/:id/pdf      (Aryan's invoice PDF — same Puppeteer service)
+→ application/pdf blob
+```
+
+Frontend just POSTs and downloads the blob. The PDF route is owned by Vedesh.
+
+### Indian number formatting — no `Intl`, hand-rolled only
+
+Node ships `small-icu` (English locale only). `Intl.NumberFormat('en-IN')` silently
+falls back to Western grouping inside Docker. Use this explicit formatter instead:
+
+```ts
+import Decimal from 'decimal.js';
+export function formatINR(value: string): string {
+  const d = new Decimal(value);
+  const neg = d.isNegative();
+  const [int, dec] = d.abs().toFixed(2).split('.');
+  const last3 = int.slice(-3);
+  const rest = int.slice(0, -3);
+  const grouped = rest
+    ? rest.replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + last3
+    : last3;
+  return `${neg ? '-' : ''}₹${grouped}.${dec}`;
+}
+```
+
 ## Posting flow — Vendor Bill
 
 ```
