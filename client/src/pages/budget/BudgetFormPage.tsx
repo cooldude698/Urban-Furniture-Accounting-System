@@ -9,6 +9,7 @@ import {
   BudgetDocumentItem,
 } from '../../api/budget.api';
 import { AnalyticsApi } from '../../api/analytics.api';
+import { ContactsApi } from '../../api/contacts.api';
 import {
   ExternalLink,
   Plus,
@@ -17,6 +18,7 @@ import {
   AlertCircle,
   ChevronDown,
   Info,
+  BookOpen,
 } from 'lucide-react';
 
 export default function BudgetFormPage() {
@@ -45,11 +47,12 @@ export default function BudgetFormPage() {
     },
   ]);
 
-  // UI state
+  // UI states
   const [hoveredBtn, setHoveredBtn] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeViewMode, setActiveViewMode] = useState<'auto' | 'original' | 'revised'>('auto');
   const [isMappingModalOpen, setIsMappingModalOpen] = useState(false);
+  const [isExplanationModalOpen, setIsExplanationModalOpen] = useState(false);
 
   // Achieved drill-down modal state
   const [activeDocLine, setActiveDocLine] = useState<BudgetLine | null>(null);
@@ -67,6 +70,12 @@ export default function BudgetFormPage() {
   const { data: analytics = [] } = useQuery({
     queryKey: ['analytics'],
     queryFn: () => AnalyticsApi.getAll(false),
+  });
+
+  // Fetch Contacts for Responsible field ("Select from Contacts Created")
+  const { data: contacts = [] } = useQuery({
+    queryKey: ['contacts-all'],
+    queryFn: () => ContactsApi.getAll(false),
   });
 
   // Determine if viewing Revised mode vs Original mode
@@ -185,7 +194,9 @@ export default function BudgetFormPage() {
   const isRevised = currentStatus === 'revised';
   const isCancelled = currentStatus === 'cancelled';
 
-  // Line calculations using Decimal.js
+  // Line calculations using Decimal.js:
+  // Formula: Achieved % = (Achieved Amount / Committed Amount) * 100
+  // Formula: Amount to Achieve = Committed Amount - Achieved Amount
   const handleCommittedChange = (index: number, val: string) => {
     const updated = [...lines];
     const item = { ...updated[index] };
@@ -240,7 +251,8 @@ export default function BudgetFormPage() {
     setLines(lines.filter((_, i) => i !== index));
   };
 
-  // Open drill-down modal for Achieved documents
+  // Open drill-down modal for Achieved documents:
+  // Clicking on the Achieved Amount button opens list view of all Invoices/Bills having same analytical for the budget period
   const handleOpenDocuments = async (line: BudgetLine) => {
     setActiveDocLine(line);
     setIsDocsLoading(true);
@@ -325,7 +337,7 @@ export default function BudgetFormPage() {
             )}
           </h1>
 
-          {/* Toggle View Pills & Menu & Stage Mapping Guide */}
+          {/* Toggle View Pills & Specification Guide Buttons */}
           <div style={styles.viewToggleGroup}>
             <button
               type="button"
@@ -347,6 +359,8 @@ export default function BudgetFormPage() {
             >
               Revised View
             </button>
+
+            {/* Menu & Stage Mapping Guide Button */}
             <button
               type="button"
               onClick={() => setIsMappingModalOpen(true)}
@@ -362,6 +376,24 @@ export default function BudgetFormPage() {
             >
               <Info size={13} />
               <span>Menu & Stage Mapping</span>
+            </button>
+
+            {/* Field Explanation Guide Button */}
+            <button
+              type="button"
+              onClick={() => setIsExplanationModalOpen(true)}
+              style={{
+                ...styles.viewToggleBtn,
+                background: isExplanationModalOpen ? 'rgba(217, 119, 6, 0.2)' : 'transparent',
+                color: '#B45309',
+                fontWeight: 700,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+              }}
+            >
+              <BookOpen size={13} />
+              <span>Field Explanation</span>
             </button>
           </div>
         </div>
@@ -476,7 +508,7 @@ export default function BudgetFormPage() {
           <div style={styles.formGrid}>
             {/* Left Column */}
             <div style={styles.col}>
-              {/* Budget Name */}
+              {/* Budget Name: Alpha Numeric (In case of Revision Keep the original Budget name as it is and add the word "Revised" in last) */}
               <div style={styles.fieldRow}>
                 <label style={styles.fieldLabel}>Budget Name</label>
                 <div style={styles.inputWrapper}>
@@ -491,7 +523,7 @@ export default function BudgetFormPage() {
                 </div>
               </div>
 
-              {/* Budget Period */}
+              {/* Budget Period: Date */}
               <div style={styles.fieldRow}>
                 <label style={styles.fieldLabel}>Budget Period</label>
                 <div style={styles.periodInputsWrapper}>
@@ -567,18 +599,31 @@ export default function BudgetFormPage() {
                 </div>
               )}
 
-              {/* Responsible */}
+              {/* Responsible: Select from Contacts Created (open list of contacts created on click) */}
               <div style={styles.fieldRow}>
                 <label style={styles.fieldLabel}>Responsible</label>
                 <div style={styles.inputWrapper}>
-                  <input
-                    type="text"
-                    value={responsibleName}
-                    onChange={(e) => setResponsibleName(e.target.value)}
-                    disabled={!isDraft}
-                    placeholder="Responsible Person"
-                    style={styles.underlineInput}
-                  />
+                  {isDraft ? (
+                    <div style={styles.inlineSelectWrapperFull}>
+                      <select
+                        value={responsibleName}
+                        onChange={(e) => setResponsibleName(e.target.value)}
+                        style={styles.underlineSelectFull}
+                      >
+                        <option value="Administrator">Administrator</option>
+                        {contacts.map((c: any) => (
+                          <option key={c.id} value={c.name}>
+                            {c.name} {c.company_name ? `(${c.company_name})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown size={14} style={styles.inlineSelectArrow} />
+                    </div>
+                  ) : (
+                    <div style={styles.underlineInput}>
+                      {responsibleName || 'Administrator'}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -602,7 +647,7 @@ export default function BudgetFormPage() {
                 <tbody>
                   {lines.map((line, idx) => (
                     <tr key={idx} style={styles.bodyRow}>
-                      {/* Analytic */}
+                      {/* Analytic: The Analytic Account name set in the Analytical account */}
                       <td style={styles.td}>
                         {isDraft ? (
                           <div style={styles.inlineSelectWrapper}>
@@ -632,12 +677,12 @@ export default function BudgetFormPage() {
                         )}
                       </td>
 
-                      {/* Type */}
+                      {/* Type: Income / Expenses */}
                       <td style={styles.td}>
                         <span style={styles.typeText}>{line.analytic_type || 'Expense'}</span>
                       </td>
 
-                      {/* Committed Amount (Editable in draft for limit revisions e.g. 200000 -> 350000) */}
+                      {/* Committed Amount: Monetary Amount */}
                       <td style={{ ...styles.td, textAlign: 'right' }}>
                         {isDraft ? (
                           <input
@@ -651,34 +696,46 @@ export default function BudgetFormPage() {
                         )}
                       </td>
 
-                      {/* Achieved Amount */}
+                      {/* Achieved Amount: Only Visible for Confirmed Budget */}
                       <td style={{ ...styles.td, textAlign: 'right' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenDocuments(line)}
-                          title="Click to view related invoices and bills"
-                          style={styles.achievedBtn}
-                        >
-                          <span>{line.achieved_amount}</span>
-                          <ExternalLink size={11} style={{ opacity: 0.6 }} />
-                        </button>
+                        {isConfirmed || isRevised ? (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenDocuments(line)}
+                            title="Click to view related invoices and bills for this analytical account"
+                            style={styles.achievedBtn}
+                          >
+                            <span>{line.achieved_amount}</span>
+                            <ExternalLink size={11} style={{ opacity: 0.6 }} />
+                          </button>
+                        ) : (
+                          <span style={styles.onlyConfirmedPlaceholder} title="Only Visible for Confirmed Budget">—</span>
+                        )}
                       </td>
 
-                      {/* Achieved % */}
+                      {/* Achieved %: Only Visible for Confirmed Budget (Formula: Achieved Amount / Committed Amount * 100) */}
                       <td style={{ ...styles.td, textAlign: 'right' }}>
-                        <span>
-                          {typeof line.achieved_pct === 'number'
-                            ? `${Math.round(line.achieved_pct)}%`
-                            : `${line.achieved_pct}%`}
-                        </span>
+                        {isConfirmed || isRevised ? (
+                          <span>
+                            {typeof line.achieved_pct === 'number'
+                              ? `${Math.round(line.achieved_pct)}%`
+                              : `${line.achieved_pct}%`}
+                          </span>
+                        ) : (
+                          <span style={styles.onlyConfirmedPlaceholder} title="Only Visible for Confirmed Budget">—</span>
+                        )}
                       </td>
 
-                      {/* Amount To Achieve */}
+                      {/* Amount To Achieve: Only Visible for Confirmed Budget (Formula: Committed Amount - Achieved Amount) */}
                       <td style={{ ...styles.td, textAlign: 'right' }}>
-                        <span>{line.amount_to_achieve}</span>
+                        {isConfirmed || isRevised ? (
+                          <span>{line.amount_to_achieve}</span>
+                        ) : (
+                          <span style={styles.onlyConfirmedPlaceholder} title="Only Visible for Confirmed Budget">—</span>
+                        )}
                       </td>
 
-                      {/* Remove Line */}
+                      {/* Remove Line in Draft mode */}
                       {isDraft && (
                         <td style={{ ...styles.td, textAlign: 'center' }}>
                           <button
@@ -714,7 +771,163 @@ export default function BudgetFormPage() {
         </div>
       </div>
 
-      {/* ── Menu & Stage Mapping Guide Modal matching the wireframe specification ── */}
+      {/* ── Field Explanation Modal matching the wireframe specification ── */}
+      {isExplanationModalOpen && (
+        <div style={styles.modalBackdrop} onClick={() => setIsExplanationModalOpen(false)}>
+          <div style={{ ...styles.modalContent, maxWidth: 860 }} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.explanationHeader}>
+              <h2 style={styles.explanationTitle}>Field Explaination</h2>
+              <button
+                type="button"
+                onClick={() => setIsExplanationModalOpen(false)}
+                style={styles.modalCloseBtn}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={styles.explanationBody}>
+              <div style={styles.explanationCard}>
+                {/* 1. Budget Name */}
+                <div style={styles.explanationRow}>
+                  <div style={styles.explanationLabel}>Budget Name</div>
+                  <div style={styles.explanationDesc}>
+                    Alpha Numeric (In case of Revision Keep the original Budget name as it is and add the word &ldquo;Revised&rdquo; in last (For e.g. Project A Revised))
+                  </div>
+                </div>
+
+                {/* 2. Budget Period */}
+                <div style={styles.explanationRow}>
+                  <div style={styles.explanationLabel}>Budget Period</div>
+                  <div style={styles.explanationDesc}>Date</div>
+                </div>
+
+                {/* 3. Responsible */}
+                <div style={styles.explanationRow}>
+                  <div style={styles.explanationLabel}>Responsible</div>
+                  <div style={styles.explanationDesc}>
+                    Select from Contacts Created (open list of contacts created on click)
+                  </div>
+                </div>
+
+                {/* 4. Analyticals */}
+                <div style={styles.explanationRow}>
+                  <div style={styles.explanationLabel}>Analyticals</div>
+                  <div style={styles.explanationDesc}>
+                    The Analytic Account name set in the Analytical account
+                  </div>
+                </div>
+
+                {/* 5. Type */}
+                <div style={styles.explanationRow}>
+                  <div style={styles.explanationLabel}>Type</div>
+                  <div style={styles.explanationDesc}>
+                    <div>Income/Expenses</div>
+                    <div style={{ marginTop: 4, color: '#5C453A' }}>
+                      Analyticals on All Invoice lines to be mapped with type = Income
+                    </div>
+                    <div style={{ color: '#5C453A' }}>
+                      Analyticals on All Purchase Order/Vendor Bill Lines to be mapped with Type = Expenses
+                    </div>
+                  </div>
+                </div>
+
+                {/* 6. Committed Amount */}
+                <div style={styles.explanationRow}>
+                  <div style={styles.explanationLabel}>Committed Amount</div>
+                  <div style={styles.explanationDesc}>Monetary Amount</div>
+                </div>
+
+                {/* 7. Achieved Amount */}
+                <div style={styles.explanationRow}>
+                  <div style={styles.explanationLabel}>Achieved Amount</div>
+                  <div style={styles.explanationDesc}>
+                    <div style={{ fontWeight: 600, color: '#382A24', marginBottom: 8 }}>
+                      Only Visible for Confirmed Budget, For Example
+                    </div>
+
+                    {/* Lookup Subtable */}
+                    <div style={styles.lookupTableWrapper}>
+                      <table style={styles.lookupTable}>
+                        <thead>
+                          <tr style={styles.lookupHeadRow}>
+                            <th style={styles.lookupTh}>Analytic Name</th>
+                            <th style={styles.lookupTh}>Type</th>
+                            <th style={styles.lookupTh}>Lookup</th>
+                            <th style={styles.lookupTh}>Achieved Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr style={styles.lookupBodyRow}>
+                            <td style={styles.lookupTd}>Project 1</td>
+                            <td style={styles.lookupTd}>Income</td>
+                            <td style={styles.lookupTd}>Sales Invoice</td>
+                            <td style={styles.lookupTd}>
+                              <strong>21,000</strong>{' '}
+                              <span style={{ color: '#16A34A', fontSize: 12.5 }}>
+                                Search Analytical in Sales Invoice with name Project 1, consider budget period and compute total and set in achieved amount
+                              </span>
+                            </td>
+                          </tr>
+                          <tr style={styles.lookupBodyRow}>
+                            <td style={styles.lookupTd}>Project 1</td>
+                            <td style={styles.lookupTd}>Expense</td>
+                            <td style={styles.lookupTd}>Vendor Bills</td>
+                            <td style={styles.lookupTd}>
+                              <strong>21000</strong>{' '}
+                              <span style={{ color: '#16A34A', fontSize: 12.5 }}>
+                                Search Analytical in Vendor Bills with name Project 1, consider budget period and compute total and set in achieved amount
+                              </span>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div style={{ marginTop: 8, fontStyle: 'italic', color: '#5C453A' }}>
+                      Clicking on the Achieved Amount Button open list view of all Invoices/Bills having same analytical for the budget period
+                    </div>
+                  </div>
+                </div>
+
+                {/* 8. Achieved % */}
+                <div style={styles.explanationRow}>
+                  <div style={styles.explanationLabel}>Achieved %</div>
+                  <div style={styles.explanationDesc}>
+                    <div>Only Visible for Confirmed Budget, Consider the following Formula:</div>
+                    <div style={{ color: '#0284C7', fontWeight: 700, marginTop: 4 }}>
+                      (Achieved Amount/Committed Amount) * 100
+                    </div>
+                  </div>
+                </div>
+
+                {/* 9. Amount to Achieve */}
+                <div style={{ ...styles.explanationRow, borderBottom: 'none' }}>
+                  <div style={styles.explanationLabel}>Amount to Achieve</div>
+                  <div style={styles.explanationDesc}>
+                    <div>Only Visible for Confirmed Budget, Consider the following Formula:</div>
+                    <div style={{ color: '#0284C7', fontWeight: 700, marginTop: 4 }}>
+                      Committed Amount - (minus) Achieved Amount
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div style={styles.modalFooter}>
+              <button
+                type="button"
+                onClick={() => setIsExplanationModalOpen(false)}
+                style={styles.modalCloseButton}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Menu & Stage Mapping Guide Modal ── */}
       {isMappingModalOpen && (
         <div style={styles.modalBackdrop} onClick={() => setIsMappingModalOpen(false)}>
           <div style={{ ...styles.modalContent, maxWidth: 840 }} onClick={(e) => e.stopPropagation()}>
@@ -1130,6 +1343,26 @@ const styles = {
     outline: 'none',
   } as React.CSSProperties,
 
+  inlineSelectWrapperFull: {
+    position: 'relative' as const,
+    width: '100%',
+  } as React.CSSProperties,
+
+  underlineSelectFull: {
+    width: '100%',
+    border: 'none',
+    borderBottom: '1.5px solid #77574A',
+    background: 'transparent',
+    padding: '6px 24px 6px 4px',
+    fontFamily: '"DM Sans", var(--font-body), sans-serif',
+    fontSize: 14.5,
+    color: '#382A24',
+    outline: 'none',
+    cursor: 'pointer',
+    appearance: 'none' as const,
+    WebkitAppearance: 'none' as const,
+  } as React.CSSProperties,
+
   linkAnnotationWrapper: {
     display: 'flex',
     alignItems: 'center',
@@ -1292,6 +1525,12 @@ const styles = {
     fontSize: 14,
   } as React.CSSProperties,
 
+  onlyConfirmedPlaceholder: {
+    color: '#A8998D',
+    fontStyle: 'italic',
+    cursor: 'help',
+  } as React.CSSProperties,
+
   removeRowBtn: {
     background: 'transparent',
     border: 'none',
@@ -1319,6 +1558,97 @@ const styles = {
     fontWeight: 600,
     fontFamily: '"Montserrat", var(--font-display), sans-serif',
     cursor: 'pointer',
+  } as React.CSSProperties,
+
+  // Field Explanation Guide Styles
+  explanationHeader: {
+    padding: '20px 24px',
+    borderBottom: '1px solid #E4D5C7',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    background: 'var(--cream, #F9F2E4)',
+  } as React.CSSProperties,
+
+  explanationTitle: {
+    fontFamily: '"Montserrat", var(--font-display), cursive, sans-serif',
+    fontWeight: 700,
+    fontSize: 22,
+    color: '#D97706',
+    margin: 0,
+    letterSpacing: '-0.01em',
+  } as React.CSSProperties,
+
+  explanationBody: {
+    padding: 24,
+    maxHeight: 520,
+    overflowY: 'auto' as const,
+  } as React.CSSProperties,
+
+  explanationCard: {
+    border: '1.5px solid #77574A',
+    borderRadius: 20,
+    padding: '20px 24px',
+    background: '#FFFFFF',
+  } as React.CSSProperties,
+
+  explanationRow: {
+    display: 'flex',
+    padding: '14px 0',
+    borderBottom: '1px solid #E4D5C7',
+    gap: 20,
+  } as React.CSSProperties,
+
+  explanationLabel: {
+    width: 170,
+    fontFamily: '"Montserrat", var(--font-display), sans-serif',
+    fontWeight: 700,
+    fontSize: 14.5,
+    color: '#9B2C2C',
+    flexShrink: 0,
+  } as React.CSSProperties,
+
+  explanationDesc: {
+    flex: 1,
+    fontSize: 14,
+    color: '#382A24',
+    lineHeight: 1.5,
+  } as React.CSSProperties,
+
+  lookupTableWrapper: {
+    marginTop: 8,
+    border: '1px solid #77574A',
+    borderRadius: 8,
+    overflow: 'hidden',
+  } as React.CSSProperties,
+
+  lookupTable: {
+    width: '100%',
+    borderCollapse: 'collapse' as const,
+    fontSize: 13,
+  } as React.CSSProperties,
+
+  lookupHeadRow: {
+    background: '#F5EFEB',
+    borderBottom: '1px solid #77574A',
+  } as React.CSSProperties,
+
+  lookupTh: {
+    padding: '8px 10px',
+    color: '#0284C7',
+    fontWeight: 700,
+    textAlign: 'left' as const,
+    fontSize: 13,
+  } as React.CSSProperties,
+
+  lookupBodyRow: {
+    borderBottom: '1px solid #E4D5C7',
+  } as React.CSSProperties,
+
+  lookupTd: {
+    padding: '8px 10px',
+    color: '#382A24',
+    verticalAlign: 'top' as const,
   } as React.CSSProperties,
 
   // Menu & Stage Mapping Guide Styles
