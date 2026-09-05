@@ -6,9 +6,10 @@ import { InvoiceLineGrid, InvoiceGridLine } from './components/InvoiceLineGrid';
 import { BlockingWarning } from './components/Warnings';
 import { PaymentHistoryPanel } from './components/PaymentHistoryPanel';
 import { CustomerInvoiceDTO } from '@shared/schemas/invoice';
-import { ShoppingCart, CreditCard, BookOpen, TrendingUp, Printer, Mail } from 'lucide-react';
+import { ShoppingCart, CreditCard, BookOpen, TrendingUp, Printer, Mail, AlertCircle } from 'lucide-react';
 import { JournalEntryModal } from '../../components/purchase/JournalEntryModal';
 import { RegisterPaymentModal } from '../../components/purchase/RegisterPaymentModal';
+import Decimal from 'decimal.js';
 
 export interface CustomerInvoiceFormPageProps {
   invoiceId?: number | null;
@@ -28,7 +29,15 @@ export const CustomerInvoiceFormPage: React.FC<CustomerInvoiceFormPageProps> = (
   const [lines, setLines] = useState<InvoiceGridLine[]>([]);
 
   const [contacts, setContacts] = useState<Array<{ id: number; name: string }>>([]);
-  const [products, setProducts] = useState<Array<{ id: number; name: string; sku: string; sales_price: string; tax_rate: string }>>([]);
+  const [products, setProducts] = useState<Array<{
+    id: number;
+    name: string;
+    sku: string;
+    sales_price: string;
+    cost_price?: string;
+    mrp?: string | null;
+    tax_rate: string;
+  }>>([]);
   const [accounts, setAccounts] = useState<Array<{ id: number; name: string; type: string }>>([]);
   const [analytics, setAnalytics] = useState<Array<{ id: number; name: string }>>([]);
 
@@ -229,6 +238,21 @@ export const CustomerInvoiceFormPage: React.FC<CustomerInvoiceFormPageProps> = (
   const isConfirmed = invoice?.status === 'confirmed';
   const isDraft = !invoice || invoice.status === 'draft';
 
+  const linePriceWarnings = lines
+    .map(l => {
+      const prod = products.find(p => p.id === l.productId);
+      if (!prod) return null;
+      try {
+        const price = new Decimal(l.unitPrice || '0');
+        const mrp = new Decimal(prod.mrp || '0');
+        if (price.greaterThan(0) && mrp.greaterThan(0) && price.greaterThan(mrp)) {
+          return `⚠️ Line for "${prod.name}" unit price (₹${price.toFixed(2)}) exceeds Maximum Retail Price (MRP ₹${mrp.toFixed(2)}).`;
+        }
+      } catch {}
+      return null;
+    })
+    .filter(Boolean) as string[];
+
   return (
     <div className="max-w-5xl mx-auto pb-16">
       {/* Top Action Bar */}
@@ -371,6 +395,26 @@ export const CustomerInvoiceFormPage: React.FC<CustomerInvoiceFormPageProps> = (
               <span className={`text-sm font-bold font-mono ${Number(invoice.amountDue || 0) > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
                 ₹{Number(invoice.amountDue !== undefined && invoice.amountDue !== null ? invoice.amountDue : (invoice.total || 0)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </span>
+            </div>
+          </div>
+        )}
+
+        {/* Non-Blocking MRP Ceiling Warning Banner */}
+        {linePriceWarnings.length > 0 && (
+          <div className="mb-4 p-4 bg-amber-50 border-2 border-amber-300 rounded-[10px] text-amber-950 text-xs flex items-start gap-2.5 shadow-sm">
+            <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <span className="font-bold text-sm block text-amber-900">
+                Non-Blocking Pricing Warning: Catalog MRP Ceiling Exceeded
+              </span>
+              <p className="text-amber-800 mt-0.5">
+                The unit price of one or more lines exceeds the catalog Maximum Retail Price. You may still save or confirm, but please verify with management.
+              </p>
+              <ul className="list-disc list-inside mt-2 space-y-1 font-mono text-[11px] text-amber-900 bg-amber-100/50 p-2.5 rounded-md border border-amber-200">
+                {linePriceWarnings.map((warn, i) => (
+                  <li key={i}>{warn}</li>
+                ))}
+              </ul>
             </div>
           </div>
         )}

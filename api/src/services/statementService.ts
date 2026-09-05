@@ -345,6 +345,141 @@ export class StatementService {
   }
 
   /**
+   * Computes Payables (Vendor Creditors) Aging Report (Current, 1-30, 31-60, 61-90, 90+)
+   */
+  static async getPayablesAgingReport(asOfDateStr?: string): Promise<AgingReport> {
+    const asOf = asOfDateStr ? new Date(asOfDateStr) : new Date();
+    asOf.setHours(0, 0, 0, 0);
+
+    const query = `
+      SELECT 
+        c.id AS vendor_id,
+        c.name AS vendor_name,
+        c.email AS vendor_email,
+        vb.id AS bill_id,
+        vb.number AS bill_number,
+        vb.bill_date,
+        vb.due_date,
+        vbs.total,
+        vbs.amount_paid,
+        vbs.amount_due
+      FROM vendor_bills vb
+      JOIN contacts c ON c.id = vb.vendor_id
+      JOIN v_bill_status vbs ON vbs.bill_id = vb.id
+      WHERE vb.status = 'confirmed' AND vbs.amount_due > 0
+      ORDER BY c.name ASC, vb.due_date ASC
+    `;
+
+    const res = await pool.query<{
+      vendor_id: number;
+      vendor_name: string;
+      vendor_email: string | null;
+      bill_id: number;
+      bill_number: string;
+      bill_date: string;
+      due_date: string | null;
+      total: string;
+      amount_paid: string;
+      amount_due: string;
+    }>(query);
+
+    type VendorAccumulator = {
+      vendorId: number;
+      vendorName: string;
+      vendorEmail: string | null;
+      current: Decimal;
+      days1_30: Decimal;
+      days31_60: Decimal;
+      days61_90: Decimal;
+      days90Plus: Decimal;
+      totalOutstanding: Decimal;
+    };
+
+    const vendorMap = new Map<number, VendorAccumulator>();
+
+    for (const row of res.rows) {
+      if (!vendorMap.has(row.vendor_id)) {
+        vendorMap.set(row.vendor_id, {
+          vendorId: row.vendor_id,
+          vendorName: row.vendor_name,
+          vendorEmail: row.vendor_email,
+          current: new Decimal('0.00'),
+          days1_30: new Decimal('0.00'),
+          days31_60: new Decimal('0.00'),
+          days61_90: new Decimal('0.00'),
+          days90Plus: new Decimal('0.00'),
+          totalOutstanding: new Decimal('0.00'),
+        });
+      }
+
+      const acc = vendorMap.get(row.vendor_id)!;
+      const dueAmount = new Decimal(row.amount_due);
+      acc.totalOutstanding = acc.totalOutstanding.plus(dueAmount);
+
+      const dueDate = row.due_date ? new Date(row.due_date) : new Date(row.bill_date);
+      dueDate.setHours(0, 0, 0, 0);
+
+      const diffTime = asOf.getTime() - dueDate.getTime();
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays <= 0) {
+        acc.current = acc.current.plus(dueAmount);
+      } else if (diffDays <= 30) {
+        acc.days1_30 = acc.days1_30.plus(dueAmount);
+      } else if (diffDays <= 60) {
+        acc.days31_60 = acc.days31_60.plus(dueAmount);
+      } else if (diffDays <= 90) {
+        acc.days61_90 = acc.days61_90.plus(dueAmount);
+      } else {
+        acc.days90Plus = acc.days90Plus.plus(dueAmount);
+      }
+    }
+
+    let totCurrent = new Decimal('0.00');
+    let tot1_30 = new Decimal('0.00');
+    let tot31_60 = new Decimal('0.00');
+    let tot61_90 = new Decimal('0.00');
+    let tot90Plus = new Decimal('0.00');
+    let totOutstanding = new Decimal('0.00');
+
+    const vendorList: CustomerAgingBucket[] = [];
+
+    for (const acc of vendorMap.values()) {
+      totCurrent = totCurrent.plus(acc.current);
+      tot1_30 = tot1_30.plus(acc.days1_30);
+      tot31_60 = tot31_60.plus(acc.days31_60);
+      tot61_90 = tot61_90.plus(acc.days61_90);
+      tot90Plus = tot90Plus.plus(acc.days90Plus);
+      totOutstanding = totOutstanding.plus(acc.totalOutstanding);
+
+      vendorList.push({
+        customerId: acc.vendorId,
+        customerName: acc.vendorName,
+        customerEmail: acc.vendorEmail,
+        current: acc.current.toFixed(2),
+        days1_30: acc.days1_30.toFixed(2),
+        days31_60: acc.days31_60.toFixed(2),
+        days61_90: acc.days61_90.toFixed(2),
+        days90Plus: acc.days90Plus.toFixed(2),
+        totalOutstanding: acc.totalOutstanding.toFixed(2),
+      });
+    }
+
+    return {
+      asOfDate: asOf.toISOString().split('T')[0],
+      customers: vendorList,
+      totals: {
+        current: totCurrent.toFixed(2),
+        days1_30: tot1_30.toFixed(2),
+        days31_60: tot31_60.toFixed(2),
+        days61_90: tot61_90.toFixed(2),
+        days90Plus: tot90Plus.toFixed(2),
+        totalOutstanding: totOutstanding.toFixed(2),
+      },
+    };
+  }
+
+  /**
    * Retrieves overdue invoices for the dashboard/alert banners
    */
   static async getOverdueInvoices(): Promise<OverdueSummary> {

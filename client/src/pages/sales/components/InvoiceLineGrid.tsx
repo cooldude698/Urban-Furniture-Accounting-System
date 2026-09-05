@@ -16,7 +16,15 @@ export interface InvoiceGridLine {
 
 interface InvoiceLineGridProps {
   lines: InvoiceGridLine[];
-  products: Array<{ id: number; name: string; sku: string; sales_price: string; tax_rate: string }>;
+  products: Array<{
+    id: number;
+    name: string;
+    sku: string;
+    sales_price: string;
+    cost_price?: string;
+    mrp?: string | null;
+    tax_rate: string;
+  }>;
   accounts: Array<{ id: number; name: string; type: string }>;
   analytics: Array<{ id: number; name: string }>;
   onChange: (lines: InvoiceGridLine[]) => void;
@@ -174,6 +182,30 @@ export const InvoiceLineGrid: React.FC<InvoiceLineGridProps> = ({
                       className="w-full text-right pl-6 bg-surface border border-brown-300 rounded-[6px] px-2.5 py-1.5 text-brown-900 font-mono focus:ring-2 focus:ring-brown-700 outline-none text-sm"
                     />
                   </div>
+                  {(() => {
+                    const p = products.find(prod => prod.id === line.productId);
+                    if (!p) return null;
+                    const uPrice = new Decimal(line.unitPrice || '0');
+                    const pMrp = p.mrp ? new Decimal(p.mrp) : null;
+                    const pCost = p.cost_price ? new Decimal(p.cost_price) : null;
+                    const isOverMrp = pMrp && pMrp.greaterThan(0) && uPrice.greaterThan(pMrp);
+                    const lineProfit = pCost && pCost.greaterThan(0) ? uPrice.minus(pCost).times(new Decimal(line.qty || '1')) : null;
+
+                    return (
+                      <div className="space-y-0.5 mt-1 text-right">
+                        {isOverMrp && (
+                          <span className="text-[10px] font-semibold text-amber-900 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300 inline-block whitespace-nowrap">
+                            ⚠️ Exceeds MRP (₹{p.mrp})
+                          </span>
+                        )}
+                        {lineProfit && (
+                          <span className={`text-[10px] block font-mono ${lineProfit.greaterThanOrEqualTo(0) ? 'text-emerald-700' : 'text-rose-700 font-bold'}`}>
+                            {lineProfit.greaterThanOrEqualTo(0) ? 'Profit: +₹' : 'Loss: -₹'}{lineProfit.abs().toFixed(2)}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </td>
                 <td className="p-3">
                   <select
@@ -222,23 +254,51 @@ export const InvoiceLineGrid: React.FC<InvoiceLineGridProps> = ({
         </div>
       )}
 
-      {/* Footer Calculation */}
-      <div className="mt-6 flex justify-end">
-        <div className="w-72 bg-brown-50 p-4 rounded-[8px] border border-brown-200 space-y-2 text-sm">
-          <div className="flex justify-between text-brown-700">
-            <span>Subtotal:</span>
-            <span className="font-mono">₹{grandSubtotal}</span>
+      {/* Footer Calculation & Gross Margin Breakdown */}
+      {(() => {
+        let totalCogs = new Decimal(0);
+        lines.forEach(l => {
+          const p = products.find(prod => prod.id === l.productId);
+          if (p && p.cost_price) {
+            totalCogs = totalCogs.plus(new Decimal(p.cost_price).times(new Decimal(l.qty || '1')));
+          }
+        });
+        const grandProfit = new Decimal(grandSubtotal).minus(totalCogs);
+        const marginPct = new Decimal(grandSubtotal).greaterThan(0)
+          ? grandProfit.dividedBy(new Decimal(grandSubtotal)).times(100).toFixed(1)
+          : '0.0';
+
+        return (
+          <div className="mt-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="p-3.5 bg-cream/60 rounded-[8px] border border-brown-200 text-xs space-y-1">
+              <div className="font-bold text-brown-900 flex items-center gap-1.5">
+                <span>📊 Estimated Gross Margin:</span>
+                <span className={`font-mono font-bold ${grandProfit.greaterThanOrEqualTo(0) ? 'text-emerald-700' : 'text-rose-700'}`}>
+                  ₹{grandProfit.toFixed(2)} ({marginPct}%)
+                </span>
+              </div>
+              <div className="text-brown-600">
+                Total COGS (Cost Basis): <span className="font-mono text-brown-800 font-semibold">₹{totalCogs.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="w-72 bg-brown-50 p-4 rounded-[8px] border border-brown-200 space-y-2 text-sm">
+              <div className="flex justify-between text-brown-700">
+                <span>Subtotal:</span>
+                <span className="font-mono">₹{grandSubtotal}</span>
+              </div>
+              <div className="flex justify-between text-brown-700">
+                <span>GST Tax:</span>
+                <span className="font-mono">₹{grandTax}</span>
+              </div>
+              <div className="pt-2 border-t border-brown-300 flex justify-between font-bold text-brown-900 text-base">
+                <span>Total:</span>
+                <span className="font-mono">₹{grandTotal}</span>
+              </div>
+            </div>
           </div>
-          <div className="flex justify-between text-brown-700">
-            <span>GST Tax:</span>
-            <span className="font-mono">₹{grandTax}</span>
-          </div>
-          <div className="pt-2 border-t border-brown-300 flex justify-between font-bold text-brown-900 text-base">
-            <span>Total:</span>
-            <span className="font-mono">₹{grandTotal}</span>
-          </div>
-        </div>
-      </div>
+        );
+      })()}
     </div>
   );
 };

@@ -68,6 +68,7 @@ export interface OverdueSummary {
 export const ReceivablesPage: React.FC = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'summary' | 'aging'>('summary');
+  const [agingType, setAgingType] = useState<'receivable' | 'payable'>('receivable');
   const [receivables, setReceivables] = useState<CustomerReceivableItem[]>([]);
   const [agingData, setAgingData] = useState<AgingReport | null>(null);
   const [overdueData, setOverdueData] = useState<OverdueSummary | null>(null);
@@ -82,11 +83,11 @@ export const ReceivablesPage: React.FC = () => {
   // Statement modal state
   const [statementCustomerId, setStatementCustomerId] = useState<number | null>(null);
 
-  const loadData = () => {
+  const loadData = (type: 'receivable' | 'payable' = agingType) => {
     setLoading(true);
     Promise.all([
       fetch('/api/receivables').then(r => r.json()),
-      fetch('/api/aging?type=receivable').then(r => r.json()),
+      fetch(`/api/aging?type=${type}`).then(r => r.json()),
       fetch('/api/receivables/overdue').then(r => r.json()),
     ])
       .then(([recJson, agingJson, overdueJson]) => {
@@ -96,6 +97,16 @@ export const ReceivablesPage: React.FC = () => {
       })
       .catch(err => setError(err.message))
       .finally(() => setLoading(false));
+  };
+
+  const handleSwitchAgingType = (type: 'receivable' | 'payable') => {
+    setAgingType(type);
+    fetch(`/api/aging?type=${type}`)
+      .then(r => r.json())
+      .then(json => {
+        if (json.data) setAgingData(json.data);
+      })
+      .catch(console.error);
   };
 
   useEffect(() => {
@@ -407,20 +418,45 @@ export const ReceivablesPage: React.FC = () => {
       ) : (
         /* Aging Buckets Table */
         <div className="bg-surface border border-brown-300 rounded-[10px] overflow-hidden shadow-sm">
-          <div className="p-4 border-b border-brown-200 bg-brown-50/50 flex items-center justify-between">
-            <span className="text-xs font-semibold text-brown-700">
-              Receivables Aging Report as of{' '}
-              <span className="font-mono text-brown-900">{agingData?.asOfDate}</span>
-            </span>
+          <div className="p-4 border-b border-brown-200 bg-brown-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="text-xs font-semibold text-brown-700">
+                Aging Schedule as of <span className="font-mono text-brown-900">{agingData?.asOfDate}</span>
+              </span>
+              <div className="flex items-center bg-surface border border-brown-300 rounded-[6px] p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => handleSwitchAgingType('receivable')}
+                  className={`px-2.5 py-1 rounded-[4px] font-medium transition-colors cursor-pointer ${
+                    agingType === 'receivable'
+                      ? 'bg-brown-900 text-cream font-semibold shadow-xs'
+                      : 'text-brown-700 hover:text-brown-900'
+                  }`}
+                >
+                  Receivables (Debtors)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSwitchAgingType('payable')}
+                  className={`px-2.5 py-1 rounded-[4px] font-medium transition-colors cursor-pointer ${
+                    agingType === 'payable'
+                      ? 'bg-brown-900 text-cream font-semibold shadow-xs'
+                      : 'text-brown-700 hover:text-brown-900'
+                  }`}
+                >
+                  Payables (Creditors)
+                </button>
+              </div>
+            </div>
             <span className="text-[11px] text-brown-500">
-              Bucketed by invoice due date (Odoo standard intervals)
+              Bucketed by due date (0-30, 31-60, 61-90, 90+ days intervals)
             </span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-brown-100 text-brown-900 font-semibold border-b border-brown-300">
-                  <th className="p-3">Customer</th>
+                  <th className="p-3">{agingType === 'receivable' ? 'Customer' : 'Vendor'}</th>
                   <th className="p-3 text-right font-mono-num">Current (Not Due)</th>
                   <th className="p-3 text-right font-mono-num">1–30 Days</th>
                   <th className="p-3 text-right font-mono-num">31–60 Days</th>
@@ -433,7 +469,7 @@ export const ReceivablesPage: React.FC = () => {
                 {!agingData || agingData.customers.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="p-8 text-center text-brown-500">
-                      No customer aging balances.
+                      No {agingType === 'receivable' ? 'customer' : 'vendor'} aging balances.
                     </td>
                   </tr>
                 ) : (

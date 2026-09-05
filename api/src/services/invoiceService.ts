@@ -408,5 +408,118 @@ export class InvoiceService {
     const { PaymentService } = await import('./paymentService');
     return PaymentService.getInvoicePaymentHistory(invoiceId);
   }
+
+  /**
+   * Evaluates invoice lines against product MRP and Cost Price for non-blocking pricing warnings
+   */
+  static async validateMrpWarnings(lines: InvoiceLineInput[]): Promise<string[]> {
+    const warnings: string[] = [];
+    const productIds = lines.map(l => l.productId);
+    if (productIds.length === 0) return warnings;
+
+    const res = await pool.query(
+      `SELECT id, name, cost_price::TEXT as cost_price, mrp::TEXT as mrp FROM products WHERE id = ANY($1)`,
+      [productIds]
+    );
+
+    const productMap = new Map(res.rows.map(r => [r.id, r]));
+
+    for (const line of lines) {
+      const p = productMap.get(line.productId);
+      if (!p) continue;
+      const unitPrice = new Decimal(line.unitPrice || '0');
+      const mrp = new Decimal(p.mrp || '0');
+      const cost = new Decimal(p.cost_price || '0');
+
+      if (mrp.greaterThan(0) && unitPrice.greaterThan(mrp)) {
+        warnings.push(`⚠️ MRP Ceiling Warning: Line for "${p.name}" unit price (₹${unitPrice.toFixed(2)}) exceeds Maximum Retail Price (₹${mrp.toFixed(2)}).`);
+      }
+      if (cost.greaterThan(0) && unitPrice.lessThan(cost)) {
+        warnings.push(`⚠️ Below-Cost Warning: Line for "${p.name}" unit price (₹${unitPrice.toFixed(2)}) is below purchase cost (₹${cost.toFixed(2)}).`);
+      }
+    }
+
+    return warnings;
+  }
+
+  /**
+   * Calculates gross profit and COGS analytics across confirmed customer invoice lines
+   */
+  static async getMarginAnalytics(): Promise<{
+    summary: {
+      totalRevenue: string;
+      totalCogs: string;
+      totalGrossProfit: string;
+      overallMarginPct: string;
+      topMarginProduct: any | null;
+      lowestMarginProduct: any | null;
+    };
+    products: any[];
+  }> {
+    const res = await pool.query(`
+      SELECT 
+        cil.product_id,
+        p.name AS product_name,
+        p.sku,
+        COALESCE(p.cost_price, 0)::TEXT AS cost_price,
+        COALESCE(p.mrp, 0)::TEXT AS mrp,
+        SUM(cil.qty)::TEXT AS total_qty_sold,
+        SUM(cil.subtotal)::TEXT AS total_revenue,
+        SUM(cil.qty * COALESCE(p.cost_price, 0))::TEXT AS total_cogs,
+        (SUM(cil.subtotal) - SUM(cil.qty * COALESCE(p.cost_price, 0)))::TEXT AS gross_profit,
+        CASE WHEN SUM(cil.subtotal) > 0 
+          THEN ROUND(((SUM(cil.subtotal) - SUM(cil.qty * COALESCE(p.cost_price, 0))) / SUM(cil.subtotal) * 100), 2)::TEXT
+          ELSE '0.00'
+        END AS margin_pct
+      FROM customer_invoice_lines cil
+      JOIN customer_invoices ci ON ci.id = cil.invoice_id
+      JOIN products p ON p.id = cil.product_id
+      WHERE ci.status = 'confirmed'
+      GROUP BY cil.product_id, p.name, p.sku, p.cost_price, p.mrp
+      ORDER BY (SUM(cil.subtotal) - SUM(cil.qty * COALESCE(p.cost_price, 0))) DESC;
+    `);
+
+    let totalRev = new Decimal(0);
+    let totalCogs = new Decimal(0);
+    let totalProfit = new Decimal(0);
+
+    const items = res.rows.map(r => {
+      const rev = new Decimal(r.total_revenue || '0');
+      const cogs = new Decimal(r.total_cogs || '0');
+      const profit = new Decimal(r.gross_profit || '0');
+      totalRev = totalRev.plus(rev);
+      totalCogs = totalCogs.plus(cogs);
+      totalProfit = totalProfit.plus(profit);
+
+      return {
+        productId: r.product_id,
+        productName: r.product_name,
+        sku: r.sku,
+        costPrice: r.cost_price,
+        mrp: r.mrp,
+        totalQtySold: Math.round(Number(r.total_qty_sold || 0)),
+        totalRevenue: rev.toFixed(2),
+        totalCogs: cogs.toFixed(2),
+        grossProfit: profit.toFixed(2),
+        marginPct: r.margin_pct,
+      };
+    });
+
+    const overallMarginPct = totalRev.greaterThan(0)
+      ? totalProfit.dividedBy(totalRev).times(100).toFixed(2)
+      : '0.00';
+
+    return {
+      summary: {
+        totalRevenue: totalRev.toFixed(2),
+        totalCogs: totalCogs.toFixed(2),
+        totalGrossProfit: totalProfit.toFixed(2),
+        overallMarginPct,
+        topMarginProduct: items.length > 0 ? items[0] : null,
+        lowestMarginProduct: items.length > 0 ? items[items.length - 1] : null,
+      },
+      products: items,
+    };
+  }
 }
 

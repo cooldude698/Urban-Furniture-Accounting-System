@@ -23,6 +23,16 @@ const CreateInvoiceSchema = z.object({
   lines: z.array(InvoiceLineSchema).min(1, 'At least one line item is required'),
 });
 
+// 0. GET /api/invoices/margin-analytics - Real-time Gross Margin & COGS Analytics
+invoiceRouter.get('/margin-analytics', async (_req: Request, res: Response) => {
+  try {
+    const analytics = await InvoiceService.getMarginAnalytics();
+    return sendSuccess(res, analytics);
+  } catch (err: any) {
+    return sendError(res, 'SERVER_ERROR', err.message, 500);
+  }
+});
+
 // 1. POST /api/invoices - Create draft Customer Invoice
 routerPost: invoiceRouter.post('/', async (req: Request, res: Response) => {
   try {
@@ -35,7 +45,20 @@ routerPost: invoiceRouter.post('/', async (req: Request, res: Response) => {
       return sendError(res, 'VALIDATION_ERROR', 'Invalid invoice data', 400, 'blocking', fields);
     }
 
+    const mrpWarnings = await InvoiceService.validateMrpWarnings(parse.data.lines);
     const invoice = await InvoiceService.createInvoice(parse.data, (req as any).user?.id);
+
+    if (mrpWarnings.length > 0) {
+      return res.status(201).json({
+        data: invoice,
+        error: {
+          code: 'MRP_CEILING_WARNING',
+          message: mrpWarnings.join(' | '),
+          severity: 'warning',
+        },
+      });
+    }
+
     return sendSuccess(res, invoice, 201);
   } catch (err: any) {
     return sendError(res, 'SERVER_ERROR', err.message || 'Failed to create customer invoice', 500);

@@ -37,20 +37,9 @@ agingRouter.get('/', async (req: Request, res: Response) => {
     const type = (req.query.type as string) || 'receivable';
     const asOf = req.query.asOf as string | undefined;
 
-    if (type !== 'receivable') {
-      // Payable aging can be added by purchase team or placeholder
-      return sendSuccess(res, {
-        asOfDate: asOf || new Date().toISOString().split('T')[0],
-        customers: [],
-        totals: {
-          current: '0.00',
-          days1_30: '0.00',
-          days31_60: '0.00',
-          days61_90: '0.00',
-          days90Plus: '0.00',
-          totalOutstanding: '0.00',
-        },
-      });
+    if (type === 'payable') {
+      const report = await StatementService.getPayablesAgingReport(asOf);
+      return sendSuccess(res, report);
     }
 
     const report = await StatementService.getReceivablesAgingReport(asOf);
