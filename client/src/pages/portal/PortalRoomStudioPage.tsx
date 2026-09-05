@@ -4,6 +4,13 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
+
+// Reusable math objects to eliminate memory allocations and garbage collection stutter during drag/orbit
+const sharedRaycaster = new THREE.Raycaster();
+const sharedFloorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const sharedPlaneIntersect = new THREE.Vector3();
+const sharedMouse = new THREE.Vector2();
 import {
   ArrowLeft,
   RotateCcw,
@@ -70,6 +77,10 @@ export const PortalRoomStudioPage: React.FC = () => {
   const placedMeshesRef = useRef<Map<string, THREE.Group>>(new Map());
   const selectionRingRef = useRef<THREE.Mesh | null>(null);
   const dropIndicatorRef = useRef<THREE.Mesh | null>(null);
+
+  // In-memory model cache for 0ms instantaneous additions, duplications, and preset switching
+  const modelCacheRef = useRef<Map<string, { scene: THREE.Group; baseScale: number }>>(new Map());
+  const isDraggingOverRef = useRef<boolean>(false);
 
   // Lighting & room refs
   const sunlightRef = useRef<THREE.DirectionalLight | null>(null);
@@ -153,15 +164,17 @@ export const PortalRoomStudioPage: React.FC = () => {
     const renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
-      alpha: true,
+      alpha: false, // Opaque canvas is significantly faster than alpha blending
       powerPreference: 'high-performance',
     });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // Clamp DPR to 1.25 on high-DPI displays (saves >50% GPU fill-rate while maintaining crispness)
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.25; // Luminous, inviting Japandi interior exposure
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     rendererRef.current = renderer;
 
     // Scene
@@ -202,39 +215,42 @@ export const PortalRoomStudioPage: React.FC = () => {
     ambientLightRef.current = ambientLight;
 
     // 3. Directional Window Sunlight: streaming golden light into the interior
+    // NOTE: This is the ONLY shadow caster in the scene (1 pass instead of 13!)
     const sunlight = new THREE.DirectionalLight(0xFFE8D0, 1.6);
     sunlight.position.set(-4.5, 2.6, 0.2);
     sunlight.target.position.set(0, 0.2, 0);
     sunlight.castShadow = true;
     sunlight.shadow.mapSize.width = 1024;
     sunlight.shadow.mapSize.height = 1024;
-    sunlight.shadow.bias = -0.0006;
+    sunlight.shadow.bias = -0.0004;
+    sunlight.shadow.normalBias = 0.02;
     sunlight.shadow.camera.near = 0.5;
-    sunlight.shadow.camera.far = 15;
-    sunlight.shadow.camera.left = -4;
-    sunlight.shadow.camera.right = 4;
-    sunlight.shadow.camera.top = 4;
-    sunlight.shadow.camera.bottom = -4;
+    sunlight.shadow.camera.far = 14;
+    sunlight.shadow.camera.left = -4.5;
+    sunlight.shadow.camera.right = 4.5;
+    sunlight.shadow.camera.top = 4.5;
+    sunlight.shadow.camera.bottom = -4.5;
     scene.add(sunlight);
     scene.add(sunlight.target);
     sunlightRef.current = sunlight;
 
-    // 4. Ceiling Recessed Interior Lights
+    // 4. Ceiling Recessed Interior Lights: Diffuse fill (castShadow = false prevents 12 cube shadow passes!)
     const spot1 = new THREE.PointLight(0xFFF2DE, 1.1, 8, 1.6);
     spot1.position.set(0, 2.7, 0.6);
-    spot1.castShadow = true;
+    spot1.castShadow = false;
     scene.add(spot1);
     ceilingSpot1Ref.current = spot1;
 
     const spot2 = new THREE.PointLight(0xFFF2DE, 0.9, 8, 1.6);
     spot2.position.set(0, 2.7, -1.8);
-    spot2.castShadow = true;
+    spot2.castShadow = false;
     scene.add(spot2);
     ceilingSpot2Ref.current = spot2;
 
     // 5. Standing Lamp light
     const lampLight = new THREE.PointLight(0xFFDEB0, 0.8, 5, 2.0);
     lampLight.position.set(-2.8, 1.5, -2.8);
+    lampLight.castShadow = false;
     scene.add(lampLight);
     lampLightRef.current = lampLight;
 
@@ -245,10 +261,12 @@ export const PortalRoomStudioPage: React.FC = () => {
       side: THREE.DoubleSide,
       transparent: true,
       opacity: 0,
+      depthWrite: false,
     });
     const dropIndicator = new THREE.Mesh(reticleGeo, reticleMat);
     dropIndicator.rotation.x = -Math.PI / 2;
-    dropIndicator.position.y = 0.012;
+    dropIndicator.position.y = 0.015;
+    dropIndicator.renderOrder = 1;
     scene.add(dropIndicator);
     dropIndicatorRef.current = dropIndicator;
 
@@ -259,10 +277,12 @@ export const PortalRoomStudioPage: React.FC = () => {
       side: THREE.DoubleSide,
       transparent: true,
       opacity: 0,
+      depthWrite: false,
     });
     const selectionRing = new THREE.Mesh(ringGeo, ringMat);
     selectionRing.rotation.x = -Math.PI / 2;
-    selectionRing.position.y = 0.01;
+    selectionRing.position.y = 0.012;
+    selectionRing.renderOrder = 2;
     scene.add(selectionRing);
     selectionRingRef.current = selectionRing;
 
@@ -296,7 +316,8 @@ export const PortalRoomStudioPage: React.FC = () => {
           if ((child as THREE.Mesh).isMesh) {
             const mesh = child as THREE.Mesh;
             mesh.receiveShadow = true;
-            mesh.castShadow = true;
+            mesh.castShadow = false; // Walls never cast shadows onto the interior - eliminates room from shadow maps!
+            mesh.frustumCulled = true;
 
             // Enhance materials for peaceful Japandi aesthetics
             if (mesh.material) {
@@ -308,7 +329,6 @@ export const PortalRoomStudioPage: React.FC = () => {
                 mat.color = new THREE.Color(0xFDFBF7); // Radiant, serene warm lime plaster
                 mat.roughness = 0.94;
                 mat.metalness = 0.0;
-                mat.side = THREE.DoubleSide; // Prevents backface culling artifacts
                 mat.needsUpdate = true;
               }
 
@@ -351,31 +371,33 @@ export const PortalRoomStudioPage: React.FC = () => {
         roomRoot.position.y = -box.min.y;
         roomRoot.position.z = -center.z;
 
+        // Freeze static room matrices to eliminate per-frame matrix recalculations
+        roomRoot.updateMatrix();
+        roomRoot.matrixAutoUpdate = false;
+        roomRoot.traverse((child) => {
+          child.updateMatrix();
+          child.matrixAutoUpdate = false;
+        });
+
         scene.add(roomRoot);
       },
       undefined,
       (err) => console.warn('Room structure model load warning:', err)
     );
 
-    // ── Interactive Direct Dragging on Floor Canvas ──
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    const planeIntersect = new THREE.Vector3();
-
+    // ── Interactive Direct Dragging on Floor Canvas (Using zero-alloc shared math) ──
     let isPointerDown = false;
     let isDraggingPiece = false;
     let draggedGroup: THREE.Group | null = null;
     let activeInstanceId: string | null = null;
-    let dragOffset = new THREE.Vector3();
+    const dragOffset = new THREE.Vector3();
     let pointerStart = { x: 0, y: 0 };
 
     const getCanvasMouse = (event: MouseEvent | PointerEvent) => {
       const rect = canvas.getBoundingClientRect();
-      return {
-        x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
-        y: -((event.clientY - rect.top) / rect.height) * 2 + 1,
-      };
+      sharedMouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      sharedMouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      return sharedMouse;
     };
 
     const handlePointerDown = (event: PointerEvent) => {
@@ -388,17 +410,11 @@ export const PortalRoomStudioPage: React.FC = () => {
       pointerStart = { x: event.clientX, y: event.clientY };
 
       const m = getCanvasMouse(event);
-      mouse.x = m.x;
-      mouse.y = m.y;
-      raycaster.setFromCamera(mouse, camera);
+      sharedRaycaster.setFromCamera(m, camera);
 
-      // Collect placed furniture objects
-      const placedMeshes: THREE.Object3D[] = [];
-      placedMeshesRef.current.forEach((group) => {
-        placedMeshes.push(...group.children);
-      });
-
-      const intersects = raycaster.intersectObjects(placedMeshes, true);
+      // Collect placed furniture root groups directly (avoids reallocating mesh arrays)
+      const groups = Array.from(placedMeshesRef.current.values());
+      const intersects = sharedRaycaster.intersectObjects(groups, true);
       if (intersects.length > 0) {
         let obj: THREE.Object3D | null = intersects[0].object;
         let matchedId: string | null = null;
@@ -422,11 +438,11 @@ export const PortalRoomStudioPage: React.FC = () => {
           controls.enabled = false; // Immediately lock OrbitControls so camera doesn't fight dragging
           setSelectedInstanceId(matchedId);
 
-          if (raycaster.ray.intersectPlane(floorPlane, planeIntersect)) {
+          if (sharedRaycaster.ray.intersectPlane(sharedFloorPlane, sharedPlaneIntersect)) {
             dragOffset.set(
-              matchedGroup.position.x - planeIntersect.x,
+              matchedGroup.position.x - sharedPlaneIntersect.x,
               0,
-              matchedGroup.position.z - planeIntersect.z
+              matchedGroup.position.z - sharedPlaneIntersect.z
             );
           }
         }
@@ -444,14 +460,12 @@ export const PortalRoomStudioPage: React.FC = () => {
 
       if (isDraggingPiece && draggedGroup) {
         const m = getCanvasMouse(event);
-        mouse.x = m.x;
-        mouse.y = m.y;
-        raycaster.setFromCamera(mouse, camera);
+        sharedRaycaster.setFromCamera(m, camera);
 
-        if (raycaster.ray.intersectPlane(floorPlane, planeIntersect)) {
+        if (sharedRaycaster.ray.intersectPlane(sharedFloorPlane, sharedPlaneIntersect)) {
           // Allow full architectural floor range to reach walls and corners
-          const targetX = Math.max(-4.6, Math.min(4.6, planeIntersect.x + dragOffset.x));
-          const targetZ = Math.max(-4.7, Math.min(4.7, planeIntersect.z + dragOffset.z));
+          const targetX = Math.max(-4.6, Math.min(4.6, sharedPlaneIntersect.x + dragOffset.x));
+          const targetZ = Math.max(-4.7, Math.min(4.7, sharedPlaneIntersect.z + dragOffset.z));
 
           draggedGroup.position.x = targetX;
           draggedGroup.position.z = targetZ;
@@ -639,16 +653,12 @@ export const PortalRoomStudioPage: React.FC = () => {
     }
   }, [selectedInstanceId, placedItems]);
 
-  // 6. Add Furniture Model to Scene
+  // 6. Add Furniture Model to Scene (with In-Memory Caching for 0ms Instant Placement)
   const handleAddFurniture = useCallback((model: ShowroomModel, customPos?: [number, number, number]) => {
     if (!sceneRef.current) return;
-    setLoadingModel(true);
 
     const instanceId = `item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
-    const loader = new GLTFLoader();
-    if (dracoLoaderRef.current) {
-      loader.setDRACOLoader(dracoLoaderRef.current);
-    }
+    const modelUrl = model.url.replace(/^\/models\//i, '/Models/');
 
     // Default position: in front of the camera or staggered
     const pos: [number, number, number] = customPos || [
@@ -657,7 +667,40 @@ export const PortalRoomStudioPage: React.FC = () => {
       (Math.random() - 0.5) * 2.0 - 0.4,
     ];
 
-    const modelUrl = model.url.replace(/^\/models\//i, '/Models/');
+    // Check if model prototype is already cached in memory
+    const cached = modelCacheRef.current.get(modelUrl);
+    if (cached) {
+      const group = new THREE.Group();
+      const inner = SkeletonUtils.clone(cached.scene);
+      group.add(inner);
+      group.scale.set(cached.baseScale, cached.baseScale, cached.baseScale);
+      group.position.set(pos[0], 0, pos[2]);
+
+      sceneRef.current.add(group);
+      placedMeshesRef.current.set(instanceId, group);
+
+      const newItem: PlacedFurniture = {
+        instanceId,
+        modelId: model.id,
+        name: model.name,
+        category: model.category,
+        url: modelUrl,
+        position: [pos[0], 0, pos[2]],
+        rotationY: 0,
+        scale: cached.baseScale,
+        scaleFactor: 1.0,
+      };
+
+      setPlacedItems((prev) => [...prev, newItem]);
+      setSelectedInstanceId(instanceId);
+      return;
+    }
+
+    setLoadingModel(true);
+    const loader = new GLTFLoader();
+    if (dracoLoaderRef.current) {
+      loader.setDRACOLoader(dracoLoaderRef.current);
+    }
 
     loader.load(
       modelUrl,
@@ -669,6 +712,7 @@ export const PortalRoomStudioPage: React.FC = () => {
           if ((child as THREE.Mesh).isMesh) {
             child.castShadow = true;
             child.receiveShadow = true;
+            child.frustumCulled = true;
           }
         });
 
@@ -683,6 +727,13 @@ export const PortalRoomStudioPage: React.FC = () => {
 
         // Center inner model horizontally and ground its base flush at y = 0
         inner.position.set(-rawCenter.x, -rawBox.min.y, -rawCenter.z);
+
+        // Store cloned prototype in cache for 0ms future additions
+        modelCacheRef.current.set(modelUrl, {
+          scene: inner.clone(true),
+          baseScale: scale,
+        });
+
         group.add(inner);
         group.scale.set(scale, scale, scale);
         group.position.set(pos[0], 0, pos[2]);
@@ -714,32 +765,34 @@ export const PortalRoomStudioPage: React.FC = () => {
     );
   }, []);
 
-  // 7. Handle Canvas Drag & Drop from Bottom Tray
+  // 7. Handle Canvas Drag & Drop from Bottom Tray (Zero allocations)
   const handleCanvasDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
-    if (!isDraggingOverCanvas) setIsDraggingOverCanvas(true);
 
-    // Update 3D reticle on the floor
+    if (!isDraggingOverRef.current) {
+      isDraggingOverRef.current = true;
+      setIsDraggingOverCanvas(true);
+    }
+
+    // Update 3D reticle on the floor using shared math objects
     if (canvasRef.current && cameraRef.current && dropIndicatorRef.current) {
       const rect = canvasRef.current.getBoundingClientRect();
-      const normX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      const normY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      sharedMouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      sharedMouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
-      const ray = new THREE.Raycaster();
-      ray.setFromCamera(new THREE.Vector2(normX, normY), cameraRef.current);
-      const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-      const intersect = new THREE.Vector3();
+      sharedRaycaster.setFromCamera(sharedMouse, cameraRef.current);
 
-      if (ray.ray.intersectPlane(floorPlane, intersect)) {
-        dropIndicatorRef.current.position.x = Math.max(-4.6, Math.min(4.6, intersect.x));
-        dropIndicatorRef.current.position.z = Math.max(-4.7, Math.min(4.7, intersect.z));
+      if (sharedRaycaster.ray.intersectPlane(sharedFloorPlane, sharedPlaneIntersect)) {
+        dropIndicatorRef.current.position.x = Math.max(-4.6, Math.min(4.6, sharedPlaneIntersect.x));
+        dropIndicatorRef.current.position.z = Math.max(-4.7, Math.min(4.7, sharedPlaneIntersect.z));
         (dropIndicatorRef.current.material as THREE.MeshBasicMaterial).opacity = 0.7;
       }
     }
   };
 
   const handleCanvasDragLeave = () => {
+    isDraggingOverRef.current = false;
     setIsDraggingOverCanvas(false);
     if (dropIndicatorRef.current) {
       (dropIndicatorRef.current.material as THREE.MeshBasicMaterial).opacity = 0;
@@ -748,6 +801,7 @@ export const PortalRoomStudioPage: React.FC = () => {
 
   const handleCanvasDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
+    isDraggingOverRef.current = false;
     setIsDraggingOverCanvas(false);
     if (dropIndicatorRef.current) {
       (dropIndicatorRef.current.material as THREE.MeshBasicMaterial).opacity = 0;
@@ -757,19 +811,16 @@ export const PortalRoomStudioPage: React.FC = () => {
     if (!modelId || !cameraRef.current || !canvasRef.current) return;
 
     const rect = canvasRef.current.getBoundingClientRect();
-    const normX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    const normY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    sharedMouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    sharedMouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
-    const ray = new THREE.Raycaster();
-    ray.setFromCamera(new THREE.Vector2(normX, normY), cameraRef.current);
-    const floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-    const intersect = new THREE.Vector3();
+    sharedRaycaster.setFromCamera(sharedMouse, cameraRef.current);
 
     let targetX = 0;
     let targetZ = -1.0;
-    if (ray.ray.intersectPlane(floorPlane, intersect)) {
-      targetX = Math.max(-4.6, Math.min(4.6, intersect.x));
-      targetZ = Math.max(-4.7, Math.min(4.7, intersect.z));
+    if (sharedRaycaster.ray.intersectPlane(sharedFloorPlane, sharedPlaneIntersect)) {
+      targetX = Math.max(-4.6, Math.min(4.6, sharedPlaneIntersect.x));
+      targetZ = Math.max(-4.7, Math.min(4.7, sharedPlaneIntersect.z));
     }
 
     const model = catalogModels.find((m) => m.id === modelId || m.filename === modelId);
@@ -790,11 +841,11 @@ export const PortalRoomStudioPage: React.FC = () => {
       }
     }
 
-    // Default warm Japandi living room layout
+    // Default warm Japandi living room layout with high-performance, lightweight models
     if (placedItems.length === 0) {
-      const couch = catalogModels.find((m) => m.filename.includes('Couch Large'));
-      const table = catalogModels.find((m) => m.filename.includes('Table Round Small'));
-      const chair = catalogModels.find((m) => m.filename.includes('Poly') || m.filename.includes('Chair by Quaternius'));
+      const couch = catalogModels.find((m) => m.filename.includes('Couch Large by Quaternius') || m.filename.includes('Couch Large'));
+      const table = catalogModels.find((m) => m.filename.includes('Table Round Small by Quaternius') || m.filename.includes('Table Round'));
+      const chair = catalogModels.find((m) => m.filename.includes('Chair by Quaternius') || m.filename.includes('Chair'));
 
       if (couch) handleAddFurniture(couch, [0, 0, -1.8]);
       if (table) handleAddFurniture(table, [0, 0, -0.6]);
@@ -954,25 +1005,25 @@ export const PortalRoomStudioPage: React.FC = () => {
     if (preset === 'blank') return;
 
     if (preset === 'lounge') {
-      const couch = catalogModels.find((m) => m.filename.includes('Couch Large'));
-      const table = catalogModels.find((m) => m.filename.includes('Table Round Small'));
-      const chair = catalogModels.find((m) => m.filename.includes('Poly') || m.filename.includes('Chair'));
+      const couch = catalogModels.find((m) => m.filename.includes('Couch Large by Quaternius') || m.filename.includes('Couch Large'));
+      const table = catalogModels.find((m) => m.filename.includes('Table Round Small by Quaternius') || m.filename.includes('Table Round'));
+      const chair = catalogModels.find((m) => m.filename.includes('Chair by Quaternius') || m.filename.includes('Chair'));
       if (couch) handleAddFurniture(couch, [0, 0, -1.5]);
       if (table) handleAddFurniture(table, [0, 0, -0.2]);
       if (chair) handleAddFurniture(chair, [1.6, 0, -0.4]);
       handleSetCameraView('walkin');
     } else if (preset === 'study') {
-      const desk = catalogModels.find((m) => m.filename.includes('Desk by dook') || m.filename.includes('Desk'));
-      const chair = catalogModels.find((m) => m.filename.includes('Office Chair'));
-      const shelf = catalogModels.find((m) => m.filename.includes('Bookcase'));
+      const desk = catalogModels.find((m) => m.filename.includes('Desk by Quaternius') || m.filename.includes('Desk by CreativeTrio') || m.filename.includes('Desk'));
+      const chair = catalogModels.find((m) => m.filename.includes('Office Chair by Quaternius') || m.filename.includes('Office Chair'));
+      const shelf = catalogModels.find((m) => m.filename.includes('Bookshelf by CreativeTrio') || m.filename.includes('Bookcase'));
       if (desk) handleAddFurniture(desk, [0, 0, -0.8]);
       if (chair) handleAddFurniture(chair, [0, 0, 0.6]);
       if (shelf) handleAddFurniture(shelf, [-2.2, 0, -1.8]);
       handleSetCameraView('overview');
     } else if (preset === 'bedroom') {
       const bed = catalogModels.find((m) => m.filename.includes('Bed Double by Quaternius') || m.filename.includes('Bed Double'));
-      const stand = catalogModels.find((m) => m.filename.includes('Night Stand'));
-      const drawer = catalogModels.find((m) => m.filename.includes('Drawer'));
+      const stand = catalogModels.find((m) => m.filename.includes('Night Stand by Quaternius') || m.filename.includes('Night Stand'));
+      const drawer = catalogModels.find((m) => m.filename.includes('Drawer by Quaternius') || m.filename.includes('Drawer'));
       if (bed) handleAddFurniture(bed, [0, 0, -1.2]);
       if (stand) handleAddFurniture(stand, [-1.8, 0, -1.2]);
       if (drawer) handleAddFurniture(drawer, [2.2, 0, 0.4]);

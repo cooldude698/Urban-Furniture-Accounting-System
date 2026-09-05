@@ -124,13 +124,14 @@ export const PortalProductViewerPage: React.FC = () => {
     const renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: true,
-      alpha: true,
+      alpha: false,
       powerPreference: 'high-performance',
     });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.25));
     renderer.setSize(container.clientWidth, container.clientHeight);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     // Scene
     const scene = new THREE.Scene();
@@ -209,7 +210,8 @@ export const PortalProductViewerPage: React.FC = () => {
     dirLight.castShadow = true;
     dirLight.shadow.mapSize.width = 1024;
     dirLight.shadow.mapSize.height = 1024;
-    dirLight.shadow.bias = -0.001;
+    dirLight.shadow.bias = -0.0004;
+    dirLight.shadow.normalBias = 0.02;
     scene.add(dirLight);
 
     // Soft bounce fill light from front-left
