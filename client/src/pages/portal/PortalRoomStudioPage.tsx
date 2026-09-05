@@ -10,7 +10,11 @@ import {
   RotateCw,
   Trash2,
   Plus,
+  Minus,
+  Search,
+  Copy,
   Lightbulb,
+  Sun,
   Grid,
   Layers,
   ChevronDown,
@@ -42,6 +46,7 @@ interface PlacedFurniture {
   position: [number, number, number];
   rotationY: number;
   scale: number;
+  scaleFactor: number;
 }
 
 type AmbienceMode = 'morning' | 'studio' | 'dusk';
@@ -99,6 +104,7 @@ export const PortalRoomStudioPage: React.FC = () => {
   // Data states
   const [catalogModels, setCatalogModels] = useState<ShowroomModel[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [placedItems, setPlacedItems] = useState<PlacedFurniture[]>([]);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
 
@@ -693,6 +699,7 @@ export const PortalRoomStudioPage: React.FC = () => {
           position: [pos[0], 0, pos[2]],
           rotationY: 0,
           scale,
+          scaleFactor: 1.0,
         };
 
         setPlacedItems((prev) => [...prev, newItem]);
@@ -847,7 +854,57 @@ export const PortalRoomStudioPage: React.FC = () => {
     setSelectedInstanceId(null);
   }, [selectedInstanceId]);
 
-  // Keyboard Shortcuts (R to rotate, Arrows to nudge, Delete to remove)
+  // Scale selected piece (e.g. 0.9 = -10% smaller, 1.1 = +10% larger)
+  const handleScaleSelected = useCallback((multiplier: number) => {
+    if (!selectedInstanceId) return;
+    const group = placedMeshesRef.current.get(selectedInstanceId);
+    if (!group) return;
+
+    const currentItem = placedItems.find((p) => p.instanceId === selectedInstanceId);
+    const currentFactor = currentItem?.scaleFactor || 1.0;
+    const newFactor = Math.max(0.35, Math.min(2.5, currentFactor * multiplier));
+    const factorRatio = newFactor / currentFactor;
+
+    group.scale.multiplyScalar(factorRatio);
+
+    setPlacedItems((prev) =>
+      prev.map((item) =>
+        item.instanceId === selectedInstanceId
+          ? { ...item, scale: group.scale.x, scaleFactor: Math.round(newFactor * 100) / 100 }
+          : item
+      )
+    );
+  }, [selectedInstanceId, placedItems]);
+
+  // Duplicate selected piece
+  const handleDuplicateSelected = useCallback(() => {
+    if (!selectedInstanceId) return;
+    const item = placedItems.find((p) => p.instanceId === selectedInstanceId);
+    if (!item) return;
+    const model = catalogModels.find((m) => m.id === item.modelId || m.name === item.name);
+    if (model) {
+      handleAddFurniture(model, [
+        Math.max(-4.2, Math.min(4.2, item.position[0] + 0.4)),
+        0,
+        Math.max(-4.2, Math.min(4.2, item.position[2] + 0.4)),
+      ]);
+    }
+  }, [selectedInstanceId, placedItems, catalogModels, handleAddFurniture]);
+
+  // Clear all pieces from room
+  const handleClearAll = useCallback(() => {
+    if (placedItems.length === 0) return;
+    if (window.confirm('Clear all furniture pieces from this room?')) {
+      placedMeshesRef.current.forEach((group) => {
+        sceneRef.current?.remove(group);
+      });
+      placedMeshesRef.current.clear();
+      setPlacedItems([]);
+      setSelectedInstanceId(null);
+    }
+  }, [placedItems.length]);
+
+  // Keyboard Shortcuts (R to rotate, Arrows to nudge, +/- to scale, Delete to remove)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!selectedInstanceId) return;
@@ -866,6 +923,12 @@ export const PortalRoomStudioPage: React.FC = () => {
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
         handleNudgeSelected(0, 0.15);
+      } else if (e.key === '+' || e.key === '=') {
+        e.preventDefault();
+        handleScaleSelected(1.1);
+      } else if (e.key === '-' || e.key === '_') {
+        e.preventDefault();
+        handleScaleSelected(0.9);
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
         handleRemoveSelected();
@@ -876,7 +939,7 @@ export const PortalRoomStudioPage: React.FC = () => {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedInstanceId, handleRotateSelected, handleRemoveSelected, handleNudgeSelected]);
+  }, [selectedInstanceId, handleRotateSelected, handleRemoveSelected, handleNudgeSelected, handleScaleSelected]);
 
   // Load Preset Spaces
   const handleLoadPreset = (preset: 'lounge' | 'study' | 'bedroom' | 'blank') => {
@@ -919,9 +982,12 @@ export const PortalRoomStudioPage: React.FC = () => {
 
   const selectedItem = placedItems.find((item) => item.instanceId === selectedInstanceId);
   const categories = ['All', 'Seating', 'Beds', 'Tables', 'Storage'];
-  const filteredModels = selectedCategory === 'All'
-    ? catalogModels.filter((m) => m.category !== 'Lighting')
-    : catalogModels.filter((m) => m.category === selectedCategory);
+  const filteredModels = catalogModels.filter((m) => {
+    if (m.category === 'Lighting') return false;
+    const matchesCat = selectedCategory === 'All' || m.category === selectedCategory;
+    const matchesSearch = !searchQuery.trim() || m.name.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCat && matchesSearch;
+  });
 
   return (
     <div
@@ -1023,6 +1089,40 @@ export const PortalRoomStudioPage: React.FC = () => {
           >
             {placedItems.length} {placedItems.length === 1 ? 'Piece' : 'Pieces'}
           </span>
+
+          {placedItems.length > 0 && (
+            <>
+              <span style={{ color: 'var(--brown-300)' }}>|</span>
+              <button
+                onClick={handleClearAll}
+                title="Clear all furniture pieces from room"
+                style={{
+                  background: 'none',
+                  border: '1px solid rgba(192, 57, 43, 0.3)',
+                  borderRadius: 999,
+                  padding: '2px 10px',
+                  color: 'var(--danger)',
+                  fontSize: 11,
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-display)',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  transition: 'all 120ms ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'var(--danger-bg)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                <Trash2 size={12} />
+                Clear Room
+              </button>
+            </>
+          )}
         </div>
 
         {/* Center: Camera View Perspectives (Walk-In, Dollhouse, Top Down) */}
@@ -1313,6 +1413,41 @@ export const PortalRoomStudioPage: React.FC = () => {
 
           <div style={{ height: 20, width: 1, backgroundColor: 'rgba(208, 174, 146, 0.5)' }} />
 
+          {/* Size / Scaling Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 10, color: 'var(--brown-600)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Size:
+            </span>
+            <button
+              onClick={() => handleScaleSelected(0.9)}
+              title="Reduce size -10% (Minus key)"
+              style={styles.hudActionBtn}
+            >
+              <Minus size={12} />
+            </button>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                fontFamily: 'var(--font-mono)',
+                minWidth: 36,
+                textAlign: 'center',
+                color: 'var(--brown-900)',
+              }}
+            >
+              {Math.round((selectedItem.scaleFactor || 1.0) * 100)}%
+            </span>
+            <button
+              onClick={() => handleScaleSelected(1.1)}
+              title="Enlarge size +10% (Plus key)"
+              style={styles.hudActionBtn}
+            >
+              <Plus size={12} />
+            </button>
+          </div>
+
+          <div style={{ height: 20, width: 1, backgroundColor: 'rgba(208, 174, 146, 0.5)' }} />
+
           {/* Nudge Controls (Push flush to walls & into corners) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
             <span style={{ fontSize: 10, color: 'var(--brown-600)', textTransform: 'uppercase', letterSpacing: '0.04em', marginRight: 2 }}>
@@ -1369,6 +1504,15 @@ export const PortalRoomStudioPage: React.FC = () => {
           </div>
 
           <div style={{ height: 20, width: 1, backgroundColor: 'rgba(208, 174, 146, 0.5)' }} />
+
+          {/* Duplicate piece */}
+          <button
+            onClick={handleDuplicateSelected}
+            title="Duplicate furniture piece"
+            style={styles.hudActionBtn}
+          >
+            <Copy size={13} />
+          </button>
 
           {/* Delete piece from room */}
           <button
@@ -1501,6 +1645,53 @@ export const PortalRoomStudioPage: React.FC = () => {
               >
                 <X size={15} />
               </button>
+            </div>
+
+            {/* Instant Search Bar */}
+            <div style={{ padding: '8px 10px', borderBottom: '1px solid rgba(208, 174, 146, 0.18)' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  backgroundColor: 'rgba(249, 246, 240, 0.9)',
+                  borderRadius: 8,
+                  padding: '5px 8px',
+                  border: '1px solid rgba(208, 174, 146, 0.4)',
+                }}
+              >
+                <Search size={13} color="var(--brown-600)" />
+                <input
+                  type="text"
+                  placeholder="Search 23 furniture pieces..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  style={{
+                    border: 'none',
+                    outline: 'none',
+                    backgroundColor: 'transparent',
+                    fontSize: 11,
+                    fontFamily: 'var(--font-body)',
+                    color: 'var(--brown-900)',
+                    width: '100%',
+                  }}
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    style={{
+                      border: 'none',
+                      background: 'none',
+                      cursor: 'pointer',
+                      padding: 0,
+                      color: 'var(--brown-600)',
+                      display: 'flex',
+                    }}
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Category Filter Pills */}
