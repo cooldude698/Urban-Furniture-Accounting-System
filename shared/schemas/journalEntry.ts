@@ -4,8 +4,8 @@ export const journalEntryLineInputSchema = z.object({
   account_id: z.number().int().positive('Account is required'),
   partner_id: z.number().int().positive().nullable().optional(),
   analytic_account_id: z.number().int().positive().nullable().optional(),
-  debit: z.string().or(z.number()).transform((v) => String(v)),
-  credit: z.string().or(z.number()).transform((v) => String(v)),
+  debit: z.string().or(z.number()).transform((v: string | number) => String(v)),
+  credit: z.string().or(z.number()).transform((v: string | number) => String(v)),
   description: z.string().nullable().optional(),
 });
 
