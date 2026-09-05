@@ -58,6 +58,17 @@ voiceBillRouter.post('/confirm', async (req: Request, res: Response) => {
   }
 });
 
+// 4. GET /api/voice-bill/products - Fetch active product catalog directly from database
+voiceBillRouter.get('/products', async (_req: Request, res: Response) => {
+  try {
+    const products = await VoiceBillService.getCatalogProducts();
+    return sendSuccess(res, products);
+  } catch (err: any) {
+    console.error('Error fetching voice bill products:', err);
+    return sendError(res, 'FETCH_FAILED', err.message || 'Failed to fetch catalog products', 500);
+  }
+});
+
 // 4. POST /api/voice-bill/transcribe - Transcribe voice audio via local whisper binary if present
 voiceBillRouter.post('/transcribe', async (req: Request, res: Response) => {
   try {

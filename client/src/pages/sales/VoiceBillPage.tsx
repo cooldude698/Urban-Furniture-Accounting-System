@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Mic,
@@ -15,8 +15,26 @@ import {
   ShoppingBag,
   ArrowRight,
   Globe,
-  Edit3
+  Edit3,
+  Database,
+  Package,
+  Search,
+  Plus,
+  ChevronDown,
+  ChevronUp,
+  X
 } from 'lucide-react';
+
+export interface CatalogProduct {
+  id: number;
+  name: string;
+  sku: string | null;
+  type?: string;
+  category: string | null;
+  salesPrice: string;
+  taxRate: string;
+  stockQty?: string;
+}
 
 interface DraftLineItem {
   id: string;
@@ -86,6 +104,67 @@ export const VoiceBillPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [confirming, setConfirming] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Database products catalog state
+  const [dbProducts, setDbProducts] = useState<CatalogProduct[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState<boolean>(false);
+  const [showCatalog, setShowCatalog] = useState<boolean>(false);
+  const [catalogSearch, setCatalogSearch] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+
+  // Fetch products from database on mount
+  useEffect(() => {
+    const fetchCatalog = async () => {
+      setLoadingProducts(true);
+      try {
+        const res = await fetch('/api/voice-bill/products');
+        const json = await res.json();
+        if (json.data && Array.isArray(json.data)) {
+          setDbProducts(json.data);
+        }
+      } catch (err) {
+        console.warn('Failed to load catalog products from database:', err);
+      } finally {
+        setLoadingProducts(false);
+      }
+    };
+    fetchCatalog();
+  }, []);
+
+  // Filtered catalog products for search/drawer
+  const filteredProducts = useMemo(() => {
+    return dbProducts.filter(p => {
+      const matchesSearch =
+        catalogSearch.trim() === '' ||
+        p.name.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+        (p.category && p.category.toLowerCase().includes(catalogSearch.toLowerCase())) ||
+        (p.sku && p.sku.toLowerCase().includes(catalogSearch.toLowerCase()));
+
+      const matchesCat =
+        selectedCategory === 'all' ||
+        (p.category && p.category.toLowerCase() === selectedCategory.toLowerCase());
+
+      return matchesSearch && matchesCat;
+    });
+  }, [dbProducts, catalogSearch, selectedCategory]);
+
+  // Unique categories list from products
+  const categories = useMemo(() => {
+    const set = new Set<string>();
+    dbProducts.forEach(p => {
+      if (p.category) set.add(p.category);
+    });
+    return Array.from(set);
+  }, [dbProducts]);
+
+  // Autocomplete suggestions based on current input
+  const inputSuggestions = useMemo(() => {
+    if (!inputText || inputText.trim().length < 2) return [];
+    const query = inputText.trim().toLowerCase();
+    return dbProducts
+      .filter(p => p.name.toLowerCase().includes(query))
+      .slice(0, 4);
+  }, [dbProducts, inputText]);
 
   // Voice recording state
   const [isListening, setIsListening] = useState<boolean>(false);
@@ -311,6 +390,30 @@ export const VoiceBillPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Database Connection Indicator */}
+          <div
+            className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-semibold rounded-full shadow-2xs"
+            title="Real-time PostgreSQL database products loaded"
+          >
+            <Database className="w-3.5 h-3.5 text-emerald-600" />
+            <span>{loadingProducts ? 'Connecting to DB...' : `${dbProducts.length} DB Products`}</span>
+          </div>
+
+          {/* Catalog Drawer Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowCatalog(prev => !prev)}
+            className={`px-3 py-1.5 border rounded-[8px] text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer ${
+              showCatalog
+                ? 'bg-brown-900 text-cream border-brown-900'
+                : 'bg-surface text-brown-800 border-brown-300 hover:bg-brown-100'
+            }`}
+          >
+            <Package className="w-3.5 h-3.5 text-brown-600" />
+            <span>{showCatalog ? 'Hide Catalog' : 'Browse Catalog'}</span>
+            {showCatalog ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+
           {/* Voice Language Selector */}
           <div className="flex items-center bg-cream border border-brown-300 rounded-[8px] p-1 text-xs">
             <Globe className="w-3.5 h-3.5 text-brown-600 mx-1.5" />
@@ -348,6 +451,115 @@ export const VoiceBillPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Expandable Database Product Catalog Panel */}
+      {showCatalog && (
+        <div className="bg-surface border border-brown-300 rounded-[12px] p-4 shadow-sm space-y-3 transition-all">
+          <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-brown-200">
+            <div className="flex items-center gap-2">
+              <Package className="w-4 h-4 text-brown-700" />
+              <h3 className="text-sm font-bold text-brown-900 font-display">
+                Database Product Catalog ({dbProducts.length} Items)
+              </h3>
+            </div>
+
+            {/* Live Search */}
+            <div className="relative min-w-[220px]">
+              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-brown-400" />
+              <input
+                type="text"
+                value={catalogSearch}
+                onChange={e => setCatalogSearch(e.target.value)}
+                placeholder="Filter by name or SKU..."
+                className="w-full pl-8 pr-3 py-1 bg-cream/50 border border-brown-300 rounded-[6px] text-xs text-brown-900 placeholder:text-brown-400 focus:outline-none focus:border-brown-600"
+              />
+              {catalogSearch && (
+                <button
+                  type="button"
+                  onClick={() => setCatalogSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-brown-400 hover:text-brown-700"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Category Filter Pills */}
+          {categories.length > 0 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setSelectedCategory('all')}
+                className={`px-2 py-0.5 rounded-full font-medium transition-colors ${
+                  selectedCategory === 'all'
+                    ? 'bg-brown-900 text-cream'
+                    : 'bg-brown-100 text-brown-700 hover:bg-brown-200'
+                }`}
+              >
+                All ({dbProducts.length})
+              </button>
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-2 py-0.5 rounded-full font-medium whitespace-nowrap transition-colors ${
+                    selectedCategory === cat
+                      ? 'bg-brown-900 text-cream'
+                      : 'bg-brown-100 text-brown-700 hover:bg-brown-200'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Product Grid */}
+          <div className="max-h-56 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pr-1">
+            {filteredProducts.slice(0, 36).map(prod => (
+              <div
+                key={prod.id}
+                className="p-2.5 bg-cream/40 border border-brown-200 rounded-[8px] hover:border-brown-400 flex flex-col justify-between transition-all"
+              >
+                <div>
+                  <div className="font-semibold text-xs text-brown-900 leading-tight">
+                    {prod.name}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1 text-[11px] text-brown-500">
+                    {prod.category && <span>{prod.category}</span>}
+                    {prod.sku && <span className="font-mono text-[10px]">{prod.sku}</span>}
+                  </div>
+                </div>
+
+                <div className="mt-2 pt-1.5 border-t border-brown-200/60 flex items-center justify-between">
+                  <div className="font-mono font-bold text-xs text-brown-900">
+                    ₹{parseFloat(prod.salesPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleSendMessage(`1 ${prod.name}`);
+                    }}
+                    className="px-2 py-1 bg-brown-900 hover:bg-brown-800 text-cream text-[11px] font-semibold rounded-[6px] flex items-center gap-1 transition-colors cursor-pointer shadow-2xs"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Add to Bill</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+
+            {filteredProducts.length === 0 && (
+              <div className="col-span-full text-center py-6 text-xs text-brown-500 italic">
+                No products match "{catalogSearch}"
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Main Chatbox Area (WhatsApp Style) */}
       <div className="bg-surface border border-brown-300 rounded-[14px] shadow-sm flex flex-col h-[650px] overflow-hidden">
@@ -668,21 +880,51 @@ export const VoiceBillPage: React.FC = () => {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Suggestion Chips */}
+        {/* Suggestion Chips from Database Products */}
         <div className="px-4 py-2 bg-cream/60 border-t border-brown-200/80 overflow-x-auto flex items-center gap-2 text-xs">
           <span className="text-[10px] font-semibold text-brown-500 uppercase tracking-wider shrink-0">
-            Try asking:
+            Quick Add:
           </span>
-          {sampleChips.map(chip => (
+          {dbProducts.slice(0, 4).map(prod => (
             <button
-              key={chip}
-              onClick={() => handleSendMessage(chip)}
-              className="px-2.5 py-1 bg-surface hover:bg-brown-100 border border-brown-300/80 text-brown-700 text-xs rounded-full whitespace-nowrap transition-colors shadow-2xs cursor-pointer"
+              key={prod.id}
+              onClick={() => handleSendMessage(`1 ${prod.name}`)}
+              className="px-2.5 py-1 bg-surface hover:bg-brown-100 border border-brown-300/80 text-brown-800 text-xs rounded-full whitespace-nowrap transition-colors shadow-2xs cursor-pointer flex items-center gap-1"
             >
-              {chip}
+              <Plus className="w-3 h-3 text-emerald-600" />
+              <span>{prod.name} (₹{parseFloat(prod.salesPrice).toLocaleString('en-IN')})</span>
             </button>
           ))}
+          <button
+            onClick={() => handleSendMessage(speechLang === 'hi-IN' ? 'मात्रा 2 कर दो' : 'change quantity to 2')}
+            className="px-2.5 py-1 bg-surface hover:bg-brown-100 border border-brown-300/80 text-brown-700 text-xs rounded-full whitespace-nowrap transition-colors shadow-2xs cursor-pointer"
+          >
+            {speechLang === 'hi-IN' ? 'मात्रा 2 कर दो' : 'change quantity to 2'}
+          </button>
         </div>
+
+        {/* Real-time Product Autocomplete Bar from Database */}
+        {inputSuggestions.length > 0 && (
+          <div className="px-4 py-2 bg-emerald-50/90 border-t border-emerald-200 flex items-center gap-2 overflow-x-auto text-xs">
+            <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wider shrink-0 flex items-center gap-1">
+              <Database className="w-3 h-3 text-emerald-600" /> DB Matches:
+            </span>
+            {inputSuggestions.map(sug => (
+              <button
+                key={sug.id}
+                type="button"
+                onClick={() => {
+                  setInputText(`1 ${sug.name}`);
+                  if (inputRef.current) inputRef.current.focus();
+                }}
+                className="px-2.5 py-1 bg-white hover:bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs rounded-full whitespace-nowrap transition-colors flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              >
+                <span className="font-semibold">{sug.name}</span>
+                <span className="font-mono text-emerald-700">₹{parseFloat(sug.salesPrice).toLocaleString('en-IN')}</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Error Alert */}
         {error && (
