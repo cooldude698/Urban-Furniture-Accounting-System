@@ -11,7 +11,7 @@ export default function CreateUser() {
     name: '',
     loginId: '',
     email: '',
-    role: 'administrator' as string,
+    role: 'accountant' as RoleOption,
     password: '',
     confirmPassword: '',
   });
@@ -64,8 +64,6 @@ export default function CreateUser() {
 
     setLoading(true);
     try {
-      // Map UI role to backend role
-      const backendRole = form.role === 'administrator' ? 'admin' : form.role === 'user' ? 'accountant' : form.role;
       await api.post('/api/auth/signup', {
         login_id: form.loginId.trim(),
         loginId: form.loginId.trim(),
@@ -73,7 +71,7 @@ export default function CreateUser() {
         name: form.name.trim(),
         email: form.email.trim(),
         password: form.password,
-        role: backendRole,
+        role: form.role,
       });
       navigate('/login');
     } catch (err: unknown) {
@@ -87,192 +85,201 @@ export default function CreateUser() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.container}>
-        {/* Main Create User Card */}
-        <div style={styles.card}>
-          {/* App Logo Banner — matches wireframe */}
-          <div style={styles.logoContainer}>
-            <div style={styles.logoBadge}>
-              <span style={styles.logoBadgeText}>UF</span>
-            </div>
-            <div>
-              <span style={styles.logoTitle}>Urban Furniture</span>
-              <span style={styles.logoSubtitle}>Double-Entry Accounting System</span>
-            </div>
-          </div>
+      <div style={{ width: '100%', maxWidth: 880, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <h2 style={styles.pageTitle}>Sign Up Page</h2>
 
-          <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <h1 style={styles.title}>Create User</h1>
-            <p style={styles.subtitle}>Register account credentials and system privileges</p>
-          </div>
-
-          <form onSubmit={handleSubmit} style={styles.form} noValidate>
-            {/* Name */}
-            <div style={styles.field}>
-              <label htmlFor="name" style={styles.label}>Name</label>
-              <div style={styles.inputWrapper}>
-                <UserIcon size={16} style={styles.inputIcon} />
-                <input
-                  id="name"
-                  type="text"
-                  value={form.name}
-                  onChange={set('name')}
-                  required
-                  style={styles.input}
-                  placeholder="Full Name (e.g. John Doe)"
-                />
+        <div style={styles.container}>
+          {/* Main Create User Card */}
+          <div style={styles.card}>
+            {/* App Logo Banner — matches wireframe */}
+            <div style={styles.logoContainer}>
+              <div style={styles.logoBadge}>
+                <span style={styles.logoBadgeText}>UF</span>
+              </div>
+              <div>
+                <span style={styles.logoTitle}>Urban Furniture</span>
+                <span style={styles.logoSubtitle}>Double-Entry Accounting System</span>
               </div>
             </div>
 
-            {/* Login id */}
-            <div style={styles.field}>
-              <div style={styles.labelRow}>
-                <label htmlFor="loginId" style={styles.label}>Login id</label>
-                {form.loginId.length > 0 && (
-                  <span style={{ fontSize: 11, color: isLoginIdValid ? 'var(--posted, #5F7052)' : 'var(--danger, #9E4A38)', fontWeight: 600 }}>
-                    {form.loginId.length}/12 chars {isLoginIdValid ? '✓' : '(6–12 required)'}
-                  </span>
-                )}
-              </div>
-              <div style={styles.inputWrapper}>
-                <Shield size={16} style={styles.inputIcon} />
-                <input
-                  id="loginId"
-                  type="text"
-                  autoComplete="username"
-                  value={form.loginId}
-                  onChange={set('loginId')}
-                  required
-                  minLength={6}
-                  maxLength={12}
-                  style={styles.input}
-                  placeholder="6–12 characters"
-                />
-              </div>
-            </div>
-
-            {/* E-mail id */}
-            <div style={styles.field}>
-              <div style={styles.labelRow}>
-                <label htmlFor="email" style={styles.label}>E-mail id</label>
-                {form.email.length > 0 && (
-                  <span style={{ fontSize: 11, color: isEmailValid ? 'var(--posted, #5F7052)' : 'var(--danger, #9E4A38)', fontWeight: 600 }}>
-                    {isEmailValid ? 'Valid email ✓' : 'Invalid format'}
-                  </span>
-                )}
-              </div>
-              <div style={styles.inputWrapper}>
-                <Mail size={16} style={styles.inputIcon} />
-                <input
-                  id="email"
-                  type="email"
-                  value={form.email}
-                  onChange={set('email')}
-                  required
-                  style={styles.input}
-                  placeholder="name@urbanfurniture.local"
-                />
-              </div>
-            </div>
-
-            {/* Role Radio Group matching wireframe */}
-            <div style={styles.field}>
-              <label style={styles.label}>Role</label>
-              <div style={styles.roleRadioGroup}>
-                <label style={{ ...styles.radioLabel, borderColor: form.role === 'user' ? 'var(--brown-700)' : 'var(--brown-300)' }}>
+            <form onSubmit={handleSubmit} style={styles.form} noValidate>
+              {/* Name */}
+              <div style={styles.field}>
+                <label htmlFor="name" style={styles.label}>Name -</label>
+                <div style={styles.inputWrapper}>
+                  <UserIcon size={16} style={styles.inputIcon} />
                   <input
-                    type="radio"
-                    name="role"
-                    value="user"
-                    checked={form.role === 'user'}
-                    onChange={() => setForm(f => ({ ...f, role: 'user' }))}
-                    style={styles.radioInput}
+                    id="name"
+                    type="text"
+                    value={form.name}
+                    onChange={set('name')}
+                    required
+                    style={styles.input}
+                    placeholder="Full Name"
                   />
-                  <span>User</span>
-                </label>
+                </div>
+              </div>
 
-                <label style={{ ...styles.radioLabel, borderColor: form.role === 'administrator' ? 'var(--brown-700)' : 'var(--brown-300)' }}>
+              {/* Enter Login Id */}
+              <div style={styles.field}>
+                <div style={styles.labelRow}>
+                  <label htmlFor="loginId" style={styles.label}>Enter Login Id -</label>
+                  {form.loginId.length > 0 && (
+                    <span style={{ fontSize: 11, color: isLoginIdValid ? 'var(--posted, #5F7052)' : 'var(--danger, #9E4A38)', fontWeight: 600 }}>
+                      {form.loginId.length}/12 chars {isLoginIdValid ? '✓' : '(6–12 required)'}
+                    </span>
+                  )}
+                </div>
+                <div style={styles.inputWrapper}>
+                  <Shield size={16} style={styles.inputIcon} />
                   <input
-                    type="radio"
-                    name="role"
-                    value="administrator"
-                    checked={form.role === 'administrator'}
-                    onChange={() => setForm(f => ({ ...f, role: 'administrator' }))}
-                    style={styles.radioInput}
+                    id="loginId"
+                    type="text"
+                    autoComplete="username"
+                    value={form.loginId}
+                    onChange={set('loginId')}
+                    required
+                    minLength={6}
+                    maxLength={12}
+                    style={styles.input}
+                    placeholder="Enter Login Id"
                   />
-                  <span>Administrator</span>
-                </label>
+                </div>
               </div>
-            </div>
 
-            {/* Password */}
-            <div style={styles.field}>
-              <label htmlFor="password" style={styles.label}>Password</label>
-              <div style={styles.inputWrapper}>
-                <Lock size={16} style={styles.inputIcon} />
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={form.password}
-                  onChange={set('password')}
-                  required
-                  minLength={8}
-                  style={styles.input}
-                  placeholder="> 8 characters, upper, lower, special"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={styles.passwordToggle}
-                  tabIndex={-1}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+              {/* Enter Email Id */}
+              <div style={styles.field}>
+                <div style={styles.labelRow}>
+                  <label htmlFor="email" style={styles.label}>Enter Email Id -</label>
+                  {form.email.length > 0 && (
+                    <span style={{ fontSize: 11, color: isEmailValid ? 'var(--posted, #5F7052)' : 'var(--danger, #9E4A38)', fontWeight: 600 }}>
+                      {isEmailValid ? 'Valid email ✓' : 'Invalid format'}
+                    </span>
+                  )}
+                </div>
+                <div style={styles.inputWrapper}>
+                  <Mail size={16} style={styles.inputIcon} />
+                  <input
+                    id="email"
+                    type="email"
+                    value={form.email}
+                    onChange={set('email')}
+                    required
+                    style={styles.input}
+                    placeholder="Enter Email Id"
+                  />
+                </div>
               </div>
-            </div>
 
-            {/* Re-Enter Password */}
-            <div style={styles.field}>
-              <div style={styles.labelRow}>
-                <label htmlFor="confirmPassword" style={styles.label}>Re-Enter Password</label>
-                {form.confirmPassword.length > 0 && (
-                  <span style={{ fontSize: 11, color: doPasswordsMatch ? 'var(--posted, #5F7052)' : 'var(--danger, #9E4A38)', fontWeight: 600 }}>
-                    {doPasswordsMatch ? 'Passwords match ✓' : 'Does not match'}
-                  </span>
-                )}
-              </div>
-              <div style={styles.inputWrapper}>
-                <Lock size={16} style={styles.inputIcon} />
-                <input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  value={form.confirmPassword}
-                  onChange={set('confirmPassword')}
-                  required
-                  style={styles.input}
-                  placeholder="Re-enter password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  style={styles.passwordToggle}
-                  tabIndex={-1}
-                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
+              {/* Role Selector */}
+              <div style={styles.field}>
+                <label style={styles.label}>Role -</label>
+                <div style={styles.roleRadioGroup}>
+                  <label style={{ ...styles.radioLabel, borderColor: form.role === 'user' ? 'var(--brown-700)' : 'var(--brown-300)' }}>
+                    <input
+                      type="radio"
+                      name="role"
+                      value="user"
+                      checked={form.role === 'user'}
+                      onChange={() => setForm(f => ({ ...f, role: 'user' }))}
+                      style={styles.radioInput}
+                    />
+                    <span>User</span>
+                  </label>
 
-            {error && (
-              <div role="alert" style={styles.errorBox}>
-                <p style={styles.errorText}>{error}</p>
-              </div>
-            )}
+                  <label style={{ ...styles.radioLabel, borderColor: form.role === 'admin' ? 'var(--brown-700)' : 'var(--brown-300)' }}>
+                    <input
+                      type="radio"
+                      name="role"
+                      value="admin"
+                      checked={form.role === 'admin'}
+                      onChange={() => setForm(f => ({ ...f, role: 'admin' }))}
+                      style={styles.radioInput}
+                    />
+                    <span>Administrator</span>
+                  </label>
 
-            {/* Buttons: Create & Cancel matching wireframe */}
-            <div style={styles.buttonRow}>
+                  <label style={{ ...styles.radioLabel, borderColor: form.role === 'accountant' ? 'var(--brown-700)' : 'var(--brown-300)' }}>
+                    <input
+                      type="radio"
+                      name="role"
+                      value="accountant"
+                      checked={form.role === 'accountant'}
+                      onChange={() => setForm(f => ({ ...f, role: 'accountant' }))}
+                      style={styles.radioInput}
+                    />
+                    <span>Accountant</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Enter Password */}
+              <div style={styles.field}>
+                <label htmlFor="password" style={styles.label}>Enter Password -</label>
+                <div style={styles.inputWrapper}>
+                  <Lock size={16} style={styles.inputIcon} />
+                  <input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    value={form.password}
+                    onChange={set('password')}
+                    required
+                    minLength={8}
+                    style={styles.input}
+                    placeholder="Enter Password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={styles.passwordToggle}
+                    tabIndex={-1}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Re-Enter Password */}
+              <div style={styles.field}>
+                <div style={styles.labelRow}>
+                  <label htmlFor="confirmPassword" style={styles.label}>Re-Enter Password -</label>
+                  {form.confirmPassword.length > 0 && (
+                    <span style={{ fontSize: 11, color: doPasswordsMatch ? 'var(--posted, #5F7052)' : 'var(--danger, #9E4A38)', fontWeight: 600 }}>
+                      {doPasswordsMatch ? 'Passwords match ✓' : 'Does not match'}
+                    </span>
+                  )}
+                </div>
+                <div style={styles.inputWrapper}>
+                  <Lock size={16} style={styles.inputIcon} />
+                  <input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    value={form.confirmPassword}
+                    onChange={set('confirmPassword')}
+                    required
+                    style={styles.input}
+                    placeholder="Re-Enter Password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    style={styles.passwordToggle}
+                    tabIndex={-1}
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              {error && (
+                <div role="alert" style={styles.errorBox}>
+                  <p style={styles.errorText}>{error}</p>
+                </div>
+              )}
+
+              {/* Button: SIGN UP matching wireframe */}
               <button
                 type="submit"
                 disabled={loading || !isFormValid}
@@ -280,56 +287,51 @@ export default function CreateUser() {
                   ...styles.createBtn,
                   opacity: loading || !isFormValid ? 0.6 : 1,
                   cursor: loading || !isFormValid ? 'not-allowed' : 'pointer',
+                  width: '100%',
+                  marginTop: 8,
                 }}
               >
-                {loading ? 'Creating…' : 'Create'}
+                {loading ? 'CREATING…' : 'SIGN UP'}
               </button>
 
-              <button
-                type="button"
-                onClick={() => navigate('/login')}
-                style={styles.cancelBtn}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-
-          <div style={{ marginTop: 20, textAlign: 'center' }}>
-            <Link to="/login" style={styles.loginLink}>
-              Already have an account? <strong style={{ color: 'var(--brown-900)' }}>Sign In</strong>
-            </Link>
+              {/* Forgot Password | Sign In row matching wireframe */}
+              <div style={styles.linksRow}>
+                <Link to="/forgot-password" style={styles.link}>Forgot Password</Link>
+                <span style={styles.linkDivider}>|</span>
+                <Link to="/login" style={styles.link}>Sign In</Link>
+              </div>
+            </form>
           </div>
-        </div>
 
-        {/* Credentials & Role Guidelines sidebar matching wireframe notes */}
-        <div style={styles.infoCard}>
-          <h2 style={styles.infoTitle}>Credential Rules</h2>
-          <ul style={styles.rulesList}>
-            <li style={{ ...styles.ruleItem, color: isLoginIdValid ? 'var(--posted)' : 'var(--brown-700)' }}>
-              <span style={styles.ruleIcon}>{isLoginIdValid ? <Check size={14} /> : '1.'}</span>
-              <span><strong>Login Id:</strong> Unique, 6–12 characters</span>
-            </li>
-            <li style={{ ...styles.ruleItem, color: isEmailValid ? 'var(--posted)' : 'var(--brown-700)' }}>
-              <span style={styles.ruleIcon}>{isEmailValid ? <Check size={14} /> : '2.'}</span>
-              <span><strong>Email:</strong> Valid & not duplicate in database</span>
-            </li>
-            <li style={{ ...styles.ruleItem, color: isPasswordValid ? 'var(--posted)' : 'var(--brown-700)' }}>
-              <span style={styles.ruleIcon}>{isPasswordValid ? <Check size={14} /> : '3.'}</span>
-              <span><strong>Password:</strong> More than 8 characters, lowercase, uppercase, and special character</span>
-            </li>
-          </ul>
+          {/* Credentials & Role Guidelines sidebar matching wireframe notes */}
+          <div style={styles.infoCard}>
+            <h2 style={styles.infoTitle}>Credential Rules</h2>
+            <ul style={styles.rulesList}>
+              <li style={{ ...styles.ruleItem, color: isLoginIdValid ? 'var(--posted)' : 'var(--brown-700)' }}>
+                <span style={styles.ruleIcon}>{isLoginIdValid ? <Check size={14} /> : '1.'}</span>
+                <span><strong>Login Id:</strong> Unique, 6–12 characters</span>
+              </li>
+              <li style={{ ...styles.ruleItem, color: isEmailValid ? 'var(--posted)' : 'var(--brown-700)' }}>
+                <span style={styles.ruleIcon}>{isEmailValid ? <Check size={14} /> : '2.'}</span>
+                <span><strong>Email:</strong> Valid & not duplicate in database</span>
+              </li>
+              <li style={{ ...styles.ruleItem, color: isPasswordValid ? 'var(--posted)' : 'var(--brown-700)' }}>
+                <span style={styles.ruleIcon}>{isPasswordValid ? <Check size={14} /> : '3.'}</span>
+                <span><strong>Password:</strong> More than 8 characters, lowercase, uppercase, and special character</span>
+              </li>
+            </ul>
 
-          <div style={styles.roleGuideContainer}>
-            <h3 style={styles.roleGuideTitle}>Role Privileges:</h3>
-            <div style={styles.roleItem}>
-              <strong>Admin:</strong> Have all access rights across system.
-            </div>
-            <div style={styles.roleItem}>
-              <strong>Accountant:</strong> Create Master data, record Transactions, and View reports. Can manage customers/vendors, access accounting dashboard, create journal entries, invoices, bills, and payments.
-            </div>
-            <div style={styles.roleItem}>
-              <strong>User:</strong> Customer portal access — can view invoices/bills in paid/unpaid status and pay dues.
+            <div style={styles.roleGuideContainer}>
+              <h3 style={styles.roleGuideTitle}>Role Privileges:</h3>
+              <div style={styles.roleItem}>
+                <strong>Admin:</strong> Have all access rights across system.
+              </div>
+              <div style={styles.roleItem}>
+                <strong>Accountant:</strong> Create Master data, record Transactions, and View reports. Can manage customers/vendors, access accounting dashboard, create journal entries, invoices, bills, and payments.
+              </div>
+              <div style={styles.roleItem}>
+                <strong>User:</strong> Customer portal access — can view invoices/bills in paid/unpaid status and pay dues.
+              </div>
             </div>
           </div>
         </div>
@@ -339,6 +341,32 @@ export default function CreateUser() {
 }
 
 const styles = {
+  pageTitle: {
+    fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
+    fontWeight: 700,
+    fontSize: 24,
+    color: 'var(--brown-900, #4A3A34)',
+    textAlign: 'center' as const,
+    marginBottom: 16,
+  } as React.CSSProperties,
+  linksRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    marginTop: 6,
+  } as React.CSSProperties,
+  link: {
+    fontFamily: 'var(--font-body, "DM Sans", sans-serif)',
+    fontSize: 13,
+    color: 'var(--brown-700, #77574A)',
+    textDecoration: 'none',
+    fontWeight: 500,
+  } as React.CSSProperties,
+  linkDivider: {
+    color: 'var(--brown-300, #D0AE92)',
+    fontSize: 13,
+  } as React.CSSProperties,
   page: {
     minHeight: '100vh',
     display: 'flex',

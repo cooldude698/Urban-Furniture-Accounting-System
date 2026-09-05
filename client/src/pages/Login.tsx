@@ -32,97 +32,98 @@ export default function Login() {
 
   return (
     <div style={styles.page}>
-      <div style={styles.card}>
-        {/* App Logo Banner — matches wireframe */}
-        <div style={styles.logoContainer}>
-          <div style={styles.logoBadge}>
-            <span style={styles.logoBadgeText}>UF</span>
-          </div>
-          <div>
-            <span style={styles.logoTitle}>Urban Furniture</span>
-            <span style={styles.logoSubtitle}>Double-Entry Accounting System</span>
-          </div>
-        </div>
+      <div style={{ width: '100%', maxWidth: 420 }}>
+        <h2 style={styles.pageTitle}>Login Page</h2>
 
-        <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <h1 style={styles.title}>Sign In</h1>
-          <p style={styles.subtitle}>Enter your credentials to access your workspace</p>
-        </div>
-
-        <form onSubmit={handleSubmit} style={styles.form} noValidate>
-          <div style={styles.field}>
-            <label htmlFor="loginId" style={styles.label}>Login ID</label>
-            <div style={styles.inputWrapper}>
-              <UserIcon size={16} style={styles.inputIcon} />
-              <input
-                id="loginId"
-                type="text"
-                autoComplete="username"
-                value={loginId}
-                onChange={e => setLoginId(e.target.value)}
-                required
-                minLength={6}
-                maxLength={12}
-                style={styles.input}
-                placeholder="6–12 characters"
-              />
+        <div style={styles.card}>
+          {/* App Logo Banner — matches wireframe */}
+          <div style={styles.logoContainer}>
+            <div style={styles.logoBadge}>
+              <span style={styles.logoBadgeText}>UF</span>
             </div>
-            <span style={styles.fieldHint}>Must be between 6 and 12 characters</span>
-          </div>
-
-          <div style={styles.field}>
-            <label htmlFor="password" style={styles.label}>Password</label>
-            <div style={styles.inputWrapper}>
-              <Lock size={16} style={styles.inputIcon} />
-              <input
-                id="password"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="current-password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-                style={styles.input}
-                placeholder="Enter password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={styles.passwordToggle}
-                tabIndex={-1}
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-              >
-                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-              </button>
+            <div>
+              <span style={styles.logoTitle}>Urban Furniture</span>
+              <span style={styles.logoSubtitle}>Double-Entry Accounting System</span>
             </div>
           </div>
 
-          {error && (
-            <div role="alert" style={styles.errorBox}>
-              <p style={styles.errorText}>{error}</p>
+          <form onSubmit={handleSubmit} style={styles.form} noValidate>
+            <div style={styles.field}>
+              <label htmlFor="loginId" style={styles.label}>Login Id -</label>
+              <div style={styles.inputWrapper}>
+                <UserIcon size={16} style={styles.inputIcon} />
+                <input
+                  id="loginId"
+                  type="text"
+                  autoComplete="username"
+                  value={loginId}
+                  onChange={e => setLoginId(e.target.value)}
+                  required
+                  minLength={6}
+                  maxLength={12}
+                  style={styles.input}
+                  placeholder="Enter Login Id"
+                />
+              </div>
+              <span style={styles.fieldHint}>Must be 6–12 characters</span>
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading || !loginId || !password}
-            style={{
-              ...styles.btn,
-              opacity: loading || !loginId || !password ? 0.6 : 1,
-              cursor: loading || !loginId || !password ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {loading ? 'Signing in…' : 'Sign In'}
-          </button>
-        </form>
+            <div style={styles.field}>
+              <label htmlFor="password" style={styles.label}>Password -</label>
+              <div style={styles.inputWrapper}>
+                <Lock size={16} style={styles.inputIcon} />
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  style={styles.input}
+                  placeholder="Enter Password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={styles.passwordToggle}
+                  tabIndex={-1}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
 
-        <div style={styles.links}>
-          <Link to="/forgot-password" style={styles.link}>Forgot password?</Link>
-          <Link to="/signup" style={styles.linkBold}>Create Account</Link>
-        </div>
+            {error && (
+              <div role="alert" style={styles.errorBox}>
+                <p style={styles.errorText}>{error}</p>
+              </div>
+            )}
 
-        <div style={styles.portalDivider}>
-          <span style={styles.portalText}>External Client or Customer?</span>
-          <a href="/portal" style={styles.portalLink}>Go to Customer Portal &rarr;</a>
+            <button
+              type="submit"
+              disabled={loading || !loginId || !password}
+              style={{
+                ...styles.btn,
+                opacity: loading || !loginId || !password ? 0.6 : 1,
+                cursor: loading || !loginId || !password ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {loading ? 'SIGNING IN…' : 'SIGN IN'}
+            </button>
+
+            {/* Forgot Password | Sign Up row matching wireframe */}
+            <div style={styles.linksRow}>
+              <Link to="/forgot-password" style={styles.link}>Forgot Password</Link>
+              <span style={styles.linkDivider}>|</span>
+              <Link to="/signup" style={styles.link}>Sign Up</Link>
+            </div>
+          </form>
+
+          <div style={styles.portalDivider}>
+            <span style={styles.portalText}>External Client or Customer?</span>
+            <a href="/portal" style={styles.portalLink}>Go to Customer Portal &rarr;</a>
+          </div>
         </div>
       </div>
     </div>
@@ -138,6 +139,14 @@ const styles = {
     background: 'var(--cream, #F9F2E4)',
     padding: 24,
     fontFamily: 'var(--font-body, "DM Sans", sans-serif)',
+  } as React.CSSProperties,
+  pageTitle: {
+    fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
+    fontWeight: 700,
+    fontSize: 24,
+    color: 'var(--brown-900, #4A3A34)',
+    textAlign: 'center' as const,
+    marginBottom: 16,
   } as React.CSSProperties,
   card: {
     background: 'var(--surface, #FFFFFF)',
@@ -288,6 +297,18 @@ const styles = {
     marginTop: 4,
     transition: 'background-color 150ms ease, transform 100ms ease',
     boxShadow: 'var(--shadow-sm, 0 1px 2px rgba(74,58,52,.06))',
+  } as React.CSSProperties,
+  linksRow: {
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 18,
+    fontSize: 13,
+  } as React.CSSProperties,
+  linkDivider: {
+    color: 'var(--brown-300, #D0AE92)',
+    fontWeight: 300,
   } as React.CSSProperties,
   links: {
     display: 'flex',
