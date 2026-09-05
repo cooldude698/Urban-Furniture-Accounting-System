@@ -22,7 +22,7 @@ services:
     command: sh -c "npm install && npm run dev"
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/urban
-      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-me}
+      JWT_SECRET: ${JWT_SECRET:-973feb758c1b75f8eb452e732f71e51a27bcc0725dfff4a9951f54091787bab8}
       NODE_ENV: development
       COOKIE_SECURE: "false"
       CORS_ORIGIN: http://localhost:5173

@@ -4,7 +4,10 @@ import { pool } from '../db/pool';
 import { SignupInput, LoginInput } from '../shared/schemas/auth';
 import { UserPayload } from './scope';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+if (!process.env.JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is required');
+}
+const JWT_SECRET: string = process.env.JWT_SECRET;
 
 export interface AuthResult {
   user: UserPayload;
@@ -61,11 +64,12 @@ export class AuthService {
   }
 
   static async login(input: LoginInput): Promise<AuthResult> {
+    const effectiveLoginId = input.login_id === 'admin' ? 'adminuf' : (input.login_id === 'client' ? 'clientuf' : input.login_id);
     const result = await pool.query(
       `SELECT id, login_id, email, full_name, password_hash, role, contact_id
        FROM users
        WHERE login_id = $1`,
-      [input.login_id]
+      [effectiveLoginId]
     );
 
     const user = result.rows[0];

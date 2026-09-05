@@ -6,14 +6,17 @@ import { UserPayload } from '../services/scope';
 import Decimal from 'decimal.js';
 
 export const contactRouter = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+if (!process.env.JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is required');
+}
+const JWT_SECRET: string = process.env.JWT_SECRET;
 
 // Helper to check portal barrier
 function checkPortalAccess(req: Request, res: Response): boolean {
   const token = req.cookies?.token || (req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null);
   if (token) {
     try {
-      const decoded = jwt.verify(token, JWT_SECRET) as UserPayload;
+      const decoded = jwt.verify(token, JWT_SECRET) as unknown as UserPayload;
       if (decoded.role === 'contact') {
         sendError(
           res,

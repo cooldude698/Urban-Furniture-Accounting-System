@@ -4,7 +4,10 @@ import { UserPayload } from '../services/scope';
 import { AuthService } from '../services/authService';
 import { sendError } from '../utils/response';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+if (!process.env.JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is required');
+}
+const JWT_SECRET: string = process.env.JWT_SECRET;
 
 export interface AuthenticatedRequest extends Request {
   user?: UserPayload;
@@ -23,7 +26,7 @@ export async function requireAuth(
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as UserPayload;
+    const decoded = jwt.verify(token, JWT_SECRET) as unknown as UserPayload;
     // Verify user still exists in DB
     const user = await AuthService.getUserById(decoded.id);
     if (!user) {

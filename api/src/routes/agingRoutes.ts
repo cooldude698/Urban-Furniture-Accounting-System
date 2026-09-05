@@ -5,7 +5,10 @@ import { sendSuccess, sendError } from '../utils/response';
 import { UserPayload } from '../services/scope';
 
 export const agingRouter = Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is required');
+}
 
 // Middleware to block contact users from aging report
 agingRouter.use((req: Request, res: Response, next) => {

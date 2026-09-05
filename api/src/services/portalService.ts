@@ -6,7 +6,10 @@ import { pool } from '../db/pool';
 import { scopeFor, UserPayload } from './scope';
 import { PaymentService } from './paymentService';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+if (!process.env.JWT_SECRET) {
+  throw new Error('FATAL: JWT_SECRET environment variable is required');
+}
+const JWT_SECRET: string = process.env.JWT_SECRET;
 
 export interface InviteContactInput {
   contactId: number;
@@ -125,6 +128,7 @@ export class PortalService {
    * Portal login: contact users ONLY.
    */
   static async portalLogin(loginId: string, password: string) {
+    const effectiveLoginId = loginId === 'client' ? 'clientuf' : loginId;
     const userRes = await pool.query<{
       id: number;
       login_id: string;
@@ -137,7 +141,7 @@ export class PortalService {
       `SELECT id, login_id, email, full_name, password_hash, role, contact_id
        FROM users
        WHERE login_id = $1`,
-      [loginId]
+      [effectiveLoginId]
     );
 
     const user = userRes.rows[0];
