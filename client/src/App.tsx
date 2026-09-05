@@ -11,7 +11,9 @@ import { AnalyticListPage } from './pages/master/AnalyticListPage';
 import { AnalyticFormPage } from './pages/master/AnalyticFormPage';
 import { POListPage } from './pages/purchase/POListPage';
 import { POFormPage } from './pages/purchase/POFormPage';
-import { Users, Package, Landmark, BookOpen, PieChart, ShoppingBag, ShoppingCart } from 'lucide-react';
+import { VendorBillListPage } from './pages/purchase/VendorBillListPage';
+import { VendorBillFormPage } from './pages/purchase/VendorBillFormPage';
+import { Users, Package, Landmark, BookOpen, PieChart, ShoppingCart, FileText } from 'lucide-react';
 
 type NavigationTab = 'Sales' | 'Purchase' | 'Account' | 'Report';
 type ActiveView =
@@ -26,17 +28,20 @@ type ActiveView =
   | 'analytic-list'
   | 'analytic-form'
   | 'po-list'
-  | 'po-form';
+  | 'po-form'
+  | 'bill-list'
+  | 'bill-form';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<NavigationTab>('Purchase');
-  const [activeView, setActiveView] = useState<ActiveView>('po-list');
+  const [activeView, setActiveView] = useState<ActiveView>('bill-list');
   const [selectedContactId, setSelectedContactId] = useState<number | null>(null);
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
   const [selectedJournalId, setSelectedJournalId] = useState<number | null>(null);
   const [selectedAnalyticId, setSelectedAnalyticId] = useState<number | null>(null);
   const [selectedPOId, setSelectedPOId] = useState<number | null>(null);
+  const [selectedBillId, setSelectedBillId] = useState<number | null>(null);
 
   const navTabs: NavigationTab[] = ['Sales', 'Purchase', 'Account', 'Report'];
 
@@ -69,7 +74,7 @@ export function App() {
                   key={tab}
                   onClick={() => {
                     setActiveTab(tab);
-                    if (tab === 'Purchase') setActiveView('po-list');
+                    if (tab === 'Purchase') setActiveView('bill-list');
                     if (tab === 'Account') setActiveView('account-list');
                   }}
                   className={`px-4 py-2 font-medium text-sm rounded-lg transition-all relative ${
@@ -106,6 +111,18 @@ export function App() {
               >
                 <ShoppingCart className="w-3.5 h-3.5" />
                 Purchase Orders
+              </button>
+
+              <button
+                onClick={() => setActiveView('bill-list')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium transition-colors ${
+                  activeView === 'bill-list' || activeView === 'bill-form'
+                    ? 'bg-brown-700 text-cream shadow-xs'
+                    : 'text-brown-700 hover:bg-brown-200/60'
+                }`}
+              >
+                <FileText className="w-3.5 h-3.5" />
+                Vendor Bills
               </button>
             </div>
           </div>
@@ -183,6 +200,7 @@ export function App() {
       <main className="flex-1 flex flex-col">
         {activeTab === 'Purchase' && (
           <>
+            {/* Purchase Orders */}
             {activeView === 'po-list' && (
               <POListPage
                 onSelectPO={id => {
@@ -204,6 +222,39 @@ export function App() {
                   setActiveView('po-list');
                 }}
                 onHome={() => setActiveView('po-list')}
+                onCreateBillSuccess={billId => {
+                  setSelectedBillId(billId);
+                  setActiveView('bill-form');
+                }}
+              />
+            )}
+
+            {/* Vendor Bills */}
+            {activeView === 'bill-list' && (
+              <VendorBillListPage
+                onSelectBill={id => {
+                  setSelectedBillId(id);
+                  setActiveView('bill-form');
+                }}
+                onNewBill={() => {
+                  setSelectedBillId(null);
+                  setActiveView('bill-form');
+                }}
+              />
+            )}
+            {activeView === 'bill-form' && (
+              <VendorBillFormPage
+                billId={selectedBillId}
+                onBack={() => setActiveView('bill-list')}
+                onSaved={id => {
+                  setSelectedBillId(id);
+                  setActiveView('bill-list');
+                }}
+                onHome={() => setActiveView('bill-list')}
+                onViewPO={poId => {
+                  setSelectedPOId(poId);
+                  setActiveView('po-form');
+                }}
               />
             )}
           </>
@@ -346,16 +397,16 @@ export function App() {
               </div>
               <h2 className="text-xl font-heading font-bold text-brown-900 mb-2">{activeTab} Module</h2>
               <p className="text-sm text-brown-500 mb-6">
-                Purchase Orders and Master Data are fully operational in the Purchase & Account menus.
+                Purchase Orders, Vendor Bills, and Master Data are live in the Purchase & Account menus.
               </p>
               <button
                 onClick={() => {
                   setActiveTab('Purchase');
-                  setActiveView('po-list');
+                  setActiveView('bill-list');
                 }}
                 className="bg-brown-700 text-cream px-4 py-2 rounded-lg text-sm font-medium hover:bg-brown-800"
               >
-                Go to Purchase Orders
+                Go to Vendor Bills
               </button>
             </div>
           </div>

@@ -76,7 +76,7 @@
       "cost_price": "28000.00",
       "mrp": "52000.00",
       "tax_rate": "18.00",
-      "stock_qty": 15,
+      "stock_qty": 18,
       "is_archived": false,
       "created_at": "2026-09-05T08:53:08.894Z",
       "updated_at": "2026-09-05T08:53:08.894Z"
@@ -214,6 +214,24 @@
       "is_archived": false,
       "created_at": "2026-09-05T09:06:08.644Z",
       "updated_at": "2026-09-05T09:06:08.644Z"
+    },
+    {
+      "id": 9,
+      "code": "1004",
+      "name": "Input Tax",
+      "type": "asset",
+      "is_archived": false,
+      "created_at": "2026-09-05T09:13:59.641Z",
+      "updated_at": "2026-09-05T09:13:59.641Z"
+    },
+    {
+      "id": 10,
+      "code": "2002",
+      "name": "Output Tax",
+      "type": "liability",
+      "is_archived": false,
+      "created_at": "2026-09-05T09:13:59.641Z",
+      "updated_at": "2026-09-05T09:13:59.641Z"
     }
   ],
   "journals": [
@@ -347,10 +365,33 @@
       "vendor_id": 1,
       "bill_date": "2026-09-05",
       "due_date": "2026-10-05",
-      "status": "draft",
+      "status": "confirmed",
       "total_amount": "28000.00",
       "created_at": "2026-09-05T09:06:52.487Z",
-      "updated_at": "2026-09-05T09:06:52.487Z"
+      "updated_at": "2026-09-05T09:14:12.334Z",
+      "journal_entry_id": 2
+    },
+    {
+      "id": 2,
+      "number": "Bill/2026/0002",
+      "bill_reference": "INV-SUP-2026-991",
+      "po_id": null,
+      "vendor_id": 1,
+      "bill_date": "2026-09-05",
+      "due_date": "2026-10-05",
+      "status": "confirmed",
+      "total_amount": "56000.00",
+      "tax_amount": "10080.00",
+      "grand_total": "66080.00",
+      "amount_paid": "0.00",
+      "amount_due": "66080.00",
+      "payment_status": "not_paid",
+      "paid_via_cash": "0.00",
+      "paid_via_bank": "0.00",
+      "journal_entry_id": 1,
+      "lines": [],
+      "created_at": "2026-09-05T09:13:59.629Z",
+      "updated_at": "2026-09-05T09:13:59.641Z"
     }
   ],
   "vendor_bill_lines": [
@@ -365,9 +406,38 @@
       "unit_price": "28000.00",
       "tax_rate": "18.00",
       "total": "28000.00"
+    },
+    {
+      "id": 2,
+      "bill_id": 2,
+      "sr_no": 1,
+      "product_id": 1,
+      "account_id": 6,
+      "analytic_account_id": 1,
+      "qty": 2,
+      "unit_price": "28000.00",
+      "tax_rate": "18.00",
+      "subtotal": "56000.00",
+      "tax_amount": "10080.00",
+      "total": "66080.00"
     }
   ],
-  "stock_moves": [],
+  "stock_moves": [
+    {
+      "id": 1,
+      "product_id": 1,
+      "qty_change": 2,
+      "reference": "Vendor Bill Bill/2026/0002",
+      "created_at": "2026-09-05T09:13:59.641Z"
+    },
+    {
+      "id": 2,
+      "product_id": 1,
+      "qty_change": 1,
+      "reference": "Vendor Bill Bill/2026/0001",
+      "created_at": "2026-09-05T09:14:12.334Z"
+    }
+  ],
   "audit_log": [
     {
       "id": 1,
@@ -433,6 +503,30 @@
       "action": "CREATE_BILL_FROM_PO",
       "new_data": "{\"bill\":{\"id\":1,\"number\":\"Bill/2026/0001\",\"bill_reference\":\"\",\"po_id\":1,\"vendor_id\":1,\"bill_date\":\"2026-09-05\",\"due_date\":\"2026-10-05\",\"status\":\"draft\",\"total_amount\":\"28000.00\",\"created_at\":\"2026-09-05T09:06:52.487Z\",\"updated_at\":\"2026-09-05T09:06:52.487Z\"},\"po_id\":1}",
       "timestamp": "2026-09-05T09:06:52.487Z"
+    },
+    {
+      "id": 9,
+      "table_name": "vendor_bills",
+      "record_id": 2,
+      "action": "CREATE_BILL",
+      "new_data": "{\"bill\":{\"id\":2,\"number\":\"Bill/2026/0002\",\"bill_reference\":\"INV-SUP-2026-991\",\"po_id\":null,\"vendor_id\":1,\"bill_date\":\"2026-09-05\",\"due_date\":\"2026-10-05\",\"status\":\"draft\",\"total_amount\":\"56000.00\",\"tax_amount\":\"10080.00\",\"grand_total\":\"66080.00\",\"amount_paid\":\"0.00\",\"amount_due\":\"66080.00\",\"payment_status\":\"not_paid\",\"paid_via_cash\":\"0.00\",\"paid_via_bank\":\"0.00\",\"journal_entry_id\":null,\"lines\":[],\"created_at\":\"2026-09-05T09:13:59.629Z\",\"updated_at\":\"2026-09-05T09:13:59.629Z\"},\"lines\":[{\"sr_no\":1,\"product_id\":1,\"account_id\":6,\"analytic_account_id\":1,\"qty\":2,\"unit_price\":\"28000.00\",\"tax_rate\":\"18.00\",\"subtotal\":\"56000.00\",\"tax_amount\":\"10080.00\",\"total\":\"66080.00\"}]}",
+      "timestamp": "2026-09-05T09:13:59.629Z"
+    },
+    {
+      "id": 10,
+      "table_name": "vendor_bills",
+      "record_id": 2,
+      "action": "CONFIRM_BILL",
+      "new_data": "{\"status\":\"confirmed\",\"journal_entry_id\":1}",
+      "timestamp": "2026-09-05T09:13:59.641Z"
+    },
+    {
+      "id": 11,
+      "table_name": "vendor_bills",
+      "record_id": 1,
+      "action": "CONFIRM_BILL",
+      "new_data": "{\"status\":\"confirmed\",\"journal_entry_id\":2}",
+      "timestamp": "2026-09-05T09:14:12.334Z"
     }
   ],
   "doc_sequences": [
@@ -445,8 +539,92 @@
     {
       "code": "BILL",
       "prefix": "Bill/2026/",
-      "current_value": 1,
+      "current_value": 2,
       "padding": 4
+    }
+  ],
+  "journal_entries": [
+    {
+      "id": 1,
+      "number": "JE/2026/0001",
+      "journal_id": 2,
+      "date": "2026-09-05",
+      "reference": "Bill/2026/0002",
+      "source_type": "bill",
+      "source_id": 2,
+      "status": "posted",
+      "total_amount": "66080.00",
+      "created_at": "2026-09-05T09:13:59.641Z",
+      "updated_at": "2026-09-05T09:13:59.641Z"
+    },
+    {
+      "id": 2,
+      "number": "JE/2026/0002",
+      "journal_id": 2,
+      "date": "2026-09-05",
+      "reference": "Bill/2026/0001",
+      "source_type": "bill",
+      "source_id": 1,
+      "status": "posted",
+      "total_amount": "33040.00",
+      "created_at": "2026-09-05T09:14:12.334Z",
+      "updated_at": "2026-09-05T09:14:12.334Z"
+    }
+  ],
+  "journal_entry_lines": [
+    {
+      "id": 1,
+      "entry_id": 1,
+      "account_id": 6,
+      "partner_id": 1,
+      "analytic_account_id": 1,
+      "debit": "56000.00",
+      "credit": "0.00"
+    },
+    {
+      "id": 2,
+      "entry_id": 1,
+      "account_id": 9,
+      "partner_id": 1,
+      "analytic_account_id": null,
+      "debit": "10080.00",
+      "credit": "0.00"
+    },
+    {
+      "id": 3,
+      "entry_id": 1,
+      "account_id": 4,
+      "partner_id": 1,
+      "analytic_account_id": null,
+      "debit": "0.00",
+      "credit": "66080.00"
+    },
+    {
+      "id": 4,
+      "entry_id": 2,
+      "account_id": 6,
+      "partner_id": 1,
+      "analytic_account_id": 1,
+      "debit": "28000.00",
+      "credit": "0.00"
+    },
+    {
+      "id": 5,
+      "entry_id": 2,
+      "account_id": 9,
+      "partner_id": 1,
+      "analytic_account_id": null,
+      "debit": "5040.00",
+      "credit": "0.00"
+    },
+    {
+      "id": 6,
+      "entry_id": 2,
+      "account_id": 4,
+      "partner_id": 1,
+      "analytic_account_id": null,
+      "debit": "0.00",
+      "credit": "33040.00"
     }
   ]
 }

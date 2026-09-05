@@ -17,7 +17,8 @@
     "paths": {
       "@/*": ["src/*"],
       "@shared/*": ["../shared/*"],
-      "zod": ["node_modules/zod"]
+      "zod": ["node_modules/zod"],
+      "decimal.js": ["node_modules/decimal.js"]
     }
   },
   "include": ["src", "../shared"]
