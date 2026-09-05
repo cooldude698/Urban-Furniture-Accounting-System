@@ -1,61 +1,205 @@
 import React from 'react';
+import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { usePortalAuth } from './PortalAuthGuard';
 
-interface PortalLayoutProps {
-  user: {
-    id: number;
-    login_id: string;
-    email: string;
-    full_name: string;
-  } | null;
-  onLogout: () => void;
-  children: React.ReactNode;
-}
+export const PortalLayout: React.FC = () => {
+  const { user, logout } = usePortalAuth();
+  const navigate = useNavigate();
 
-export const PortalLayout: React.FC<PortalLayoutProps> = ({ user, onLogout, children }) => {
+  /* True when an internal staff member has also authenticated on the main app.
+     This is a UI-only hint — the portal API remains independently scoped.
+     Pure portal contacts never have this flag set. */
+  const isInternalStaff = localStorage.getItem('urban_logged_in') === 'true';
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/portal/login', { replace: true });
+  };
+
   return (
-    <div className="min-h-screen bg-cream text-brown-900 flex flex-col font-body">
-      {/* Top Portal Header */}
-      <header className="bg-surface text-brown-900 px-8 py-3.5 flex items-center justify-between shadow-xs border-b border-brown-300/40 sticky top-0 z-40">
-        <div className="flex items-center space-x-3.5">
-          <div className="w-8 h-8 bg-brown-900 rounded-[6px] flex items-center justify-center text-cream font-bold font-display text-sm shadow-xs">
+    <div style={{ minHeight: '100vh', background: 'var(--cream)', color: 'var(--brown-900)', display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-body)' }}>
+
+      {/* ── Portal Header — brown-900 bg, cream text ── */}
+      <header
+        style={{
+          backgroundColor: 'var(--brown-900)',
+          color: 'var(--cream)',
+          borderBottom: '1px solid rgba(74, 58, 52, 0.35)',
+          boxShadow: 'var(--shadow-sm)',
+          padding: '0 32px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          position: 'sticky',
+          top: 0,
+          zIndex: 40,
+          height: 56,
+        }}
+      >
+        {/* Brand mark */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {/* UF square: brown-700 fill, cream text per spec */}
+          <div
+            style={{
+              width: 32, height: 32,
+              borderRadius: 6,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--font-display)',
+              fontWeight: 700,
+              fontSize: 13,
+              backgroundColor: 'var(--brown-700)',
+              color: 'var(--cream)',
+              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)',
+            }}
+          >
             UF
           </div>
           <div>
-            <span className="font-display font-bold text-base tracking-tight block text-brown-900 leading-tight">
+            <span
+              style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 15, letterSpacing: '-0.01em', color: 'var(--cream)', display: 'block', lineHeight: '20px' }}
+            >
               Urban Furniture
             </span>
-            <span className="text-[10px] uppercase font-mono tracking-widest text-brown-600 font-semibold block">
+            {/* Subtitle: brown-300 text per spec */}
+            <span
+              style={{ fontSize: 10, textTransform: 'uppercase', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em', fontWeight: 600, color: 'var(--brown-300)', display: 'block' }}
+            >
               Customer Portal Surface
             </span>
           </div>
         </div>
 
-        {user && (
-          <div className="flex items-center space-x-5">
-            <div className="text-right hidden sm:block">
-              <span className="text-xs font-semibold text-brown-900 block">{user.full_name}</span>
-              <span className="text-[11px] text-brown-600 font-mono">{user.email}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+          {/* Tab navigation — pill switcher inside the dark header */}
+          <nav
+            style={{
+              display: 'flex', alignItems: 'center', gap: 4,
+              padding: 4,
+              borderRadius: 10,
+              backgroundColor: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.12)',
+            }}
+          >
+            {[{ to: '/portal/invoices', label: 'Customer Invoices' }, { to: '/portal/bills', label: 'Vendor Bills' }].map(({ to, label }) => (
+              <NavLink
+                key={to}
+                to={to}
+                style={({ isActive }) => ({
+                  padding: '6px 14px',
+                  fontSize: 12,
+                  fontFamily: 'var(--font-display)',
+                  fontWeight: 700,
+                  borderRadius: 7,
+                  textDecoration: 'none',
+                  transition: 'all 120ms ease-out',
+                  backgroundColor: isActive ? 'var(--cream)' : 'transparent',
+                  color: isActive ? 'var(--brown-900)' : 'var(--brown-300)',
+                })}
+              >
+                {label}
+              </NavLink>
+            ))}
+          </nav>
+
+          {/* Right side: back-to-ERP (staff only) + user info + sign out */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+
+            {/* ← Back to Internal App — only visible to internal staff */}
+            {isInternalStaff && (
+              <a
+                href="/dashboard"
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-body)',
+                  color: 'var(--brown-300)',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  padding: '4px 0',
+                  borderBottom: '1px solid transparent',
+                  transition: 'color 120ms ease, border-color 120ms ease',
+                  whiteSpace: 'nowrap',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.color = 'var(--cream)';
+                  e.currentTarget.style.borderBottomColor = 'var(--cream)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.color = 'var(--brown-300)';
+                  e.currentTarget.style.borderBottomColor = 'transparent';
+                }}
+                title="Return to the Internal ERP"
+              >
+                <span style={{ fontSize: 10, opacity: 0.8 }}>←</span>
+                <span>Internal App</span>
+              </a>
+            )}
+
+            {/* User name + email */}
+            <div style={{ textAlign: 'right' }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--cream)', display: 'block', fontFamily: 'var(--font-body)' }}>
+                {user.full_name}
+              </span>
+              <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--brown-300)', display: 'block' }}>
+                {user.email}
+              </span>
             </div>
+
+            {/* Sign out */}
             <button
-              onClick={onLogout}
-              className="px-3.5 py-1.5 text-xs font-semibold bg-transparent hover:bg-brown-100 text-brown-800 border border-brown-400 rounded-[8px] transition-colors font-body cursor-pointer"
+              onClick={handleLogout}
+              style={{
+                padding: '6px 14px',
+                fontSize: 12,
+                fontFamily: 'var(--font-body)',
+                fontWeight: 600,
+                color: 'var(--cream)',
+                background: 'transparent',
+                border: '1px solid rgba(255,255,255,0.20)',
+                borderRadius: 'var(--radius-sm)',
+                cursor: 'pointer',
+                transition: 'background 120ms ease-out',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.10)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
             >
               Sign Out
             </button>
           </div>
-        )}
+        </div>
       </header>
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-6xl w-full mx-auto py-8 px-6 font-body">
-        {children}
+      {/* ── Main content — cream background ── */}
+      <main
+        style={{
+          flex: 1,
+          maxWidth: '72rem',
+          width: '100%',
+          margin: '0 auto',
+          padding: '32px 24px 64px',
+          fontFamily: 'var(--font-body)',
+        }}
+      >
+        <Outlet />
       </main>
 
-      {/* Footer */}
-      <footer className="py-6 border-t border-brown-300/30 text-center text-xs text-brown-600 font-medium font-body bg-cream">
-        Urban Furniture Customer Portal • Secure Restricted Surface • Offline Double-Entry Ledger
+      {/* ── Footer ── */}
+      <footer
+        style={{
+          padding: '20px 0',
+          textAlign: 'center',
+          fontSize: 12,
+          fontFamily: 'var(--font-body)',
+          fontWeight: 500,
+          borderTop: '1px solid rgba(74, 58, 52, 0.18)',
+          color: 'var(--brown-500)',
+          backgroundColor: 'var(--cream)',
+        }}
+      >
+        Urban Furniture Customer Portal &bull; Secure Restricted Surface &bull; Offline Double-Entry Ledger
       </footer>
     </div>
   );
 };
-
