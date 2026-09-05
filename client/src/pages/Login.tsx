@@ -63,8 +63,9 @@ export default function Login() {
         localStorage.setItem('urban_user', JSON.stringify(res.data.data.user));
       }
       navigate('/dashboard', { replace: true });
-    } catch {
-      setError('Invalid Login Id or Password');
+    } catch (err: any) {
+      const msg = err?.response?.data?.error?.message || (err?.message ? `Connection error: ${err.message}` : 'Invalid Login Id or Password');
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -136,6 +137,44 @@ export default function Login() {
               <Link to="/create-user" style={styles.inactiveTab}>
                 Create Account
               </Link>
+            </div>
+
+            {/* Quick-fill helper */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 12px',
+                background: 'var(--cream, #F9F2E4)',
+                borderRadius: 6,
+                marginBottom: 16,
+                border: '1px dashed var(--brown-300, #D0AE92)',
+              }}
+            >
+              <div style={{ fontSize: '0.78rem', color: 'var(--brown-700, #77574A)' }}>
+                Demo: <strong>adminuf</strong> / <strong>Admin@12345</strong>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginId('adminuf');
+                  setPassword('Admin@12345');
+                  setError('');
+                }}
+                style={{
+                  background: 'var(--brown-900, #4A3A34)',
+                  color: 'var(--cream, #F9F2E4)',
+                  border: 'none',
+                  borderRadius: 4,
+                  padding: '4px 10px',
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Auto-Fill
+              </button>
             </div>
 
             <form onSubmit={handleAdminSubmit} style={styles.form} noValidate>
@@ -242,6 +281,44 @@ export default function Login() {
             <p style={styles.customerNotice}>
               Restricted to invited customer contacts & client representatives
             </p>
+
+            {/* Quick-fill helper */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 12px',
+                background: 'var(--cream, #F9F2E4)',
+                borderRadius: 6,
+                marginBottom: 16,
+                border: '1px dashed var(--brown-300, #D0AE92)',
+              }}
+            >
+              <div style={{ fontSize: '0.78rem', color: 'var(--brown-700, #77574A)' }}>
+                Demo: <strong>clientuf</strong> / <strong>Client@12345</strong>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomerLoginId('clientuf');
+                  setCustomerPassword('Client@12345');
+                  setCustomerError('');
+                }}
+                style={{
+                  background: 'var(--brown-900, #4A3A34)',
+                  color: 'var(--cream, #F9F2E4)',
+                  border: 'none',
+                  borderRadius: 4,
+                  padding: '4px 10px',
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+              >
+                Auto-Fill
+              </button>
+            </div>
 
             <form onSubmit={handleCustomerSubmit} style={styles.form} noValidate>
               {/* Customer Login Id - */}
