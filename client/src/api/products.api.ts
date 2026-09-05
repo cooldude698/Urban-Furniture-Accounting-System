@@ -82,4 +82,13 @@ export const ProductsApi = {
 
   getInventoryAnalytics: () =>
     apiRequest<InventoryAnalytics>('/api/products/inventory-analytics'),
+
+  getAvailableModels: () =>
+    apiRequest<{ id: string; filename: string; name: string; category?: string; url: string; sizeKB: string }[]>('/api/portal/models'),
+
+  uploadModel: (filename: string, fileData: string) =>
+    apiRequest<{ filename: string; model_url: string; sizeKB: string }>('/api/products/upload-model', {
+      method: 'POST',
+      body: JSON.stringify({ filename, fileData }),
+    }),
 };

@@ -242,16 +242,49 @@ export class VoiceBillService {
   }
 
   /**
+   * Fetches all active products directly from the PostgreSQL database
+   */
+  static async getCatalogProducts(): Promise<Array<{
+    id: number;
+    name: string;
+    sku: string | null;
+    type: string;
+    category: string | null;
+    salesPrice: string;
+    taxRate: string;
+    stockQty: string;
+  }>> {
+    const res = await pool.query(`
+      SELECT id, name, sku, type, category,
+             sales_price::TEXT as "salesPrice",
+             tax_rate::TEXT as "taxRate",
+             COALESCE(stock_qty, 0)::TEXT as "stockQty"
+      FROM products
+      WHERE is_archived = false
+      ORDER BY name ASC;
+    `);
+    return res.rows;
+  }
+
+  /**
    * Calls the locally-hosted Ollama LLM service for slot extraction.
    * Prompts Ollama with the exact extraction schema, temperature 0.1, format: "json".
    * Retries once on JSON parse error. Gracefully degrades to null if unreachable or on error.
    */
-  static async callOllamaExtraction(text: string, isRetry = false): Promise<OllamaExtractionResult | null> {
+  static async callOllamaExtraction(
+    text: string,
+    isRetry = false,
+    catalogProducts: string[] = []
+  ): Promise<OllamaExtractionResult | null> {
     const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://ollama:11434';
     const model = process.env.OLLAMA_MODEL || 'qwen2.5:7b';
     const timeoutMs = parseInt(process.env.OLLAMA_TIMEOUT_MS || '20000', 10);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    const catalogGrounding = catalogProducts.length > 0
+      ? `\n4. Database Catalog: [${catalogProducts.slice(0, 50).join(', ')}]. If the user mentions any of these products (in English, Hindi, or phonetically), map it to the catalog product name.`
+      : '';
 
     const baseSystemPrompt = `You are a billing assistant that extracts structured data from a customer's message, which may be in English, Hindi, or a mix of both. Extract the following fields if present: customer_name, phone (10 digits), and a list of line_items, each with product, qty, price, and discount_percent. Return ONLY valid JSON in this exact shape, with no explanation, no markdown formatting, no extra text:
 
@@ -266,7 +299,7 @@ export class VoiceBillService {
 Rules:
 1. If a field is not mentioned or unclear, use null — do not guess or invent values.
 2. If the product name is informal or misspelled, return it as-is; do not try to correct it.
-3. Units of count (e.g. piece, pieces, pcs, pc, units, items, पीस, नग) are NOT product names. If a message contains only a quantity and a unit (e.g. "two pieces", "2 pcs", "दो पीस"), extract the qty and set product to null.`;
+3. Units of count (e.g. piece, pieces, pcs, pc, units, items, पीस, नग) are NOT product names. If a message contains only a quantity and a unit (e.g. "two pieces", "2 pcs", "दो पीस"), extract the qty and set product to null.${catalogGrounding}`;
 
     const systemPrompt = isRetry
       ? `${baseSystemPrompt}\n\nReturn ONLY the JSON object, nothing else.`
@@ -370,8 +403,8 @@ Rules:
       console.warn('Failed to query products for parser:', err);
     }
 
-    // 2. Call Ollama LLM Extraction (Model-first)
-    const llmResult = await this.callOllamaExtraction(text);
+    // 2. Call Ollama LLM Extraction (Model-first with live database catalog context)
+    const llmResult = await this.callOllamaExtraction(text, false, knownProductNames);
 
     // 3. Run Deterministic Parser (Mandatory fallback & verification cross-check)
     const detParsed: ParsedSlots = VoiceBillParser.parse(text, knownProductNames);
