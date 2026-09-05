@@ -618,3 +618,52 @@ CREATE TABLE payment_intents (
 CREATE INDEX idx_pi_invoice ON payment_intents(invoice_id);
 CREATE INDEX idx_pi_status  ON payment_intents(status);
 
+-- ============================================================
+-- Business Template Library
+-- ============================================================
+
+CREATE TABLE template_categories (
+  id          INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name        TEXT NOT NULL UNIQUE,
+  slug        TEXT NOT NULL UNIQUE,
+  icon        TEXT,
+  sort_order  INTEGER NOT NULL DEFAULT 0,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE templates (
+  id                  INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  name                TEXT NOT NULL,
+  slug                TEXT NOT NULL UNIQUE,
+  category_id         INTEGER NOT NULL REFERENCES template_categories(id),
+  profession          TEXT NOT NULL,
+  description         TEXT NOT NULL,
+  file_type           TEXT NOT NULL DEFAULT 'XLSX / CSV / PDF',
+  version             TEXT NOT NULL DEFAULT '1.0.0',
+  source_type         TEXT NOT NULL DEFAULT 'Urban Furniture ERP — Original Template',
+  license_note        TEXT NOT NULL DEFAULT 'Open Business Format — Free for commercial & operational use',
+  is_active           BOOLEAN NOT NULL DEFAULT true,
+  fields_json         JSONB NOT NULL DEFAULT '[]',
+  structure_json      JSONB NOT NULL DEFAULT '{}',
+  preview_data_json   JSONB NOT NULL DEFAULT '{}',
+  formula_notes       TEXT,
+  erp_data_source     TEXT,
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE user_templates (
+  id                  INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id             INTEGER NOT NULL REFERENCES users(id),
+  template_id         INTEGER NOT NULL REFERENCES templates(id) ON DELETE CASCADE,
+  name                TEXT NOT NULL,
+  configuration_json  JSONB NOT NULL DEFAULT '{}',
+  custom_data_json    JSONB NOT NULL DEFAULT '{}',
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_templates_cat ON templates(category_id);
+CREATE INDEX idx_templates_slug ON templates(slug);
+CREATE INDEX idx_user_templates_user ON user_templates(user_id);
+
