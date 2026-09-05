@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import api from '../../lib/axios';
 
 export interface PortalBillListItem {
   id: number;
@@ -23,16 +24,15 @@ export const PortalBillList: React.FC = () => {
 
   useEffect(() => {
     setLoading(true);
-    fetch('/api/portal/bills')
-      .then(res => res.json())
-      .then(json => {
-        if (json.data) {
-          setBills(json.data);
-        } else if (json.error) {
-          setError(json.error.message);
+    api.get('/api/portal/bills')
+      .then(res => {
+        if (res.data?.data) {
+          setBills(res.data.data);
+        } else if (res.data?.error) {
+          setError(res.data.error.message);
         }
       })
-      .catch(err => setError(err.message))
+      .catch(err => setError(err?.response?.data?.error?.message || err.message))
       .finally(() => setLoading(false));
   }, []);
 

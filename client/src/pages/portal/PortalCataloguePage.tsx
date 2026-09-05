@@ -5,6 +5,7 @@ import { Box, Eye, Sparkles, SlidersHorizontal, Search, Check, ShoppingBag, Arro
 import { formatINR } from '../../lib/money';
 import { RoomArrangerDrawer, ROOM_PRESETS, type ArrangedItem, type RoomPreset } from './RoomArrangerDrawer';
 import { usePortalAuth } from './PortalAuthGuard';
+import api from '../../lib/axios';
 
 export interface CatalogueProduct {
   id: number;
@@ -54,18 +55,14 @@ export const PortalCataloguePage: React.FC = () => {
 
   useEffect(() => {
     // Fetch catalogue
-    fetch('/api/portal/catalogue')
+    api.get('/api/portal/catalogue')
       .then((res) => {
-        if (!res.ok) throw new Error('Failed to load catalogue');
-        return res.json();
-      })
-      .then((json) => {
-        if (json.data) {
-          setProducts(json.data);
+        if (res.data?.data) {
+          setProducts(res.data.data);
         }
       })
       .catch((err) => {
-        setError(err.message || 'Error loading catalogue');
+        setError(err?.response?.data?.error?.message || err.message || 'Error loading catalogue');
       })
       .finally(() => {
         setLoading(false);

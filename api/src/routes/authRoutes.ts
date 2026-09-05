@@ -45,7 +45,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    return sendSuccess(res, { user: result.user }, 200);
+    return sendSuccess(res, { user: result.user, token: result.token }, 200);
   } catch (err: any) {
     // Exact error message required: "Invalid Login Id or Password"
     return sendError(res, 'INVALID_CREDENTIALS', 'Invalid Login Id or Password', 401);

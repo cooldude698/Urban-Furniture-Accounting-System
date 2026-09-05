@@ -6,6 +6,7 @@ import type { ListColumn } from '../../components/ui/ListView';
 import StatusBadge from '../../components/ui/StatusBadge';
 import { formatINRCompact, formatINR } from '../../lib/money';
 import { loadRazorpayScript } from '../../lib/razorpay';
+import api from '../../lib/axios';
 
 export interface PortalInvoiceListItem {
   id: number;
@@ -93,16 +94,15 @@ export const PortalInvoiceList: React.FC = () => {
 
   const fetchInvoices = useCallback(() => {
     setLoading(true);
-    fetch('/api/portal/invoices')
-      .then(res => res.json())
-      .then(json => {
-        if (json.data) {
-          setInvoices(json.data);
-        } else if (json.error) {
-          setError(json.error.message);
+    api.get('/api/portal/invoices')
+      .then(res => {
+        if (res.data?.data) {
+          setInvoices(res.data.data);
+        } else if (res.data?.error) {
+          setError(res.data.error.message);
         }
       })
-      .catch(err => setError(err.message))
+      .catch(err => setError(err?.response?.data?.error?.message || err.message))
       .finally(() => setLoading(false));
   }, []);
 
@@ -119,17 +119,14 @@ export const PortalInvoiceList: React.FC = () => {
         throw new Error('Could not load Razorpay Payment Gateway SDK');
       }
 
-      const orderRes = await fetch(`/api/portal/invoices/${row.id}/razorpay/create-order`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: new Decimal(row.amountDue).toFixed(2) }),
+      const orderRes = await api.post(`/api/portal/invoices/${row.id}/razorpay/create-order`, {
+        amount: new Decimal(row.amountDue).toFixed(2),
       });
-      const orderJson = await orderRes.json();
-      if (!orderRes.ok || orderJson.error) {
-        throw new Error(orderJson.error?.message || 'Failed to create Razorpay payment order');
+      const order = orderRes.data?.data;
+      if (!order) {
+        throw new Error(orderRes.data?.error?.message || 'Failed to create Razorpay payment order');
       }
 
-      const order = orderJson.data;
       const rzpKey = (window as any).__VITE_RAZORPAY_KEY_ID__ || (import.meta as any).env?.VITE_RAZORPAY_KEY_ID || 'rzp_test_TYL9FJAZxMYoFc';
 
       const rzp = new (window as any).Razorpay({
@@ -142,25 +139,20 @@ export const PortalInvoiceList: React.FC = () => {
         theme: { color: '#77574A' },
         handler: async (response: any) => {
           try {
-            const verifyRes = await fetch(`/api/portal/invoices/${row.id}/razorpay/verify-payment`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_signature: response.razorpay_signature,
-                amount: new Decimal(row.amountDue).toFixed(2),
-              }),
+            const verifyRes = await api.post(`/api/portal/invoices/${row.id}/razorpay/verify-payment`, {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              amount: new Decimal(row.amountDue).toFixed(2),
             });
-            const verifyJson = await verifyRes.json();
-            if (!verifyRes.ok || verifyJson.error) {
-              throw new Error(verifyJson.error?.message || 'Payment signature verification failed');
+            if (verifyRes.data?.error) {
+              throw new Error(verifyRes.data.error.message || 'Payment signature verification failed');
             }
 
             setSuccessNotice(`Payment ${response.razorpay_payment_id} verified & posted to General Ledger! PDF receipt dispatched.`);
             fetchInvoices();
           } catch (vErr: any) {
-            setActionError(vErr.message || 'Signature verification failed');
+            setActionError(vErr?.response?.data?.error?.message || vErr.message || 'Signature verification failed');
           } finally {
             setPayingId(null);
           }

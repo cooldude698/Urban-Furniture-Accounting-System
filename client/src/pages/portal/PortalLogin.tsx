@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ChairIcon } from '../../components/ui/BrandLogo';
+import api from '../../lib/axios';
 
 /* ─── tiny shared style objects — avoids repeating var(--token) strings ─── */
 const inputStyle: React.CSSProperties = {
@@ -48,21 +49,36 @@ export const PortalLogin: React.FC = () => {
     setError(null);
     setLoading(true);
 
+    const trimmedLogin = loginId.trim();
+    if (!trimmedLogin) {
+      setError('Please enter your Login ID or Email');
+      setLoading(false);
+      return;
+    }
+    if (!password) {
+      setError('Please enter your password');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const res = await fetch('/api/portal/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ login_id: loginId, password }),
+      const res = await api.post('/api/portal/login', {
+        login_id: trimmedLogin,
+        loginId: trimmedLogin,
+        password,
       });
 
-      const json = await res.json();
-      if (!res.ok || json.error) {
-        throw new Error(json.error?.message || 'Invalid Login ID or Password');
+      if (res.data?.data?.user) {
+        localStorage.setItem('urban_portal_user', JSON.stringify(res.data.data.user));
+      }
+      if (res.data?.data?.token) {
+        localStorage.setItem('urban_portal_token', res.data.data.token);
       }
 
       navigate('/portal/invoices', { replace: true });
     } catch (err: any) {
-      setError(err.message || 'Login failed');
+      const msg = err?.response?.data?.error?.message || err?.message || 'Invalid Login ID or Password';
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -257,6 +273,9 @@ export const PortalLogin: React.FC = () => {
               </label>
               <FocusInput
                 type="text"
+                name="loginId"
+                id="portal-login-id"
+                autoComplete="username"
                 required
                 value={loginId}
                 onChange={e => setLoginId(e.target.value)}
@@ -282,6 +301,9 @@ export const PortalLogin: React.FC = () => {
               </label>
               <FocusInput
                 type="password"
+                name="password"
+                id="portal-password"
+                autoComplete="current-password"
                 required
                 value={password}
                 onChange={e => setPassword(e.target.value)}

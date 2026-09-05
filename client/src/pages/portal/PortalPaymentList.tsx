@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import Decimal from 'decimal.js';
 import { formatINRCompact, formatINR } from '../../lib/money';
+import api from '../../lib/axios';
 
 export interface PaymentAllocationItem {
   allocationId: number;
@@ -94,16 +95,15 @@ export const PortalPaymentList: React.FC = () => {
 
   useEffect(() => {
     setLoading(true);
-    fetch('/api/portal/payments')
-      .then(res => res.json())
-      .then(json => {
-        if (json.data) {
-          setPayments(json.data);
-        } else if (json.error) {
-          setError(json.error.message);
+    api.get('/api/portal/payments')
+      .then(res => {
+        if (res.data?.data) {
+          setPayments(res.data.data);
+        } else if (res.data?.error) {
+          setError(res.data.error.message);
         }
       })
-      .catch(err => setError(err.message))
+      .catch(err => setError(err?.response?.data?.error?.message || err.message))
       .finally(() => setLoading(false));
   }, []);
 
