@@ -266,44 +266,86 @@ export class VoiceBillService {
     return res.rows;
   }
 
+  private static readonly FEW_SHOT_CUSTOMER_PHONE = `Extract customer_name and phone (10 digits) from user input as JSON. Here are examples:
+
+Input: name rahul phone 9876543210 product sofa quantity 2 price 15000 discount 10 percent
+Output: {"customer_name": "rahul", "phone": "9876543210"}
+
+Input: rahul 9876543210 oak wood planks
+Output: {"customer_name": "rahul", "phone": "9876543210"}
+
+Input: naam suresh, phone number 9123456780, do table chahiye, price 8000
+Output: {"customer_name": "suresh", "phone": "9123456780"}
+
+Now extract from this input, following the exact same JSON shape, using null for anything not mentioned — do not guess:
+Input: {user_input}
+Output:`;
+
+  private static readonly FEW_SHOT_LINE_ITEMS = `Extract line_items (each with product, qty, price, discount_percent) from user input as JSON. Here are examples:
+
+Input: name rahul phone 9876543210 product sofa quantity 2 price 15000 discount 10 percent
+Output: {"line_items": [{"product": "sofa", "qty": 2, "price": 15000, "discount_percent": 10}]}
+
+Input: rahul 9876543210 oak wood planks
+Output: {"line_items": [{"product": "oak wood planks", "qty": null, "price": null, "discount_percent": null}]}
+
+Input: naam suresh, phone number 9123456780, do table chahiye, price 8000
+Output: {"line_items": [{"product": "table", "qty": 2, "price": 8000, "discount_percent": null}]}
+
+Rules:
+1. Return ONLY valid JSON in shape: {"line_items": [{"product": string or null, "qty": number or null, "price": number or null, "discount_percent": number or null}]}.
+2. If a field is not mentioned or unclear, use null — do not guess or invent values.
+3. Units of count (e.g. piece, pieces, pcs, pc, units, items, पीस, नग) are NOT product names. If a message contains only a quantity and a unit (e.g. "two pieces", "2 pcs", "दो पीस"), extract the qty and set product to null.
+{catalog_grounding}
+Now extract from this input, following the exact same JSON shape, using null for anything not mentioned — do not guess:
+Input: {user_input}
+Output:`;
+
   /**
-   * Calls the locally-hosted Ollama LLM service for slot extraction.
-   * Prompts Ollama with the exact extraction schema, temperature 0.1, format: "json".
-   * Retries once on JSON parse error. Gracefully degrades to null if unreachable or on error.
+   * Warm-up request to Ollama on server boot to load model into memory
    */
-  static async callOllamaExtraction(
-    text: string,
-    isRetry = false,
-    catalogProducts: string[] = []
-  ): Promise<OllamaExtractionResult | null> {
+  static async warmUpOllama(): Promise<void> {
     const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://ollama:11434';
     const model = process.env.OLLAMA_MODEL || 'qwen2.5:7b';
-    const timeoutMs = parseInt(process.env.OLLAMA_TIMEOUT_MS || '20000', 10);
+    console.log(`[Ollama] Sending warm-up request for model "${model}"...`);
+    try {
+      const res = await fetch(`${ollamaUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          prompt: 'hello',
+          keep_alive: '30m',
+          stream: false,
+          options: { num_predict: 5 },
+        }),
+      });
+      if (res.ok) {
+        console.log(`[Ollama] Model "${model}" warmed up and active in memory (keep_alive: 30m).`);
+      } else {
+        console.warn(`[Ollama] Warm-up returned status ${res.status}`);
+      }
+    } catch (err: any) {
+      console.warn(`[Ollama] Warm-up non-blocking ping: ${err.message}`);
+    }
+  }
+
+  /**
+   * Call A: Extract { customer_name, phone }
+   */
+  static async extractCustomerAndPhone(
+    text: string,
+    isRetry = false
+  ): Promise<{ customer_name: string | null; phone: string | null } | null> {
+    const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://ollama:11434';
+    const model = process.env.OLLAMA_MODEL || 'qwen2.5:7b';
+    const timeoutMs = parseInt(process.env.OLLAMA_TIMEOUT_MS || '30000', 10);
+    const isDebug = process.env.DEBUG_OLLAMA === 'true' || Boolean(process.env.DEBUG);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    const catalogGrounding = catalogProducts.length > 0
-      ? `\n4. Database Catalog: [${catalogProducts.slice(0, 50).join(', ')}]. If the user mentions any of these products (in English, Hindi, or phonetically), map it to the catalog product name.`
-      : '';
-
-    const baseSystemPrompt = `You are a billing assistant that extracts structured data from a customer's message, which may be in English, Hindi, or a mix of both. Extract the following fields if present: customer_name, phone (10 digits), and a list of line_items, each with product, qty, price, and discount_percent. Return ONLY valid JSON in this exact shape, with no explanation, no markdown formatting, no extra text:
-
-{
-  "customer_name": string or null,
-  "phone": string or null,
-  "line_items": [
-    { "product": string or null, "qty": number or null, "price": number or null, "discount_percent": number or null }
-  ]
-}
-
-Rules:
-1. If a field is not mentioned or unclear, use null — do not guess or invent values.
-2. If the product name is informal or misspelled, return it as-is; do not try to correct it.
-3. Units of count (e.g. piece, pieces, pcs, pc, units, items, पीस, नग) are NOT product names. If a message contains only a quantity and a unit (e.g. "two pieces", "2 pcs", "दो पीस"), extract the qty and set product to null.${catalogGrounding}`;
-
-    const systemPrompt = isRetry
-      ? `${baseSystemPrompt}\n\nReturn ONLY the JSON object, nothing else.`
-      : baseSystemPrompt;
+    const prompt = this.FEW_SHOT_CUSTOMER_PHONE.replace('{user_input}', text);
+    const startTime = Date.now();
 
     try {
       const res = await fetch(`${ollamaUrl}/api/generate`, {
@@ -311,40 +353,171 @@ Rules:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model,
-          prompt: text,
-          system: systemPrompt,
+          prompt,
           format: 'json',
           stream: false,
+          keep_alive: '30m',
           options: {
             temperature: 0.1,
+            num_predict: 200,
           },
         }),
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
+      const rtt = Date.now() - startTime;
 
       if (!res.ok) {
-        console.warn(`Ollama returned status ${res.status}`);
+        if (isDebug) console.warn(`[Ollama Call A - Customer/Phone] HTTP ${res.status} (${rtt}ms)`);
         return null;
       }
 
       const body = (await res.json()) as { response?: string };
-      if (!body.response) return null;
+      const raw = body.response || '';
+      if (isDebug) {
+        console.log(`[Ollama Call A - Customer/Phone] RTT: ${rtt}ms, Raw: ${raw.replace(/\n/g, ' ')}`);
+      }
 
       try {
-        const parsed = JSON.parse(body.response) as OllamaExtractionResult;
-        return parsed;
-      } catch (parseErr) {
+        const parsed = JSON.parse(raw);
+        return {
+          customer_name: typeof parsed.customer_name === 'string' ? parsed.customer_name : null,
+          phone: typeof parsed.phone === 'string' ? parsed.phone : null,
+        };
+      } catch (parseErr: any) {
+        if (isDebug) console.warn(`[Ollama Call A - Customer/Phone] JSON parse error: ${parseErr.message}`);
         if (!isRetry) {
-          console.warn('Ollama JSON parse failed on first attempt, retrying once with explicit instruction...');
-          return await this.callOllamaExtraction(text, true);
+          return await this.extractCustomerAndPhone(text, true);
         }
-        console.warn('Ollama JSON parse failed twice, falling back 100% to deterministic parser.');
         return null;
       }
     } catch (err: any) {
       clearTimeout(timeoutId);
-      console.warn(`Ollama service call skipped (${err.message || 'timeout'}), using deterministic parser fallback.`);
+      const rtt = Date.now() - startTime;
+      if (isDebug) console.warn(`[Ollama Call A - Customer/Phone] Error/Timeout (${rtt}ms): ${err.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Call B: Extract { line_items }
+   */
+  static async extractLineItems(
+    text: string,
+    isRetry = false,
+    catalogProducts: string[] = []
+  ): Promise<{ line_items: OllamaLineItem[] } | null> {
+    const ollamaUrl = process.env.OLLAMA_BASE_URL || 'http://ollama:11434';
+    const model = process.env.OLLAMA_MODEL || 'qwen2.5:7b';
+    const timeoutMs = parseInt(process.env.OLLAMA_TIMEOUT_MS || '30000', 10);
+    const isDebug = process.env.DEBUG_OLLAMA === 'true' || Boolean(process.env.DEBUG);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    const catalogGrounding = catalogProducts.length > 0
+      ? `\n4. Database Catalog: [${catalogProducts.slice(0, 50).join(', ')}]. If the user mentions any of these products, map it to the exact catalog product name.`
+      : '';
+
+    const prompt = this.FEW_SHOT_LINE_ITEMS
+      .replace('{catalog_grounding}', catalogGrounding)
+      .replace('{user_input}', text);
+
+    const startTime = Date.now();
+
+    try {
+      const res = await fetch(`${ollamaUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          prompt,
+          format: 'json',
+          stream: false,
+          keep_alive: '30m',
+          options: {
+            temperature: 0.1,
+            num_predict: 200,
+          },
+        }),
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      const rtt = Date.now() - startTime;
+
+      if (!res.ok) {
+        if (isDebug) console.warn(`[Ollama Call B - Line Items] HTTP ${res.status} (${rtt}ms)`);
+        return null;
+      }
+
+      const body = (await res.json()) as { response?: string };
+      const raw = body.response || '';
+      if (isDebug) {
+        console.log(`[Ollama Call B - Line Items] RTT: ${rtt}ms, Raw: ${raw.replace(/\n/g, ' ')}`);
+      }
+
+      try {
+        const parsed = JSON.parse(raw);
+        const items = Array.isArray(parsed.line_items) ? parsed.line_items : [];
+        return { line_items: items };
+      } catch (parseErr: any) {
+        if (isDebug) console.warn(`[Ollama Call B - Line Items] JSON parse error: ${parseErr.message}`);
+        if (!isRetry) {
+          return await this.extractLineItems(text, true, catalogProducts);
+        }
+        return null;
+      }
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      const rtt = Date.now() - startTime;
+      if (isDebug) console.warn(`[Ollama Call B - Line Items] Error/Timeout (${rtt}ms): ${err.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Calls Ollama LLM service for slot extraction.
+   * Runs two focused parallel calls:
+   *   Call A: { customer_name, phone }
+   *   Call B: { line_items }
+   * Runs both in parallel via Promise.all for lowest latency.
+   * Merges results into OllamaExtractionResult.
+   * Falls back gracefully to null on failure or timeout so deterministic parser takes over.
+   */
+  static async callOllamaExtraction(
+    text: string,
+    isRetry = false,
+    catalogProducts: string[] = []
+  ): Promise<OllamaExtractionResult | null> {
+    const startTime = Date.now();
+    const isDebug = process.env.DEBUG_OLLAMA === 'true' || Boolean(process.env.DEBUG);
+
+    try {
+      const [customerRes, itemsRes] = await Promise.all([
+        this.extractCustomerAndPhone(text, isRetry),
+        this.extractLineItems(text, isRetry, catalogProducts),
+      ]);
+
+      const totalRtt = Date.now() - startTime;
+
+      // If both calls failed or timed out, return null to trigger deterministic fallback
+      if (!customerRes && !itemsRes) {
+        if (isDebug) console.warn(`[Ollama Parallel] Both calls returned null (${totalRtt}ms). Falling back to deterministic.`);
+        return null;
+      }
+
+      const merged: OllamaExtractionResult = {
+        customer_name: customerRes?.customer_name ?? null,
+        phone: customerRes?.phone ?? null,
+        line_items: itemsRes?.line_items ?? [],
+      };
+
+      if (isDebug) {
+        console.log(`[Ollama Parallel Total RTT: ${totalRtt}ms] Merged: ${JSON.stringify(merged)}`);
+      }
+
+      return merged;
+    } catch (err: any) {
+      if (isDebug) console.warn(`[Ollama Parallel] Error (${Date.now() - startTime}ms): ${err.message}`);
       return null;
     }
   }
