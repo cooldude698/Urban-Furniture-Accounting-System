@@ -106,6 +106,27 @@ export const ProductListPage: React.FC<ProductListPageProps> = ({
       render: p => <Money amount={p.cost_price} className="text-brown-600" />,
     },
     {
+      key: 'stock_qty',
+      header: 'Stock',
+      align: 'center',
+      render: p => {
+        if (p.type === 'service') return <span className="text-xs text-brown-400">N/A</span>;
+        const qty = p.stock_qty || 0;
+        const isLow = qty <= (p.min_stock_threshold ?? 5);
+        return (
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-mono font-medium ${
+              isLow
+                ? 'bg-amber-100 text-amber-900 border border-amber-300 font-semibold'
+                : 'bg-emerald-50 text-emerald-800'
+            }`}
+          >
+            {qty} units {isLow && '⚠️'}
+          </span>
+        );
+      },
+    },
+    {
       key: 'tax_rate',
       header: 'Tax %',
       align: 'right',

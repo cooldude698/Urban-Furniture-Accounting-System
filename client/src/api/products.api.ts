@@ -29,4 +29,15 @@ export const ProductsApi = {
       method: 'PATCH',
       body: JSON.stringify({ is_archived }),
     }),
+
+  generateSku: (category: string, name: string) => {
+    const params = new URLSearchParams({ category, name });
+    return apiRequest<{ sku: string }>(`/api/products/generate-sku?${params.toString()}`);
+  },
+
+  getAlerts: () =>
+    apiRequest<{
+      lowStock: Product[];
+      slowMovers: Product[];
+    }>('/api/products/alerts'),
 };

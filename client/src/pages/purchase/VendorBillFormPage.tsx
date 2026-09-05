@@ -258,6 +258,27 @@ export const VendorBillFormPage: React.FC<VendorBillFormPageProps> = ({
   const taxSum = lines.reduce((acc, l) => acc.plus(new Decimal(l.tax_amount || '0')), new Decimal('0')).toFixed(2);
   const grandTotal = new Decimal(subtotalSum).plus(new Decimal(taxSum)).toFixed(2);
 
+  const linePriceWarnings = lines
+    .map(l => {
+      const prod = products.find(p => p.id === l.product_id);
+      if (!prod) return null;
+      try {
+        const price = new Decimal(l.unit_price || '0');
+        const cost = new Decimal(prod.cost_price || '0');
+        const mrp = new Decimal(prod.mrp || '0');
+        if (price.greaterThan(0) && cost.greaterThan(0) && price.lessThan(cost)) {
+          return `⚠️ Below-Cost Warning: Line for "${prod.name}" unit price (₹${price.toFixed(2)}) is below standard cost (₹${cost.toFixed(2)}).`;
+        }
+        if (price.greaterThan(0) && mrp.greaterThan(0) && price.greaterThan(mrp)) {
+          return `⚠️ MRP Ceiling Warning: Line for "${prod.name}" unit price (₹${price.toFixed(2)}) exceeds Maximum Retail Price (₹${mrp.toFixed(2)}).`;
+        }
+      } catch {}
+      return null;
+    })
+    .filter(Boolean) as string[];
+
+  const activeWarning = warningMessage || (linePriceWarnings.length > 0 ? linePriceWarnings.join(' | ') : null);
+
   return (
     <FormView
       title={isNew ? 'New Vendor Bill' : `Vendor Bill ${bill?.number || ''}`}
@@ -332,9 +353,9 @@ export const VendorBillFormPage: React.FC<VendorBillFormPageProps> = ({
       }
     >
       <div className="space-y-6">
-        {warningMessage && (
+        {activeWarning && (
           <NonBlockingWarning
-            message={warningMessage}
+            message={activeWarning}
             onDismiss={() => setWarningMessage(null)}
           />
         )}

@@ -121,4 +121,65 @@ export class ProductService {
 
     return updatedProduct;
   }
+
+  static generateSku(category: string, name: string): string {
+    const cleanCat = (category || 'GEN')
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .slice(0, 4)
+      .toUpperCase();
+
+    const initials = (name || 'ITEM')
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(w => w[0].toUpperCase())
+      .join('')
+      .slice(0, 4) || 'ITM';
+
+    const count = localDB.getState().products.length + 1;
+    const seq = String(count).padStart(4, '0');
+
+    return `${cleanCat}-${initials}-${seq}`;
+  }
+
+  static getStockAlerts(slowMoverDays = 30) {
+    const products = localDB.getState().products.filter(p => !p.is_archived && p.type === 'goods');
+    const stockMoves = localDB.getState().stock_moves || [];
+
+    const lowStock = products.filter(p => (p.stock_qty || 0) <= (p.min_stock_threshold ?? 5));
+
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - slowMoverDays);
+    const cutoffStr = cutoff.toISOString();
+
+    const slowMovers = products.filter(p => {
+      const recentMoves = stockMoves.filter(m => m.product_id === p.id && m.created_at && m.created_at >= cutoffStr);
+      return recentMoves.length === 0;
+    });
+
+    return {
+      lowStock,
+      slowMovers,
+    };
+  }
+
+  static checkPricingWarnings(productId: number, unitPrice: string, isSales = false): string | null {
+    const product = this.getById(productId);
+    if (!product) return null;
+
+    const price = new Decimal(unitPrice || '0');
+    const cost = new Decimal(product.cost_price || '0');
+    const mrp = new Decimal(product.mrp || '0');
+
+    // Below-cost check (for sales or purchase below nominal cost)
+    if (price.lessThan(cost)) {
+      return `Non-blocking warning: Unit price ₹${price.toFixed(2)} is below product cost price ₹${cost.toFixed(2)} for ${product.name}.`;
+    }
+
+    // MRP ceiling check
+    if (mrp.greaterThan(0) && price.greaterThan(mrp)) {
+      return `Non-blocking warning: Unit price ₹${price.toFixed(2)} exceeds MRP ceiling ₹${mrp.toFixed(2)} for ${product.name}.`;
+    }
+
+    return null;
+  }
 }

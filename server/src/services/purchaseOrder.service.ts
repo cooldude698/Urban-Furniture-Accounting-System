@@ -2,6 +2,7 @@ import { localDB } from '../db/db.js';
 import { CreatePOInput, UpdatePOInput, PurchaseOrder, POLine } from '../../../shared/schemas/purchaseOrder.schema.js';
 import { SequenceService } from './sequence.service.js';
 import { BudgetCheckService, BudgetCheckResult } from './budgetCheck.service.js';
+import { ProductService } from './product.service.js';
 import { Decimal } from 'decimal.js';
 
 export class PurchaseOrderService {
@@ -190,6 +191,19 @@ export class PurchaseOrderService {
 
     // Check budget overrun for lines with analytic accounts
     const budgetCheck = BudgetCheckService.checkBudgetOverrun(po.lines);
+
+    // Check pricing warnings (Below-cost or MRP ceiling)
+    const priceWarnings: string[] = [];
+    for (const line of po.lines) {
+      const pWarn = ProductService.checkPricingWarnings(line.product_id, line.unit_price);
+      if (pWarn) priceWarnings.push(pWarn);
+    }
+
+    if (priceWarnings.length > 0) {
+      budgetCheck.hasWarning = true;
+      const combined = [budgetCheck.warningMessage, ...priceWarnings].filter(Boolean).join(' | ');
+      budgetCheck.warningMessage = combined;
+    }
 
     // Confirm the PO — Status changes to 'confirmed'
     // HARD RULE: Zero ledger movement / NO journal entries created on PO confirm

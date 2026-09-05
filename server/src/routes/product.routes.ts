@@ -18,6 +18,28 @@ productRouter.get('/', (req: Request, res: Response) => {
   }
 });
 
+// GET /api/products/generate-sku
+productRouter.get('/generate-sku', (req: Request, res: Response) => {
+  try {
+    const category = typeof req.query.category === 'string' ? req.query.category : 'GEN';
+    const name = typeof req.query.name === 'string' ? req.query.name : 'ITEM';
+    const sku = ProductService.generateSku(category, name);
+    return sendSuccess(res, { sku });
+  } catch (err: any) {
+    return sendError(res, 'SKU_GEN_FAILED', err.message);
+  }
+});
+
+// GET /api/products/alerts
+productRouter.get('/alerts', (_req: Request, res: Response) => {
+  try {
+    const alerts = ProductService.getStockAlerts();
+    return sendSuccess(res, alerts);
+  } catch (err: any) {
+    return sendError(res, 'ALERTS_FAILED', err.message);
+  }
+});
+
 // GET /api/products/:id
 productRouter.get('/:id', (req: Request, res: Response) => {
   try {

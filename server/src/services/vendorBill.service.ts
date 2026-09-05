@@ -3,6 +3,7 @@ import { CreateBillInput, UpdateBillInput, VendorBill, BillLine } from '../../..
 import { SequenceService } from './sequence.service.js';
 import { BudgetCheckService, BudgetCheckResult } from './budgetCheck.service.js';
 import { PostingService } from './posting.service.js';
+import { ProductService } from './product.service.js';
 import { Decimal } from 'decimal.js';
 
 export class VendorBillService {
@@ -185,6 +186,19 @@ export class VendorBillService {
 
     // 1. Budget check
     const budgetCheck = BudgetCheckService.checkBudgetOverrun(bill.lines);
+
+    // 1b. Check pricing warnings
+    const priceWarnings: string[] = [];
+    for (const line of bill.lines) {
+      const pWarn = ProductService.checkPricingWarnings(line.product_id, line.unit_price);
+      if (pWarn) priceWarnings.push(pWarn);
+    }
+
+    if (priceWarnings.length > 0) {
+      budgetCheck.hasWarning = true;
+      const combined = [budgetCheck.warningMessage, ...priceWarnings].filter(Boolean).join(' | ');
+      budgetCheck.warningMessage = combined;
+    }
 
     // 2. Post to ledger via postingService
     const { entryId } = PostingService.postDocument('bill', id);

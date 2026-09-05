@@ -197,13 +197,36 @@ export const ProductKanbanPage: React.FC<ProductKanbanPageProps> = ({
                     {p.type}
                   </span>
                 </div>
+
+                {/* Stock Level Badge for Goods */}
+                {p.type !== 'service' && (
+                  <div className="mt-2">
+                    <span
+                      className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded font-mono ${
+                        (p.stock_qty || 0) <= (p.min_stock_threshold ?? 5)
+                          ? 'bg-amber-100 text-amber-900 font-semibold border border-amber-300'
+                          : 'bg-emerald-50 text-emerald-800'
+                      }`}
+                    >
+                      Stock: {p.stock_qty || 0} units
+                      {(p.stock_qty || 0) <= (p.min_stock_threshold ?? 5) && ' ⚠️ Low'}
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Price & Cost Footer */}
               <div className="border-t border-brown-100 pt-3 mt-3 flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] text-brown-400 uppercase tracking-tight block">Sales Price</span>
-                  <Money amount={p.sales_price} className="text-sm font-heading font-bold text-brown-900" />
+                  <span className="text-[10px] text-brown-400 uppercase tracking-tight block">Sales / MRP</span>
+                  <div className="flex items-center gap-1">
+                    <Money amount={p.sales_price} className="text-sm font-heading font-bold text-brown-900" />
+                    {p.mrp && p.mrp !== '0.00' && (
+                      <span className="text-[10px] text-brown-400 font-mono">
+                        (MRP ₹{p.mrp})
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="text-right">
                   <span className="text-[10px] text-brown-400 uppercase tracking-tight block">Cost / Tax</span>
