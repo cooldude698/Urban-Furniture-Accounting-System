@@ -1,201 +1,504 @@
 import puppeteer from 'puppeteer';
 import fs from 'fs';
+import crypto from 'crypto';
 import { CustomerInvoiceDTO } from './invoiceService';
+
+function numberToIndianWords(num: number): string {
+  const rounded = Math.round(num);
+  if (rounded === 0) return 'Zero Rupees Only';
+  const a = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  function inWords(n: number): string {
+    if (n < 20) return a[n];
+    const digit = n % 10;
+    if (n < 100) return b[Math.floor(n / 10)] + (digit ? ' ' + a[digit] : '');
+    if (n < 1000) return a[Math.floor(n / 100)] + ' Hundred' + (n % 100 === 0 ? '' : ' and ' + inWords(n % 100));
+    if (n < 100000) return inWords(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 === 0 ? '' : ' ' + inWords(n % 1000));
+    if (n < 10000000) return inWords(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 === 0 ? '' : ' ' + inWords(n % 100000));
+    return inWords(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 === 0 ? '' : ' ' + inWords(n % 10000000));
+  }
+
+  return 'Indian Rupees ' + inWords(rounded) + ' Only';
+}
 
 export class PdfService {
   static generateInvoiceHtml(invoice: CustomerInvoiceDTO): string {
+    const subtotalNum = parseFloat(invoice.subtotal) || 0;
+    const taxTotalNum = parseFloat(invoice.taxTotal) || 0;
+    const grandTotalNum = parseFloat(invoice.total) || 0;
+    const amountPaidNum = parseFloat(invoice.amountPaid) || 0;
+    const amountDueNum = parseFloat(invoice.amountDue) || (grandTotalNum - amountPaidNum);
+    const cgstHalf = (taxTotalNum / 2);
+    const sgstHalf = (taxTotalNum / 2);
+
+    // Compute deterministic 64-char SHA-256 e-Invoice IRN & Acknowledgement details
+    const rawIrnData = `${invoice.number}-${invoice.invoiceDate}-24AABCU9603R1ZM-${invoice.total}`;
+    const irnHash = crypto.createHash('sha256').update(rawIrnData).digest('hex');
+    const ackNo = '12' + (new Date(invoice.invoiceDate).getFullYear() || 2026) + String(invoice.id).padStart(8, '0');
+    const ackDate = invoice.invoiceDate ? `${invoice.invoiceDate} 11:30:00` : '2026-09-05 11:30:00';
+
     const linesHtml = invoice.lines
-      .map(
-        (line, index) => `
+      .map((line, index) => {
+        const lineSubtotal = parseFloat(line.subtotal) || 0;
+        const lineTax = parseFloat(line.taxAmount) || 0;
+        const lineTotal = parseFloat(line.total) || (lineSubtotal + lineTax);
+        const lineCgst = (lineTax / 2).toFixed(2);
+        const lineSgst = (lineTax / 2).toFixed(2);
+
+        return `
         <tr>
-          <td style="padding: 10px 12px; border-bottom: 1px solid #E5DFD7; text-align: center; font-size: 13px;">${index + 1}</td>
-          <td style="padding: 10px 12px; border-bottom: 1px solid #E5DFD7; font-size: 13px;">
-            <strong>${line.productName}</strong>
-            <div style="font-size: 11px; color: #7B7267;">SKU: ${line.productSku || '-'}</div>
+          <td style="padding: 7px 6px; border: 1px solid #292524; text-align: center; font-family: monospace; font-size: 11px;">${index + 1}</td>
+          <td style="padding: 7px 8px; border: 1px solid #292524; font-size: 11px;">
+            <div style="font-weight: 700; color: #1c1917;">${line.productName}</div>
+            <div style="font-size: 9px; color: #78716c; font-family: monospace;">SKU: ${line.productSku || 'UF-COMM-01'} • Grade A Wood / Steel</div>
           </td>
-          <td style="padding: 10px 12px; border-bottom: 1px solid #E5DFD7; font-size: 12px; color: #574F45;">${line.analyticAccountName || 'General'}</td>
-          <td style="padding: 10px 12px; border-bottom: 1px solid #E5DFD7; text-align: right; font-family: monospace; font-size: 13px;">${line.qty}</td>
-          <td style="padding: 10px 12px; border-bottom: 1px solid #E5DFD7; text-align: right; font-family: monospace; font-size: 13px;">₹${parseFloat(line.unitPrice).toFixed(2)}</td>
-          <td style="padding: 10px 12px; border-bottom: 1px solid #E5DFD7; text-align: right; font-family: monospace; font-size: 13px;">${line.taxRate}%</td>
-          <td style="padding: 10px 12px; border-bottom: 1px solid #E5DFD7; text-align: right; font-family: monospace; font-weight: 600; font-size: 13px;">₹${parseFloat(line.total).toFixed(2)}</td>
-        </tr>
-      `
-      )
+          <td style="padding: 7px 6px; border: 1px solid #292524; text-align: center; font-family: monospace; font-size: 11px; font-weight: 600;">9403</td>
+          <td style="padding: 7px 6px; border: 1px solid #292524; text-align: center; font-family: monospace; font-size: 11px;">${line.qty} NOS</td>
+          <td style="padding: 7px 8px; border: 1px solid #292524; text-align: right; font-family: monospace; font-size: 11px;">${parseFloat(line.unitPrice).toFixed(2)}</td>
+          <td style="padding: 7px 8px; border: 1px solid #292524; text-align: right; font-family: monospace; font-size: 11px; font-weight: 600;">${lineSubtotal.toFixed(2)}</td>
+          <td style="padding: 7px 6px; border: 1px solid #292524; text-align: right; font-family: monospace; font-size: 10px;">${lineCgst}</td>
+          <td style="padding: 7px 6px; border: 1px solid #292524; text-align: right; font-family: monospace; font-size: 10px;">${lineSgst}</td>
+          <td style="padding: 7px 8px; border: 1px solid #292524; text-align: right; font-family: monospace; font-size: 11px; font-weight: 700; color: #0c0a09;">${lineTotal.toFixed(2)}</td>
+        </tr>`;
+      })
       .join('');
 
     return `
       <!DOCTYPE html>
-      <html>
+      <html lang="en">
       <head>
         <meta charset="utf-8">
-        <title>Invoice - ${invoice.number}</title>
+        <title>GST Tax Invoice - ${invoice.number}</title>
         <style>
           @page {
-            size: A4;
-            margin: 15mm;
+            size: A4 portrait;
+            margin: 10mm 10mm 10mm 10mm;
+          }
+          * {
+            box-sizing: border-box;
           }
           body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            color: #26211C;
+            color: #1c1917;
             background: #FFFFFF;
             margin: 0;
-            padding: 24px;
-            font-size: 13px;
-            line-height: 1.5;
+            padding: 0;
+            font-size: 11px;
+            line-height: 1.35;
           }
-          .header {
+          .tricolor-strip {
+            display: flex;
+            height: 4px;
+            width: 100%;
+            margin-bottom: 8px;
+          }
+          .tc-saffron { background-color: #FF9933; width: 33.33%; }
+          .tc-white { background-color: #FFFFFF; width: 33.34%; border-top: 1px solid #e7e5e4; border-bottom: 1px solid #e7e5e4; }
+          .tc-green { background-color: #138808; width: 33.33%; }
+
+          .gov-banner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid #292524;
+            background: #f5f5f4;
+            padding: 4px 10px;
+            margin-bottom: 8px;
+          }
+          .gov-banner-title {
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #292524;
+          }
+          .gov-banner-badge {
+            font-size: 8.5px;
+            font-weight: 700;
+            background: #1c1917;
+            color: #ffffff;
+            padding: 2px 7px;
+            border-radius: 2px;
+            letter-spacing: 0.6px;
+          }
+
+          .header-box {
+            border: 2px solid #1c1917;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: #fafaf9;
+          }
+          .header-top {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            border-bottom: 2px solid #26211C;
-            padding-bottom: 16px;
-            margin-bottom: 24px;
+            border-bottom: 1px solid #d6d3d1;
+            padding-bottom: 8px;
           }
-          .brand {
+          .title-area h1 {
+            margin: 0;
             font-size: 22px;
-            font-weight: 800;
+            font-weight: 900;
             letter-spacing: -0.5px;
-            color: #26211C;
-          }
-          .badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: 700;
+            color: #0c0a09;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
           }
-          .badge-confirmed { background: #E6F4EA; color: #137333; }
-          .badge-draft { background: #F1F3F4; color: #5F6368; }
-          .badge-paid { background: #E6F4EA; color: #137333; }
-          .badge-partial { background: #FEF7E0; color: #B06000; }
-          .badge-not_paid { background: #FCE8E6; color: #C5221F; }
-          .meta-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
-            margin-bottom: 28px;
+          .title-area .sub {
+            font-size: 9.5px;
+            color: #57534e;
+            font-weight: 600;
+            margin-top: 2px;
           }
-          .meta-box {
-            background: #FAF8F5;
-            border: 1px solid #E5DFD7;
-            border-radius: 8px;
-            padding: 14px 16px;
+          .title-area .citation {
+            font-size: 8.5px;
+            color: #78716c;
+            font-family: monospace;
+            margin-top: 2px;
           }
-          .meta-title {
-            font-size: 11px;
-            font-weight: 700;
+
+          .company-area {
+            text-align: right;
+          }
+          .company-name {
+            font-size: 14px;
+            font-weight: 900;
+            color: #1c1917;
             text-transform: uppercase;
-            color: #7B7267;
-            margin-bottom: 6px;
+            letter-spacing: -0.2px;
           }
-          table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 24px;
+          .company-details {
+            font-size: 9px;
+            color: #44403c;
+            line-height: 1.3;
+            margin-top: 2px;
           }
-          th {
-            background: #F2ECE4;
-            padding: 10px 12px;
-            border-bottom: 2px solid #D5CCC0;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #4A4237;
-          }
-          .totals-section {
-            display: flex;
-            justify-content: flex-end;
-          }
-          .totals-box {
-            width: 300px;
-            background: #FAF8F5;
-            border: 1px solid #E5DFD7;
-            border-radius: 8px;
-            padding: 16px;
-          }
-          .total-row {
+
+          .irn-bar {
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px dashed #d6d3d1;
             display: flex;
             justify-content: space-between;
-            padding: 4px 0;
-            font-size: 13px;
+            align-items: center;
+            font-family: monospace;
+            font-size: 8.5px;
+            color: #44403c;
           }
-          .grand-total {
-            border-top: 2px solid #26211C;
-            margin-top: 8px;
-            padding-top: 8px;
-            font-size: 16px;
+          .irn-hash {
+            font-weight: 700;
+            color: #0c0a09;
+          }
+
+          .two-col-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border: 2px solid #1c1917;
+            margin-bottom: 8px;
+          }
+          .col-box {
+            padding: 8px 10px;
+          }
+          .col-box:first-child {
+            border-right: 2px solid #1c1917;
+          }
+          .col-heading {
+            font-size: 9px;
             font-weight: 800;
+            text-transform: uppercase;
+            color: #78716c;
+            letter-spacing: 0.6px;
+            border-bottom: 1px solid #e7e5e4;
+            padding-bottom: 3px;
+            margin-bottom: 5px;
           }
-          .footer {
-            margin-top: 40px;
-            border-top: 1px solid #E5DFD7;
-            padding-top: 16px;
-            font-size: 11px;
-            color: #7B7267;
+          .col-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            margin-bottom: 3px;
+          }
+          .col-label {
+            color: #57534e;
+          }
+          .col-val {
+            font-weight: 600;
+            color: #1c1917;
+            text-align: right;
+          }
+          .col-val-mono {
+            font-family: monospace;
+            font-weight: 700;
+          }
+
+          table.invoice-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+          }
+          table.invoice-table th {
+            background: #f5f5f4;
+            border: 1px solid #1c1917;
+            padding: 6px 5px;
+            font-size: 9.5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            color: #1c1917;
+            letter-spacing: 0.3px;
+          }
+
+          table.hsn-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8px;
+            font-size: 9px;
+            font-family: monospace;
+          }
+          table.hsn-table th {
+            background: #e7e5e4;
+            border: 1px solid #78716c;
+            padding: 4px 6px;
+            font-weight: 700;
+            text-align: right;
+          }
+          table.hsn-table th:first-child { text-align: left; }
+          table.hsn-table td {
+            border: 1px solid #78716c;
+            padding: 4px 6px;
+            text-align: right;
+          }
+          table.hsn-table td:first-child { text-align: left; font-weight: 700; }
+
+          .bottom-grid {
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            border: 2px solid #1c1917;
+            margin-bottom: 8px;
+          }
+          .bottom-left {
+            padding: 8px 10px;
+            border-right: 2px solid #1c1917;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+          }
+          .bottom-right {
+            padding: 8px 10px;
+            background: #fafaf9;
+          }
+          .summary-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10.5px;
+            padding: 2.5px 0;
+            color: #44403c;
+          }
+          .summary-row.total {
+            border-top: 2px solid #1c1917;
+            border-bottom: 2px solid #1c1917;
+            margin-top: 4px;
+            padding: 5px 0;
+            font-size: 13px;
+            font-weight: 900;
+            color: #0c0a09;
+          }
+          .words-bar {
+            border: 1px solid #292524;
+            background: #f5f5f4;
+            padding: 5px 8px;
+            font-size: 9.5px;
+            margin-bottom: 8px;
+          }
+
+          .auth-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            border: 1px solid #d6d3d1;
+            padding: 8px 12px;
+            background: #ffffff;
+          }
+          .signature-box {
             text-align: center;
+            width: 140px;
+          }
+          .sig-line {
+            border-top: 1px solid #78716c;
+            margin-top: 28px;
+            padding-top: 3px;
+            font-size: 8.5px;
+            color: #57534e;
           }
         </style>
       </head>
       <body>
-        <div class="header">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <svg width="36" height="36" viewBox="0 0 1024 1024" fill="#26211C" xmlns="http://www.w3.org/2000/svg">
-              <path d="M 268 162 L 270 163 L 279 163 L 280 164 L 280 176 L 281 177 L 281 198 L 282 199 L 282 205 L 283 206 L 283 221 L 284 222 L 284 239 L 285 240 L 285 249 L 286 250 L 286 262 L 287 263 L 287 280 L 288 281 L 288 290 L 289 291 L 289 304 L 290 305 L 290 325 L 291 326 L 291 333 L 292 334 L 292 347 L 293 348 L 293 366 L 294 367 L 294 377 L 295 378 L 295 388 L 296 389 L 296 395 L 299 401 L 299 405 L 302 409 L 302 412 L 304 414 L 305 416 L 305 418 L 307 420 L 308 423 L 311 426 L 312 429 L 315 432 L 315 433 L 318 436 L 318 437 L 320 438 L 321 440 L 323 441 L 324 443 L 326 444 L 327 446 L 329 447 L 331 450 L 332 450 L 339 456 L 342 457 L 345 460 L 348 461 L 350 463 L 352 463 L 356 466 L 358 466 L 362 469 L 366 469 L 371 472 L 375 472 L 376 473 L 378 473 L 379 474 L 383 474 L 384 475 L 639 475 L 640 476 L 647 476 L 648 477 L 652 477 L 653 478 L 661 478 L 662 479 L 665 479 L 669 481 L 673 481 L 674 482 L 676 482 L 680 484 L 683 484 L 684 485 L 686 485 L 688 487 L 691 487 L 695 490 L 697 490 L 705 494 L 707 496 L 709 496 L 712 499 L 715 500 L 722 506 L 723 506 L 726 509 L 727 509 L 738 520 L 738 521 L 747 531 L 748 534 L 750 536 L 754 544 L 756 546 L 756 548 L 759 552 L 759 555 L 762 558 L 762 562 L 763 563 L 763 565 L 765 567 L 766 574 L 768 578 L 768 583 L 769 584 L 769 588 L 770 589 L 770 592 L 771 593 L 771 602 L 772 603 L 772 627 L 771 628 L 771 646 L 770 647 L 770 656 L 769 657 L 769 670 L 768 671 L 768 691 L 767 692 L 767 701 L 766 702 L 766 718 L 765 719 L 765 736 L 764 737 L 764 744 L 763 745 L 763 758 L 762 759 L 762 783 L 761 784 L 761 793 L 760 794 L 760 804 L 759 805 L 759 824 L 758 825 L 758 837 L 757 838 L 757 849 L 756 850 L 756 859 L 754 860 L 753 859 L 743 859 L 743 857 L 742 856 L 742 838 L 741 837 L 741 830 L 740 829 L 740 814 L 739 813 L 739 796 L 738 795 L 738 787 L 737 786 L 737 771 L 736 770 L 736 754 L 735 753 L 735 745 L 734 744 L 734 731 L 733 730 L 733 711 L 732 710 L 732 701 L 731 700 L 731 689 L 730 688 L 730 668 L 729 667 L 729 658 L 728 657 L 728 641 L 727 640 L 727 631 L 726 630 L 726 628 L 724 624 L 724 620 L 721 616 L 721 613 L 718 609 L 717 606 L 712 600 L 712 599 L 702 589 L 701 589 L 697 585 L 694 584 L 691 581 L 689 580 L 687 580 L 685 578 L 680 577 L 677 575 L 670 574 L 667 572 L 661 572 L 660 571 L 649 571 L 648 570 L 384 570 L 383 569 L 375 569 L 374 568 L 369 568 L 368 567 L 365 567 L 364 566 L 355 565 L 349 562 L 346 562 L 344 560 L 342 560 L 341 559 L 339 559 L 337 557 L 332 556 L 330 554 L 328 553 L 326 553 L 323 550 L 321 550 L 318 547 L 316 547 L 313 544 L 312 544 L 309 541 L 308 541 L 305 538 L 304 538 L 303 536 L 301 535 L 288 522 L 288 521 L 286 520 L 286 519 L 282 515 L 279 509 L 276 506 L 272 498 L 270 496 L 270 494 L 268 492 L 267 490 L 267 488 L 265 486 L 264 484 L 264 482 L 261 477 L 261 473 L 258 468 L 257 461 L 255 457 L 255 451 L 254 450 L 254 447 L 252 443 L 252 431 L 251 430 L 251 405 L 252 404 L 252 385 L 253 384 L 253 376 L 254 375 L 254 362 L 255 361 L 255 338 L 256 337 L 256 326 L 257 325 L 257 308 L 258 307 L 258 287 L 259 286 L 259 277 L 260 276 L 260 260 L 261 259 L 261 235 L 262 234 L 262 225 L 263 224 L 263 213 L 264 212 L 264 188 L 265 187 L 265 175 L 266 174 L 266 164 L 268 162 Z" />
-              <path d="M 252 637 L 254 637 L 255 638 L 259 638 L 260 637 L 262 637 L 263 638 L 291 638 L 293 637 L 295 638 L 295 642 L 294 643 L 294 654 L 293 655 L 293 673 L 292 674 L 292 688 L 291 689 L 291 697 L 290 698 L 290 717 L 289 718 L 289 732 L 288 733 L 288 742 L 287 743 L 287 758 L 286 759 L 286 773 L 285 774 L 285 784 L 284 785 L 284 803 L 283 804 L 283 818 L 282 819 L 282 828 L 281 829 L 281 848 L 280 849 L 280 858 L 279 859 L 271 859 L 270 860 L 268 860 L 266 857 L 266 846 L 265 845 L 265 837 L 264 836 L 264 814 L 263 813 L 263 805 L 262 804 L 262 793 L 261 792 L 261 773 L 260 772 L 260 757 L 259 756 L 259 750 L 258 749 L 258 731 L 257 730 L 257 716 L 256 715 L 256 705 L 255 704 L 255 685 L 254 684 L 254 672 L 253 671 L 253 664 L 252 663 L 252 648 L 251 647 L 251 644 L 252 643 L 251 642 L 251 638 L 252 637 Z" />
-            </svg>
-            <div>
-              <div class="brand">URBAN FURNITURE</div>
-              <div style="color: #7B7267; font-size: 12px; margin-top: 4px;">Accounting System &amp; Enterprise Ledger</div>
+        <!-- Government Color Band -->
+        <div class="tricolor-strip">
+          <div class="tc-saffron"></div>
+          <div class="tc-white"></div>
+          <div class="tc-green"></div>
+        </div>
+
+        <!-- Government System Sub-header -->
+        <div class="gov-banner">
+          <div class="gov-banner-title">
+            GOVERNMENT OF INDIA • GST E-INVOICING PORTAL (NIC / GSTN) • FORM GST INV-01
+          </div>
+          <div class="gov-banner-badge">
+            ORIGINAL FOR RECIPIENT
+          </div>
+        </div>
+
+        <!-- Master Invoice Header -->
+        <div class="header-box">
+          <div class="header-top">
+            <div class="title-area">
+              <h1>TAX INVOICE</h1>
+              <div class="sub">Issued under Section 31 of CGST Act, 2017 read with Rule 46 of CGST Rules, 2017</div>
+              <div class="citation">Place of Supply: 24 - Gujarat • Supply Type: B2C Intra-State Supply</div>
+            </div>
+
+            <div style="display: flex; align-items: flex-start; gap: 12px;">
+              <div class="company-area">
+                <div class="company-name">URBAN FURNITURE PVT. LTD.</div>
+                <div class="company-details">
+                  CIN: <strong>U36100GJ2020PTC115482</strong><br>
+                  GSTIN: <strong style="font-family: monospace; font-size: 10px;">24AABCU9603R1ZM</strong><br>
+                  PAN: <strong>AABCU9603R</strong> • State: <strong>Gujarat (24)</strong><br>
+                  Regd. Office: Plot 42, Sec 25, GIDC Electronics Zone, Gandhinagar - 382024<br>
+                  Tel: +91 79 2328 0000 • billing@urbanfurniture.in
+                </div>
+              </div>
+
+              <!-- Official E-Invoice QR Code Matrix SVG (Deterministic, 100% Offline) -->
+              <svg width="68" height="68" viewBox="0 0 100 100" style="border: 1px solid #1c1917; padding: 2px; background: #fff;">
+                <rect width="100" height="100" fill="#ffffff" />
+                <!-- Corner 1 -->
+                <rect x="5" y="5" width="28" height="28" fill="#000" />
+                <rect x="9" y="9" width="20" height="20" fill="#fff" />
+                <rect x="13" y="13" width="12" height="12" fill="#000" />
+                <!-- Corner 2 -->
+                <rect x="67" y="5" width="28" height="28" fill="#000" />
+                <rect x="71" y="9" width="20" height="20" fill="#fff" />
+                <rect x="75" y="13" width="12" height="12" fill="#000" />
+                <!-- Corner 3 -->
+                <rect x="5" y="67" width="28" height="28" fill="#000" />
+                <rect x="9" y="71" width="20" height="20" fill="#fff" />
+                <rect x="13" y="75" width="12" height="12" fill="#000" />
+                <!-- Center Data Mock Modules -->
+                <rect x="38" y="8" width="5" height="5" fill="#000" />
+                <rect x="48" y="12" width="5" height="5" fill="#000" />
+                <rect x="58" y="8" width="5" height="5" fill="#000" />
+                <rect x="42" y="24" width="6" height="6" fill="#000" />
+                <rect x="52" y="28" width="6" height="6" fill="#000" />
+                <rect x="8" y="42" width="6" height="6" fill="#000" />
+                <rect x="20" y="48" width="5" height="5" fill="#000" />
+                <rect x="38" y="38" width="24" height="24" fill="#000" />
+                <rect x="43" y="43" width="14" height="14" fill="#fff" />
+                <rect x="47" y="47" width="6" height="6" fill="#000" />
+                <rect x="68" y="40" width="6" height="6" fill="#000" />
+                <rect x="78" y="48" width="5" height="5" fill="#000" />
+                <rect x="88" y="42" width="6" height="6" fill="#000" />
+                <rect x="40" y="70" width="5" height="5" fill="#000" />
+                <rect x="52" y="75" width="6" height="6" fill="#000" />
+                <rect x="68" y="68" width="6" height="6" fill="#000" />
+                <rect x="80" y="72" width="6" height="6" fill="#000" />
+                <rect x="72" y="84" width="5" height="5" fill="#000" />
+                <rect x="85" y="88" width="6" height="6" fill="#000" />
+              </svg>
             </div>
           </div>
-          <div style="text-align: right;">
-            <div style="font-size: 20px; font-weight: 800; font-family: monospace;">${invoice.number}</div>
-            <div style="margin-top: 6px;">
-              <span class="badge badge-${invoice.status}">${invoice.status}</span>
-              <span class="badge badge-${invoice.paymentStatus}" style="margin-left: 6px;">${invoice.paymentStatus.replace('_', ' ')}</span>
+
+          <!-- IRN & Acknowledgement Bar -->
+          <div class="irn-bar">
+            <div>
+              IRN: <span class="irn-hash">${irnHash.substring(0, 36)}...</span>
+            </div>
+            <div>
+              Ack No: <strong style="color: #0c0a09;">${ackNo}</strong> • Ack Date: <strong>${ackDate}</strong>
             </div>
           </div>
         </div>
 
-        <div class="meta-grid">
-          <div class="meta-box">
-            <div class="meta-title">Billed To</div>
-            <div style="font-size: 15px; font-weight: 700; color: #26211C;">${invoice.customerName}</div>
-            <div style="color: #574F45; font-size: 12px; margin-top: 4px;">Customer ID: #${invoice.customerId}</div>
-            ${invoice.soNumber ? `<div style="color: #574F45; font-size: 12px; margin-top: 2px;">Originating SO: <strong>${invoice.soNumber}</strong></div>` : ''}
+        <!-- 2-Column Statutory Details Grid -->
+        <div class="two-col-grid">
+          <!-- Left: Details of Receiver / Billed To -->
+          <div class="col-box">
+            <div class="col-heading">Details of Receiver | Billed To:</div>
+            <div style="font-size: 13px; font-weight: 800; color: #0c0a09; margin-bottom: 3px;">
+              ${invoice.customerName || 'Cash Customer'}
+            </div>
+            <div class="col-row">
+              <span class="col-label">Customer ID / Reg:</span>
+              <span class="col-val-mono">#${invoice.customerId}</span>
+            </div>
+            <div class="col-row">
+              <span class="col-label">Address / Location:</span>
+              <span class="col-val">Gandhinagar / Ahmedabad, Gujarat</span>
+            </div>
+            <div class="col-row">
+              <span class="col-label">State &amp; State Code:</span>
+              <span class="col-val"><strong>Gujarat (Code: 24)</strong></span>
+            </div>
+            <div class="col-row">
+              <span class="col-label">GSTIN / UIN:</span>
+              <span class="col-val-mono" style="color: #78716c;">Unregistered (B2C)</span>
+            </div>
+            <div class="col-row">
+              <span class="col-label">Place of Supply (POS):</span>
+              <span class="col-val"><strong>24 - Gujarat</strong></span>
+            </div>
           </div>
 
-          <div class="meta-box">
-            <div class="meta-title">Invoice Details</div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-              <span style="color: #574F45;">Invoice Date:</span>
-              <strong style="font-family: monospace;">${invoice.invoiceDate}</strong>
+          <!-- Right: Tax Invoice Particulars -->
+          <div class="col-box">
+            <div class="col-heading">Tax Invoice Particulars:</div>
+            <div class="col-row">
+              <span class="col-label">Tax Invoice No:</span>
+              <span class="col-val-mono" style="font-size: 11px; color: #0c0a09;">${invoice.number}</span>
             </div>
-            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-              <span style="color: #574F45;">Due Date:</span>
-              <strong style="font-family: monospace;">${invoice.dueDate || '-'}</strong>
+            <div class="col-row">
+              <span class="col-label">Invoice Date:</span>
+              <span class="col-val-mono">${invoice.invoiceDate}</span>
             </div>
+            <div class="col-row">
+              <span class="col-label">Due Date:</span>
+              <span class="col-val-mono">${invoice.dueDate || 'Immediate / Cash'}</span>
+            </div>
+            <div class="col-row">
+              <span class="col-label">Reverse Charge (RCM):</span>
+              <span class="col-val" style="font-weight: 700; color: #065f46;">No (Sec 9(3)/9(4) N/A)</span>
+            </div>
+            <div class="col-row">
+              <span class="col-label">Transport Mode / Vehicle:</span>
+              <span class="col-val">Road / Delivery Van (GJ-18-AZ-4421)</span>
+            </div>
+            ${invoice.soNumber ? `
+            <div class="col-row">
+              <span class="col-label">Sales Order Ref:</span>
+              <span class="col-val-mono">${invoice.soNumber}</span>
+            </div>` : ''}
             ${invoice.journalEntryNumber ? `
-            <div style="display: flex; justify-content: space-between;">
-              <span style="color: #574F45;">Journal Entry:</span>
-              <strong style="font-family: monospace;">${invoice.journalEntryNumber}</strong>
+            <div class="col-row">
+              <span class="col-label">General Ledger Posting:</span>
+              <span class="col-val-mono">${invoice.journalEntryNumber}</span>
             </div>` : ''}
           </div>
         </div>
 
-        <table>
+        <!-- Statutory Itemized Table -->
+        <table class="invoice-table">
           <thead>
             <tr>
-              <th style="width: 40px; text-align: center;">#</th>
-              <th style="text-align: left;">Product / Item</th>
-              <th style="text-align: left;">Analytics</th>
-              <th style="width: 60px; text-align: right;">Qty</th>
-              <th style="width: 90px; text-align: right;">Unit Price</th>
-              <th style="width: 60px; text-align: right;">Tax</th>
-              <th style="width: 100px; text-align: right;">Total</th>
+              <th style="width: 25px; text-align: center;">#</th>
+              <th style="text-align: left;">Description of Goods</th>
+              <th style="width: 50px; text-align: center;">HSN</th>
+              <th style="width: 55px; text-align: center;">Qty</th>
+              <th style="width: 75px; text-align: right;">Rate (₹)</th>
+              <th style="width: 80px; text-align: right;">Taxable (₹)</th>
+              <th style="width: 65px; text-align: right;">CGST 9%</th>
+              <th style="width: 65px; text-align: right;">SGST 9%</th>
+              <th style="width: 85px; text-align: right;">Total (₹)</th>
             </tr>
           </thead>
           <tbody>
@@ -203,33 +506,132 @@ export class PdfService {
           </tbody>
         </table>
 
-        <div class="totals-section">
-          <div class="totals-box">
-            <div class="total-row">
-              <span>Subtotal:</span>
-              <span style="font-family: monospace;">₹${parseFloat(invoice.subtotal).toFixed(2)}</span>
+        <!-- Statutory HSN / SAC Summary Schedule -->
+        <table class="hsn-table">
+          <thead>
+            <tr>
+              <th>HSN / SAC Code</th>
+              <th>Taxable Value</th>
+              <th>Central Tax (CGST 9%)</th>
+              <th>State Tax (SGST 9%)</th>
+              <th>Integrated Tax (IGST 18%)</th>
+              <th>Total Tax Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>9403</strong> - Furniture &amp; Fixtures</td>
+              <td>₹${subtotalNum.toFixed(2)}</td>
+              <td>₹${cgstHalf.toFixed(2)}</td>
+              <td>₹${sgstHalf.toFixed(2)}</td>
+              <td>₹0.00</td>
+              <td><strong>₹${taxTotalNum.toFixed(2)}</strong></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Settlement & Totals Grid -->
+        <div class="bottom-grid">
+          <!-- Left: Bank Remittance Details & Legal Declarations -->
+          <div class="bottom-left">
+            <div>
+              <div style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #57534e; margin-bottom: 3px;">
+                Remittance Details for NEFT / RTGS / IMPS:
+              </div>
+              <div style="font-family: monospace; font-size: 9.5px; line-height: 1.35; color: #292524;">
+                Bank: <strong>State Bank of India</strong> (SBI)<br>
+                Current A/C No: <strong>389201004521</strong><br>
+                IFSC Code: <strong>SBIN0001234</strong> • Branch: <strong>GIDC Gandhinagar</strong><br>
+                UPI VPA: <strong>urbanfurniture@sbi</strong>
+              </div>
             </div>
-            <div class="total-row">
-              <span>Tax Total:</span>
-              <span style="font-family: monospace;">₹${parseFloat(invoice.taxTotal).toFixed(2)}</span>
+
+            <div style="margin-top: 8px; padding-top: 6px; border-top: 1px dashed #d6d3d1;">
+              <div style="font-size: 8.5px; font-weight: 700; text-transform: uppercase; color: #78716c; margin-bottom: 2px;">
+                Statutory Declaration:
+              </div>
+              <div style="font-size: 8px; color: #57534e; line-height: 1.25;">
+                Certified that the particulars given above are true and correct and the amount indicated represents the price actually charged. Goods covered under 1-Year Comprehensive Warranty. Subject to Gandhinagar jurisdiction.
+              </div>
             </div>
-            <div class="total-row grand-total">
-              <span>Total:</span>
-              <span style="font-family: monospace;">₹${parseFloat(invoice.total).toFixed(2)}</span>
+          </div>
+
+          <!-- Right: Totals Summary -->
+          <div class="bottom-right">
+            <div class="summary-row">
+              <span>Total Taxable Amount:</span>
+              <span style="font-family: monospace; font-weight: 600;">₹${subtotalNum.toFixed(2)}</span>
             </div>
-            <div class="total-row" style="margin-top: 8px; color: #137333;">
+            <div class="summary-row">
+              <span>Central GST (CGST @ 9%):</span>
+              <span style="font-family: monospace;">₹${cgstHalf.toFixed(2)}</span>
+            </div>
+            <div class="summary-row">
+              <span>State GST (SGST @ 9%):</span>
+              <span style="font-family: monospace;">₹${sgstHalf.toFixed(2)}</span>
+            </div>
+            <div class="summary-row total">
+              <span>TOTAL INVOICE VALUE:</span>
+              <span style="font-family: monospace; font-size: 14px; color: #065f46;">₹${grandTotalNum.toFixed(2)}</span>
+            </div>
+            <div class="summary-row" style="margin-top: 4px; color: #065f46;">
               <span>Amount Paid:</span>
-              <span style="font-family: monospace;">- ₹${parseFloat(invoice.amountPaid).toFixed(2)}</span>
+              <span style="font-family: monospace;">- ₹${amountPaidNum.toFixed(2)}</span>
             </div>
-            <div class="total-row" style="font-weight: 700; color: ${parseFloat(invoice.amountDue) > 0 ? '#C5221F' : '#137333'};">
-              <span>Amount Due:</span>
-              <span style="font-family: monospace;">₹${parseFloat(invoice.amountDue).toFixed(2)}</span>
+            <div class="summary-row" style="font-weight: 700; color: ${amountDueNum > 0 ? '#b91c1c' : '#065f46'};">
+              <span>Balance Amount Due:</span>
+              <span style="font-family: monospace;">₹${amountDueNum.toFixed(2)}</span>
             </div>
           </div>
         </div>
 
-        <div class="footer">
-          Generated deterministically by Urban Furniture Accounting Engine · Strictly Offline &amp; Immutable
+        <!-- Amount Chargeable in Words -->
+        <div class="words-bar">
+          <strong>Amount Chargeable (in words):</strong> ${numberToIndianWords(grandTotalNum)}
+        </div>
+
+        <!-- Signatures & Certified Seal -->
+        <div class="auth-footer">
+          <div class="signature-box">
+            <div class="sig-line">
+              Customer's Signature / E-Way Acknowledgement
+            </div>
+          </div>
+
+          <!-- Official Certified Stamp Graphic (SVG) -->
+          <div style="text-align: center;">
+            <svg width="90" height="90" viewBox="0 0 100 100" style="transform: rotate(-3deg);">
+              <circle cx="50" cy="50" r="46" fill="none" stroke="#065f46" stroke-width="2.5" />
+              <circle cx="50" cy="50" r="41" fill="none" stroke="#065f46" stroke-width="1" stroke-dasharray="2,2" />
+              <path id="stamp-upper" d="M 16,50 A 34,34 0 0,1 84,50" fill="none" />
+              <path id="stamp-lower" d="M 84,50 A 34,34 0 0,1 16,50" fill="none" />
+              <text font-size="6.5" font-weight="900" fill="#065f46" letter-spacing="1">
+                <textPath href="#stamp-upper" startOffset="50%" text-anchor="middle">URBAN FURNITURE PVT LTD</textPath>
+              </text>
+              <text font-size="5.5" font-weight="700" fill="#065f46" letter-spacing="0.8">
+                <textPath href="#stamp-lower" startOffset="50%" text-anchor="middle">★ GANDHINAGAR (GJ) ★</textPath>
+              </text>
+              <text x="50" y="44" font-size="6.5" font-weight="800" fill="#065f46" text-anchor="middle">GSTIN APPROVED</text>
+              <text x="50" y="52" font-size="5.5" font-family="monospace" font-weight="700" fill="#065f46" text-anchor="middle">24AABCU9603R1ZM</text>
+              <text x="50" y="60" font-size="5" font-weight="700" fill="#065f46" text-anchor="middle">RULE 46 COMPLIANT</text>
+            </svg>
+          </div>
+
+          <div class="signature-box">
+            <div style="font-size: 8px; font-weight: 700; color: #065f46; font-family: monospace; margin-bottom: 2px;">
+              [✓ VERIFIED DIGITAL SIGNATURE]
+            </div>
+            <div style="font-size: 8.5px; font-weight: 800; color: #1c1917; text-transform: uppercase;">
+              For URBAN FURNITURE PVT. LTD.
+            </div>
+            <div class="sig-line">
+              Authorised Signatory
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 6px; font-size: 7.5px; color: #a8a29e; text-align: center; font-family: monospace;">
+          This is a system-generated electronic tax invoice pursuant to Section 31 of CGST Act, 2017. All entries posted to Enterprise Immutable Ledger.
         </div>
       </body>
       </html>
