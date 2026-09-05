@@ -22,6 +22,7 @@ import { poRouter } from './routes/purchaseOrderRoutes';
 import { billRouter } from './routes/vendorBillRoutes';
 import { budgetRouter } from './routes/budgetRoutes';
 import { dashboardRouter } from './routes/dashboardRoutes';
+import { voiceBillRouter } from './routes/voiceBillRoutes';
 import { requireAuth, requireInternalUser } from './middleware/auth';
 import { sendError } from './utils/response';
 
@@ -71,6 +72,7 @@ app.use('/api/bills', requireAuth, requireInternalUser, billRouter);
 app.use('/api/vendor-bills', requireAuth, requireInternalUser, billRouter);
 app.use('/api/budgets', requireAuth, requireInternalUser, budgetRouter);
 app.use('/api/dashboard', requireAuth, requireInternalUser, dashboardRouter);
+app.use('/api/voice-bill', requireAuth, requireInternalUser, voiceBillRouter);
 
 
 // 404 handler

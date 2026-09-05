@@ -24,6 +24,7 @@ const MEGA_MENU_COLUMNS: ColumnData[] = [
       { label: 'Sales order', to: '/sales/orders', tab: 'Sales', view: 'so-list' },
       { label: 'Sale Invoice', to: '/sales/invoices', tab: 'Sales', view: 'inv-list' },
       { label: 'Receipt', to: '/sales/payments', tab: 'Sales', view: 'register-payment' },
+      { label: 'e-Bill Assistant (Voice/Chat)', to: '/sales/voice-bill', tab: 'Sales', view: 'voice-bill' },
     ],
   },
   {

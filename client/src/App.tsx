@@ -17,6 +17,7 @@ import CustomerInvoiceListPage from './pages/sales/CustomerInvoiceListPage';
 import CustomerInvoiceFormPage from './pages/sales/CustomerInvoiceFormPage';
 import ReceivablesPage from './pages/sales/ReceivablesPage';
 import RegisterPaymentPage from './pages/sales/RegisterPaymentPage';
+import { VoiceBillPage } from './pages/sales/VoiceBillPage';
 
 // Purchase Module
 import PurchaseIndexPage from './pages/purchase/PurchaseIndexPage';
@@ -93,6 +94,7 @@ export function App() {
           <Route path="invoices/:id" element={<CustomerInvoiceFormPage />} />
           <Route path="receivables" element={<ReceivablesPage />} />
           <Route path="payments" element={<RegisterPaymentPage />} />
+          <Route path="voice-bill" element={<VoiceBillPage />} />
         </Route>
 
         {/* ── Purchase Module ── */}
