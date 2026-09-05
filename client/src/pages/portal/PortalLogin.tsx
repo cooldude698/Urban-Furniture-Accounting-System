@@ -1,15 +1,46 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-interface PortalLoginProps {
-  onLoginSuccess: (user: any) => void;
-  onOpenInviteModal?: () => void;
+/* ─── tiny shared style objects — avoids repeating var(--token) strings ─── */
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  background: 'var(--cream)',
+  border: '1px solid var(--brown-300)',
+  borderRadius: 'var(--radius-sm)',
+  padding: '9px 14px',
+  fontSize: '13px',
+  lineHeight: '20px',
+  color: 'var(--brown-900)',
+  fontFamily: 'var(--font-body)',
+  outline: 'none',
+  transition: 'border-color 150ms ease-out, box-shadow 150ms ease-out',
+};
+
+const inputFocusStyle: React.CSSProperties = {
+  borderColor: 'var(--brown-700)',
+  boxShadow: '0 0 0 2px rgba(119, 87, 74, 0.18)',
+  background: 'var(--surface)',
+};
+
+function FocusInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <input
+      {...props}
+      style={{ ...inputStyle, ...(focused ? inputFocusStyle : {}) }}
+      onFocus={e => { setFocused(true); props.onFocus?.(e); }}
+      onBlur={e => { setFocused(false); props.onBlur?.(e); }}
+    />
+  );
 }
 
-export const PortalLogin: React.FC<PortalLoginProps> = ({ onLoginSuccess, onOpenInviteModal }) => {
+export const PortalLogin: React.FC = () => {
+  const navigate = useNavigate();
   const [loginId, setLoginId] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [btnHover, setBtnHover] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,10 +56,10 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onLoginSuccess, onOpen
 
       const json = await res.json();
       if (!res.ok || json.error) {
-        throw new Error(json.error?.message || 'Invalid Login Id or Password');
+        throw new Error(json.error?.message || 'Invalid Login ID or Password');
       }
 
-      onLoginSuccess(json.data.user);
+      navigate('/portal/invoices', { replace: true });
     } catch (err: any) {
       setError(err.message || 'Login failed');
     } finally {
@@ -37,72 +68,220 @@ export const PortalLogin: React.FC<PortalLoginProps> = ({ onLoginSuccess, onOpen
   };
 
   return (
-    <div className="max-w-md mx-auto py-12 font-body">
-      <div className="bg-surface border border-brown-300 rounded-[18px] p-8 shadow-md">
-        <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-brown-900 text-cream rounded-[10px] flex items-center justify-center font-bold font-display text-lg mx-auto mb-3 shadow-xs">
-            UF
-          </div>
-          <h1 className="text-2xl font-bold font-display text-brown-900">
-            Contact Portal
-          </h1>
-          <p className="text-xs text-brown-600 mt-1 font-body">
-            Restricted to invited customer contacts only
-          </p>
-        </div>
+    <div
+      style={{
+        minHeight: '100vh',
+        background: 'var(--cream)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: 'var(--font-body)',
+        padding: '16px',
+      }}
+    >
+      <div style={{ width: '100%', maxWidth: '420px' }}>
 
-        {error && (
-          <div className="p-3 bg-danger-bg border border-danger text-danger text-xs rounded-md mb-6 font-medium font-body">
-            {error}
-          </div>
-        )}
+        {/* ── Card ── */}
+        <div
+          style={{
+            background: 'var(--surface)',
+            border: '1px solid var(--brown-300)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '40px 36px',
+            boxShadow: 'var(--shadow-md)',
+          }}
+        >
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-brown-700 mb-1.5 font-body">
-              Login ID / Email
-            </label>
-            <input
-              type="text"
-              required
-              value={loginId}
-              onChange={e => setLoginId(e.target.value)}
-              placeholder="e.g. rohit or rohit@sharma.in"
-              className="w-full bg-cream/30 border border-brown-300 rounded-[8px] px-3.5 py-2 text-sm text-brown-900 font-body placeholder:text-brown-400 focus:bg-surface focus:border-brown-700 focus:ring-1 focus:ring-brown-700 outline-none transition-colors"
-            />
+          {/* ── Brand mark ── */}
+          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+            <div
+              style={{
+                width: '48px',
+                height: '48px',
+                background: 'var(--brown-700)',
+                color: 'var(--cream)',
+                borderRadius: 'var(--radius-md)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontFamily: 'var(--font-display)',
+                fontWeight: 700,
+                fontSize: '18px',
+                margin: '0 auto 14px',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+            >
+              UF
+            </div>
+            <h1
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '22px',
+                fontWeight: 700,
+                color: 'var(--brown-900)',
+                margin: 0,
+              }}
+            >
+              Contact Portal
+            </h1>
+            <p
+              style={{
+                fontFamily: 'var(--font-body)',
+                fontSize: '11px',
+                color: 'var(--brown-600)',
+                marginTop: '6px',
+              }}
+            >
+              Restricted to invited customer contacts only
+            </p>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-brown-700 mb-1.5 font-body">
-              Password
-            </label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full bg-cream/30 border border-brown-300 rounded-[8px] px-3.5 py-2 text-sm text-brown-900 font-body placeholder:text-brown-400 focus:bg-surface focus:border-brown-700 focus:ring-1 focus:ring-brown-700 outline-none transition-colors"
-            />
-          </div>
+          {/* ── Error banner ── */}
+          {error && (
+            <div
+              style={{
+                padding: '10px 14px',
+                background: 'var(--danger-bg)',
+                border: '1px solid var(--danger)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--danger)',
+                fontSize: '12px',
+                fontFamily: 'var(--font-body)',
+                fontWeight: 500,
+                marginBottom: '20px',
+              }}
+            >
+              {error}
+            </div>
+          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2.5 px-4 bg-brown-900 hover:bg-brown-800 text-cream font-bold font-display rounded-[10px] shadow-sm text-xs uppercase tracking-wider transition-colors active:scale-[0.99] disabled:opacity-60 cursor-pointer"
+          {/* ── Form ── */}
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+
+            {/* Login ID */}
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '11px',
+                  fontFamily: 'var(--font-body)',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.07em',
+                  color: 'var(--brown-700)',
+                  marginBottom: '6px',
+                }}
+              >
+                Login ID / Email
+              </label>
+              <FocusInput
+                type="text"
+                required
+                value={loginId}
+                onChange={e => setLoginId(e.target.value)}
+                placeholder="e.g. rohit or rohit@sharma.in"
+              />
+            </div>
+
+            {/* Password */}
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '11px',
+                  fontFamily: 'var(--font-body)',
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.07em',
+                  color: 'var(--brown-700)',
+                  marginBottom: '6px',
+                }}
+              >
+                Password
+              </label>
+              <FocusInput
+                type="password"
+                required
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+            </div>
+
+            {/* Submit */}
+            <button
+              type="submit"
+              disabled={loading}
+              onMouseEnter={() => setBtnHover(true)}
+              onMouseLeave={() => setBtnHover(false)}
+              style={{
+                width: '100%',
+                padding: '11px 16px',
+                background: loading
+                  ? 'var(--brown-600)'
+                  : btnHover
+                    ? 'var(--brown-700)'
+                    : 'var(--brown-900)',
+                color: 'var(--cream)',
+                fontFamily: 'var(--font-display)',
+                fontWeight: 700,
+                fontSize: '11px',
+                letterSpacing: '0.1em',
+                textTransform: 'uppercase',
+                border: 'none',
+                borderRadius: 'var(--radius-md)',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                boxShadow: 'var(--shadow-sm)',
+                transition: 'background 150ms ease-out',
+                opacity: loading ? 0.72 : 1,
+              }}
+            >
+              {loading ? 'AUTHENTICATING…' : 'SIGN IN TO PORTAL'}
+            </button>
+          </form>
+
+          {/* ── Invite token link ── */}
+          <div
+            style={{
+              marginTop: '28px',
+              paddingTop: '22px',
+              borderTop: '1px solid rgba(208, 174, 146, 0.40)', /* brown-300 @ 40% */
+              textAlign: 'center',
+            }}
           >
-            {loading ? 'AUTHENTICATING…' : 'SIGN IN TO PORTAL'}
-          </button>
-        </form>
-
-        <div className="mt-8 pt-6 border-t border-brown-200/50 text-center">
-          <p className="text-xs text-brown-600 mb-2 font-body">Have an invitation token?</p>
-          <button
-            onClick={onOpenInviteModal}
-            className="text-xs font-semibold text-brown-700 hover:text-brown-900 underline font-body cursor-pointer"
-          >
-            Activate Account with Token →
-          </button>
+            <p
+              style={{
+                fontSize: '11px',
+                color: 'var(--brown-600)',
+                fontFamily: 'var(--font-body)',
+                marginBottom: '8px',
+              }}
+            >
+              Have an invitation token?
+            </p>
+            <button
+              onClick={() => navigate('/portal/accept-invite')}
+              style={{
+                background: 'none',
+                border: 'none',
+                padding: 0,
+                fontSize: '12px',
+                fontFamily: 'var(--font-body)',
+                fontWeight: 600,
+                color: 'var(--brown-700)',
+                textDecoration: 'underline',
+                cursor: 'pointer',
+              }}
+              onMouseEnter={e =>
+                ((e.currentTarget as HTMLButtonElement).style.color = 'var(--brown-900)')
+              }
+              onMouseLeave={e =>
+                ((e.currentTarget as HTMLButtonElement).style.color = 'var(--brown-700)')
+              }
+            >
+              Activate Account with Token →
+            </button>
+          </div>
         </div>
       </div>
     </div>
