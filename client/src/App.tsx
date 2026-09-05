@@ -72,6 +72,10 @@ import IntegrityPage from './pages/IntegrityPage';
 // Audit Log (chatter)
 import AuditFeedPage from './pages/AuditFeedPage';
 
+// Business Tools: Template Library
+import TemplateLibraryPage from './pages/templates/TemplateLibraryPage';
+import AdminTemplateManagementPage from './pages/templates/AdminTemplateManagementPage';
+
 export function App() {
   return (
     <Routes>
@@ -166,6 +170,14 @@ export function App() {
           <Route path="budget" element={<BudgetReportPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
         </Route>
+
+        {/* ── Business Tools: Template Library ── */}
+        <Route path="tools">
+          <Route index element={<Navigate to="templates" replace />} />
+          <Route path="templates" element={<TemplateLibraryPage />} />
+          <Route path="templates/manage" element={<AdminTemplateManagementPage />} />
+        </Route>
+        <Route path="templates" element={<Navigate to="/tools/templates" replace />} />
 
         {/* ── System Ledger Audit (/verify) ── */}
         <Route path="verify" element={<VerifyPage />} />
