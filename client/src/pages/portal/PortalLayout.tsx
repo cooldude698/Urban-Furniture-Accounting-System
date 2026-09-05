@@ -56,7 +56,7 @@ export const PortalLayout: React.FC = () => {
               border: '1px solid rgba(255,255,255,0.12)',
             }}
           >
-            {[{ to: '/portal/invoices', label: 'Customer Invoices' }, { to: '/portal/bills', label: 'Vendor Bills' }].map(({ to, label }) => (
+            {[{ to: '/portal/catalogue', label: 'Catalogue' }, { to: '/portal/invoices', label: 'Customer Invoices' }, { to: '/portal/bills', label: 'Vendor Bills' }].map(({ to, label }) => (
               <NavLink
                 key={to}
                 to={to}
