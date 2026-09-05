@@ -266,6 +266,28 @@ export class VoiceBillService {
     return res.rows;
   }
 
+  /**
+   * Fetches customer contacts from PostgreSQL database for autocomplete and direct linking
+   */
+  static async getCustomers(): Promise<Array<{
+    id: number;
+    name: string;
+    mobile: string | null;
+    email: string | null;
+    city: string | null;
+    state: string | null;
+    gstin: string | null;
+  }>> {
+    const res = await pool.query(`
+      SELECT id, name, mobile, email, city, state, gstin
+      FROM contacts
+      WHERE type IN ('customer', 'both') AND is_archived = false
+      ORDER BY name ASC
+      LIMIT 100;
+    `);
+    return res.rows;
+  }
+
   private static readonly FEW_SHOT_CUSTOMER_PHONE = `Extract customer_name and phone (10 digits) from user input as JSON. Here are examples:
 
 Input: name rahul phone 9876543210 product sofa quantity 2 price 15000 discount 10 percent

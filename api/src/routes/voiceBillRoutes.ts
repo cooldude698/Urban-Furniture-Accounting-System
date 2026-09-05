@@ -69,6 +69,17 @@ voiceBillRouter.get('/products', async (_req: Request, res: Response) => {
   }
 });
 
+// 5. GET /api/voice-bill/customers - Fetch customer contacts directly from database
+voiceBillRouter.get('/customers', async (_req: Request, res: Response) => {
+  try {
+    const customers = await VoiceBillService.getCustomers();
+    return sendSuccess(res, customers);
+  } catch (err: any) {
+    console.error('Error fetching voice bill customers:', err);
+    return sendError(res, 'FETCH_FAILED', err.message || 'Failed to fetch customers', 500);
+  }
+});
+
 // 4. POST /api/voice-bill/transcribe - Transcribe voice audio via local whisper binary if present
 voiceBillRouter.post('/transcribe', async (req: Request, res: Response) => {
   try {
