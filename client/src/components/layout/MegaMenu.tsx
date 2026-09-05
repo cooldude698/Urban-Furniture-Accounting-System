@@ -98,6 +98,34 @@ export const MegaMenu: React.FC<MegaMenuProps> = ({
     };
   }, [isOpen, onClose]);
 
+  // Lock background scroll completely whenever MegaMenu is open
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+
+    const preventScroll = (e: WheelEvent | TouchEvent) => {
+      if (cardRef.current && cardRef.current.contains(e.target as Node)) {
+        return;
+      }
+      e.preventDefault();
+    };
+
+    window.addEventListener('wheel', preventScroll, { passive: false });
+    window.addEventListener('touchmove', preventScroll, { passive: false });
+
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      window.removeEventListener('wheel', preventScroll);
+      window.removeEventListener('touchmove', preventScroll);
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleItemClick = (item: { to: string; tab?: string; view?: string }) => {
@@ -114,6 +142,8 @@ export const MegaMenu: React.FC<MegaMenuProps> = ({
       {/* Translucent backdrop click interceptor */}
       <div
         onClick={onClose}
+        onWheel={(e) => e.preventDefault()}
+        onTouchMove={(e) => e.preventDefault()}
         style={{
           position: 'fixed',
           top: 56,
