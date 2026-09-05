@@ -227,9 +227,59 @@ invoiceRouter.post('/:id/razorpay/verify-payment', async (req: Request, res: Res
       (req as any).user?.id
     );
 
-    return sendSuccess(res, { success: true, payment, razorpayPaymentId: razorpay_payment_id });
+    // Refresh invoice and dispatch official payment receipt with PDF attachment via Resend
+    let emailResult = null;
+    try {
+      const updatedInvoice = await InvoiceService.getInvoiceById(invId);
+      const { EmailService } = await import('../services/emailService');
+      emailResult = await EmailService.sendPaymentReceiptEmail({
+        invoice: updatedInvoice || invoice,
+        paymentAmount,
+        paymentMethod: 'Razorpay Online Gateway',
+        paymentRef: razorpay_payment_id,
+        recipientEmail: req.body.recipientEmail || req.body.email,
+      });
+    } catch (eErr: any) {
+      console.warn('[InvoiceRoutes] Resend email dispatch notice:', eErr.message);
+    }
+
+    return sendSuccess(res, {
+      success: true,
+      payment,
+      razorpayPaymentId: razorpay_payment_id,
+      email: emailResult,
+    });
   } catch (err: any) {
     return sendError(res, 'PAYMENT_FAILED', err.message, 400);
+  }
+});
+
+// 5e. POST /api/invoices/:id/send-receipt - On-demand send payment receipt PDF via Resend
+invoiceRouter.post('/:id/send-receipt', async (req: Request, res: Response) => {
+  try {
+    const invId = parseInt(String(req.params.id), 10);
+    if (isNaN(invId)) {
+      return sendError(res, 'INVALID_ID', 'Invoice ID must be a number', 400);
+    }
+
+    const invoice = await InvoiceService.getInvoiceById(invId);
+    if (!invoice) {
+      return sendError(res, 'NOT_FOUND', `Customer invoice #${invId} not found`, 404);
+    }
+
+    const recipientEmail = req.body.email || req.body.recipientEmail;
+    const { EmailService } = await import('../services/emailService');
+    const result = await EmailService.sendPaymentReceiptEmail({
+      invoice,
+      paymentAmount: String(req.body.amount || invoice.amountPaid || invoice.total),
+      paymentMethod: req.body.method || 'Bank / Online Receipt',
+      paymentRef: req.body.paymentRef || invoice.number,
+      recipientEmail,
+    });
+
+    return sendSuccess(res, result);
+  } catch (err: any) {
+    return sendError(res, 'EMAIL_FAILED', err.message, 500);
   }
 });
 

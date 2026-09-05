@@ -244,7 +244,32 @@ portalRouter.post('/invoices/:id/razorpay/verify-payment', requireAuth, requireP
       paymentAmount
     );
 
-    return sendSuccess(res, { success: true, payment, razorpayPaymentId: razorpay_payment_id });
+    // Refresh invoice and dispatch email with PDF receipt via Resend
+    let emailResult = null;
+    try {
+      const { InvoiceService } = await import('../services/invoiceService');
+      const updatedInvoice = await InvoiceService.getInvoiceById(invId);
+      if (updatedInvoice) {
+        const { EmailService } = await import('../services/emailService');
+        emailResult = await EmailService.sendPaymentReceiptEmail({
+          invoice: updatedInvoice,
+          paymentAmount,
+          paymentMethod: 'Razorpay Online Gateway',
+          paymentRef: razorpay_payment_id,
+          recipientEmail: req.user?.email || updatedInvoice.customerEmail,
+        });
+      }
+    } catch (eErr: any) {
+      console.warn('[PortalRoutes] Resend email dispatch notice:', eErr.message);
+    }
+
+
+    return sendSuccess(res, {
+      success: true,
+      payment,
+      razorpayPaymentId: razorpay_payment_id,
+      email: emailResult,
+    });
   } catch (err: any) {
     return sendError(res, 'PAYMENT_ERROR', err.message, 400);
   }

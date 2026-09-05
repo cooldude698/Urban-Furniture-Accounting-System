@@ -6,7 +6,7 @@ import { InvoiceLineGrid, InvoiceGridLine } from './components/InvoiceLineGrid';
 import { BlockingWarning } from './components/Warnings';
 import { PaymentHistoryPanel } from './components/PaymentHistoryPanel';
 import { CustomerInvoiceDTO } from '@shared/schemas/invoice';
-import { ShoppingCart, CreditCard, BookOpen, TrendingUp, Printer } from 'lucide-react';
+import { ShoppingCart, CreditCard, BookOpen, TrendingUp, Printer, Mail } from 'lucide-react';
 import { JournalEntryModal } from '../../components/purchase/JournalEntryModal';
 import { RegisterPaymentModal } from '../../components/purchase/RegisterPaymentModal';
 
@@ -37,6 +37,10 @@ export const CustomerInvoiceFormPage: React.FC<CustomerInvoiceFormPageProps> = (
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [isJournalModalOpen, setIsJournalModalOpen] = useState<boolean>(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState<boolean>(false);
+  const [isEmailModalOpen, setIsEmailModalOpen] = useState<boolean>(false);
+  const [emailRecipient, setEmailRecipient] = useState<string>('');
+  const [emailSending, setEmailSending] = useState<boolean>(false);
+  const [emailStatus, setEmailStatus] = useState<{ success: boolean; message: string } | null>(null);
 
 
   // Fetch dropdown data
@@ -190,6 +194,38 @@ export const CustomerInvoiceFormPage: React.FC<CustomerInvoiceFormPageProps> = (
     }
   };
 
+  const handleSendEmail = async () => {
+    if (!invoice?.id) return;
+    setEmailSending(true);
+    setEmailStatus(null);
+    try {
+      const res = await fetch(`/api/invoices/${invoice.id}/send-receipt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: emailRecipient || undefined }),
+      });
+      const json = await res.json();
+      if (json.data && json.data.success) {
+        setEmailStatus({
+          success: true,
+          message: `PDF receipt successfully sent to ${json.data.recipient}! (Resend ID: ${json.data.resendId})`,
+        });
+      } else {
+        setEmailStatus({
+          success: false,
+          message: json.error?.message || json.data?.message || 'Failed to dispatch email receipt via Resend.',
+        });
+      }
+    } catch (err: any) {
+      setEmailStatus({
+        success: false,
+        message: err.message || 'Error communicating with email receipt service.',
+      });
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
   const isConfirmed = invoice?.status === 'confirmed';
   const isDraft = !invoice || invoice.status === 'draft';
 
@@ -242,6 +278,18 @@ export const CustomerInvoiceFormPage: React.FC<CustomerInvoiceFormPageProps> = (
                 <Printer className="w-4 h-4 text-brown-600" />
                 Print / PDF
               </a>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmailRecipient(invoice?.customerEmail || '');
+                  setEmailStatus(null);
+                  setIsEmailModalOpen(true);
+                }}
+                className="px-3.5 py-1.5 text-sm font-medium bg-surface text-brown-800 border border-brown-300 rounded-[6px] hover:bg-brown-100 transition-colors shadow-sm flex items-center gap-1.5 cursor-pointer"
+              >
+                <Mail className="w-4 h-4 text-brown-600" />
+                Email Receipt (Resend)
+              </button>
             </>
           )}
         </div>
@@ -499,8 +547,78 @@ export const CustomerInvoiceFormPage: React.FC<CustomerInvoiceFormPageProps> = (
           }}
         />
       )}
+
+      {/* Resend Email Receipt Modal */}
+      {isEmailModalOpen && invoice && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-surface rounded-xl shadow-2xl border border-brown-200 max-w-md w-full p-6 space-y-4 animate-in fade-in zoom-in duration-150">
+            <div className="flex items-center justify-between border-b border-brown-200 pb-3">
+              <div className="flex items-center gap-2">
+                <Mail className="w-5 h-5 text-brown-700" />
+                <h3 className="text-lg font-bold text-brown-900">Email PDF Payment Receipt</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsEmailModalOpen(false)}
+                className="text-brown-400 hover:text-brown-700 text-lg leading-none"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-sm text-brown-600">
+              Sends an official formatted PDF receipt for <strong>{invoice.number}</strong> ({invoice.customerName}) via <strong>Resend API</strong> directly to the client's mailbox.
+            </p>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-brown-700 uppercase tracking-wider">
+                Recipient Email (Personal Gmail / Work Email)
+              </label>
+              <input
+                type="email"
+                value={emailRecipient}
+                onChange={(e) => setEmailRecipient(e.target.value)}
+                placeholder="client@gmail.com"
+                className="w-full px-3 py-2 border border-brown-300 rounded-lg text-sm bg-cream/30 focus:outline-none focus:ring-2 focus:ring-brown-500 focus:border-transparent text-brown-900"
+              />
+            </div>
+
+            {emailStatus && (
+              <div
+                className={`p-3 rounded-lg text-sm border ${
+                  emailStatus.success
+                    ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                    : 'bg-amber-50 text-amber-900 border-amber-200'
+                }`}
+              >
+                {emailStatus.message}
+              </div>
+            )}
+
+            <div className="flex justify-end items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsEmailModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-brown-700 hover:text-brown-900"
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                disabled={emailSending || !emailRecipient}
+                onClick={handleSendEmail}
+                className="px-4 py-2 text-sm font-semibold bg-brown-900 text-cream rounded-lg hover:bg-brown-800 transition shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 cursor-pointer"
+              >
+                <Mail className="w-4 h-4" />
+                {emailSending ? 'Sending PDF via Resend...' : 'Send Receipt Now'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default CustomerInvoiceFormPage;
+

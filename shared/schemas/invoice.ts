@@ -47,6 +47,7 @@ export interface CustomerInvoiceDTO {
   soNumber?: string | null;
   customerId: number;
   customerName?: string;
+  customerEmail?: string | null;
   invoiceDate: string;
   dueDate: string;
   journalId?: number;

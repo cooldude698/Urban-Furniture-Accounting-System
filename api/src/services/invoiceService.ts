@@ -48,6 +48,7 @@ export interface CustomerInvoiceDTO {
   soNumber?: string | null;
   customerId: number;
   customerName?: string;
+  customerEmail?: string;
   invoiceDate: string;
   dueDate: string;
   status: 'draft' | 'confirmed' | 'cancelled';
@@ -250,6 +251,7 @@ export class InvoiceService {
       `SELECT 
         ci.*,
         c.name as customer_name,
+        c.email as customer_email,
         so.number as so_number,
         je.number as journal_entry_number,
         vis.amount_paid,
@@ -311,6 +313,7 @@ export class InvoiceService {
       soNumber: inv.so_number,
       customerId: inv.customer_id,
       customerName: inv.customer_name,
+      customerEmail: inv.customer_email || undefined,
       invoiceDate: inv.invoice_date ? new Date(inv.invoice_date).toISOString().split('T')[0] : '',
       dueDate: inv.due_date ? new Date(inv.due_date).toISOString().split('T')[0] : '',
       status: inv.status,

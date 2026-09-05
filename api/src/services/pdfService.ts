@@ -1,4 +1,5 @@
 import puppeteer from 'puppeteer';
+import fs from 'fs';
 import { CustomerInvoiceDTO } from './invoiceService';
 
 export class PdfService {
@@ -231,10 +232,15 @@ export class PdfService {
 
   static async generateInvoicePdf(invoice: CustomerInvoiceDTO): Promise<Buffer> {
     const html = this.generateInvoiceHtml(invoice);
+    const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || 
+      (fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : undefined);
+
     const browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      executablePath,
+      args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
     });
+
 
     try {
       const page = await browser.newPage();
