@@ -6,10 +6,16 @@ import { SalesLineItemGrid, GridLine } from './components/SalesLineItemGrid';
 import { BlockingWarning } from './components/Warnings';
 import { SalesOrderDTO } from '@shared/schemas/salesOrder';
 
-export const SalesOrderFormPage: React.FC = () => {
+export interface SalesOrderFormPageProps {
+  orderId?: number | null;
+  onBack?: () => void;
+  onSaved?: (id: number) => void;
+}
+
+export const SalesOrderFormPage: React.FC<SalesOrderFormPageProps> = ({ orderId: propOrderId, onBack, onSaved }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const orderId = id ? parseInt(id, 10) : null;
+  const orderId = propOrderId !== undefined ? propOrderId : (id ? parseInt(id, 10) : null);
 
   const [order, setOrder] = useState<SalesOrderDTO | null>(null);
   const [customerId, setCustomerId] = useState<number>(0);

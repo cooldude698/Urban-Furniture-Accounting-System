@@ -21,6 +21,7 @@ import { analyticRouter } from './routes/analyticRoutes';
 import { poRouter } from './routes/purchaseOrderRoutes';
 import { billRouter } from './routes/vendorBillRoutes';
 import { budgetRouter } from './routes/budgetRoutes';
+import { dashboardRouter } from './routes/dashboardRoutes';
 import { sendError } from './utils/response';
 
 dotenv.config();
@@ -31,7 +32,7 @@ const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
 
 app.use(
   cors({
-    origin: corsOrigin,
+    origin: [corsOrigin, 'http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://127.0.0.1:5174'],
     credentials: true,
   })
 );
@@ -66,6 +67,7 @@ app.use('/api/purchase-orders', poRouter);
 app.use('/api/bills', billRouter);
 app.use('/api/vendor-bills', billRouter);
 app.use('/api/budgets', budgetRouter);
+app.use('/api/dashboard', dashboardRouter);
 
 
 // 404 handler

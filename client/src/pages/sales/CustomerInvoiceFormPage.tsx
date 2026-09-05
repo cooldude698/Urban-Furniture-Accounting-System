@@ -8,10 +8,16 @@ import { PaymentHistoryPanel } from './components/PaymentHistoryPanel';
 import { CustomerInvoiceDTO } from '@shared/schemas/invoice';
 import { ShoppingCart, CreditCard } from 'lucide-react';
 
-export const CustomerInvoiceFormPage: React.FC = () => {
+export interface CustomerInvoiceFormPageProps {
+  invoiceId?: number | null;
+  onBack?: () => void;
+  onSaved?: (id: number) => void;
+}
+
+export const CustomerInvoiceFormPage: React.FC<CustomerInvoiceFormPageProps> = ({ invoiceId: propInvoiceId, onBack, onSaved }) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const invoiceId = id ? parseInt(id, 10) : null;
+  const invoiceId = propInvoiceId !== undefined ? propInvoiceId : (id ? parseInt(id, 10) : null);
 
   const [invoice, setInvoice] = useState<CustomerInvoiceDTO | null>(null);
   const [customerId, setCustomerId] = useState<number>(0);
