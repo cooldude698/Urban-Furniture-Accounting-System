@@ -9,9 +9,10 @@ interface AnalyticFormPageProps {
   onBack: () => void;
   onSaved: (id: number) => void;
   onHome: () => void;
+  onNew?: () => void;
 }
 
-export const AnalyticFormPage: React.FC<AnalyticFormPageProps> = ({ analyticId, onBack, onSaved, onHome }) => {
+export const AnalyticFormPage: React.FC<AnalyticFormPageProps> = ({ analyticId, onBack, onSaved, onHome, onNew }) => {
   const isNew = !analyticId;
 
   const [formData, setFormData] = useState<CreateAnalyticAccountInput>({
@@ -40,6 +41,15 @@ export const AnalyticFormPage: React.FC<AnalyticFormPageProps> = ({ analyticId, 
         })
         .catch(err => setError(err.message))
         .finally(() => setLoading(false));
+    } else {
+      setItem(null);
+      setFormData({
+        name: '',
+        type: 'expense',
+        description: '',
+        is_archived: false,
+      });
+      setError(null);
     }
   }, [analyticId]);
 
@@ -84,7 +94,7 @@ export const AnalyticFormPage: React.FC<AnalyticFormPageProps> = ({ analyticId, 
       isNew={isNew}
       isArchived={formData.is_archived}
       onSave={handleSave}
-      onNew={() => onSaved(0)}
+      onNew={onNew}
       onArchiveToggle={!isNew ? handleArchiveToggle : undefined}
       onBack={onBack}
       onHome={onHome}
