@@ -117,7 +117,13 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       setSelectedFile(file);
-      setImagePreview(URL.createObjectURL(file));
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result as string;
+        setImagePreview(base64);
+        setFormData(prev => ({ ...prev, image_path: base64 }));
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -162,11 +168,6 @@ export const ContactFormPage: React.FC<ContactFormPageProps> = ({
         saved = await ContactsApi.create(formData);
       } else {
         saved = await ContactsApi.update(contactId!, formData);
-      }
-
-      // If a new image was selected, upload it
-      if (selectedFile && saved.id) {
-        await ContactsApi.uploadImage(saved.id, selectedFile);
       }
 
       setSuccessMsg('Contact saved successfully.');

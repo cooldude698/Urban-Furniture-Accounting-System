@@ -82,8 +82,8 @@ contactRouter.post('/', async (req: Request, res: Response) => {
     const b = req.body;
     const result = await pool.query(
       `INSERT INTO contacts 
-        (name, type, email, mobile, address, city, state, pincode, gstin)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        (name, type, email, mobile, address, city, state, pincode, gstin, image_path)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [
         b.name,
@@ -95,11 +95,33 @@ contactRouter.post('/', async (req: Request, res: Response) => {
         b.state || null,
         b.pincode || null,
         b.gstin || null,
+        b.image_path || null,
       ]
     );
     return sendSuccess(res, result.rows[0], 201);
   } catch (err: any) {
     return sendError(res, 'CREATE_FAILED', err.message, 400);
+  }
+});
+
+// POST /api/contacts/:id/image
+contactRouter.post('/:id/image', async (req: Request, res: Response) => {
+  if (!checkPortalAccess(req, res)) return;
+
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) return sendError(res, 'INVALID_ID', 'ID must be an integer');
+
+    const imagePath = req.body.image_path || req.body.image || null;
+    const result = await pool.query(
+      'UPDATE contacts SET image_path = $1, updated_at = now() WHERE id = $2 RETURNING *',
+      [imagePath, id]
+    );
+
+    if (result.rows.length === 0) return sendError(res, 'NOT_FOUND', 'Contact not found', 404);
+    return sendSuccess(res, result.rows[0]);
+  } catch (err: any) {
+    return sendError(res, 'IMAGE_UPLOAD_FAILED', err.message, 500);
   }
 });
 
@@ -115,7 +137,7 @@ contactRouter.put('/:id', async (req: Request, res: Response) => {
     const fields: string[] = [];
     const values: any[] = [];
 
-    const keys = ['name', 'type', 'email', 'mobile', 'address', 'city', 'state', 'pincode', 'gstin'];
+    const keys = ['name', 'type', 'email', 'mobile', 'address', 'city', 'state', 'pincode', 'gstin', 'image_path'];
     for (const k of keys) {
       if (b[k] !== undefined) {
         values.push(b[k]);
