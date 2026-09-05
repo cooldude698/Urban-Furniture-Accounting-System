@@ -12,6 +12,8 @@ import { portalRouter } from './routes/portalRoutes';
 import { contactRouter } from './routes/contactRoutes';
 import { reportRouter } from './routes/reportRoutes';
 import { agingRouter } from './routes/agingRoutes';
+import { ledgerRouter } from './routes/ledgerRoutes';
+import { verifyRouter } from './routes/verifyRoutes';
 import { sendError } from './utils/response';
 
 dotenv.config();
@@ -46,6 +48,8 @@ app.use('/api/receivables', receivablesRouter);
 app.use('/api/aging', agingRouter);
 app.use('/api/contacts', contactRouter);
 app.use('/api/reports', reportRouter);
+app.use('/api/ledger', ledgerRouter);
+app.use('/api/verify', verifyRouter);
 
 
 // 404 handler
