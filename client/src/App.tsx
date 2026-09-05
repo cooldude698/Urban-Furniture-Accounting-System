@@ -69,6 +69,9 @@ import MonitorPage from './pages/MonitorPage';
 // System Integrity (10-check live audit)
 import IntegrityPage from './pages/IntegrityPage';
 
+// Audit Log (chatter)
+import AuditFeedPage from './pages/AuditFeedPage';
+
 export function App() {
   return (
     <Routes>
@@ -152,6 +155,9 @@ export function App() {
           <Route path="analytics/:id" element={<AnalyticFormRoute />} />
         </Route>
 
+        {/* ── Business Analytics Engine ── */}
+        <Route path="analytics" element={<AnalyticsPage />} />
+
         {/* ── Reports Module ── */}
         <Route path="report" element={<ReportsIndexPage />}>
           <Route index element={<Navigate to="balance-sheet" replace />} />
@@ -166,6 +172,9 @@ export function App() {
 
         {/* ── System Integrity (10-check live audit) ── */}
         <Route path="integrity" element={<IntegrityPage />} />
+
+        {/* ── Audit Log (chatter) ── */}
+        <Route path="audit" element={<AuditFeedPage />} />
       </Route>
 
       {/* ── Fallback ── */}
