@@ -12,7 +12,104 @@
 
 ---
 
+## 🏛️ System Architecture
+
+```mermaid
+flowchart LR
+    %% Outer Architecture Frame
+    subgraph SysArch ["SYSTEM ARCHITECTURE"]
+        direction LR
+
+        %% 1. Actors / Users (Right Side)
+        subgraph ActorsCluster ["Users & Clients"]
+            Users(["👤 Users & Portal Clients<br/>• Internal Staff (Admin, Accountant)<br/>• Customer Portal Users"]):::actorNode
+        end
+
+        %% 2. Gateway / Reverse Proxy
+        subgraph GatewayCluster ["Gateway & Reverse Proxy"]
+            Gateway["🌐 Nginx Gateway / Web App<br/><code>:5173 / :80</code><br/>• SSL / TLS Termination<br/>• Static Asset Serving<br/>• Reverse Proxy Routing"]:::gatewayNode
+        end
+
+        %% 3. Core Application Tier (Center)
+        subgraph AppCluster ["Application Core 🐳 docker"]
+            WebApp["⚙️ Express REST API Server<br/><code>Node.js 20 · Express 5 · TypeScript</code><br/>• Double-Entry Posting Engine<br/>• RBAC & Data Scoping (<code>scopeFor</code>)<br/>• Commercial PO & SO Validations<br/>• Pre-Commitment Budget Engine"]:::appNode
+        end
+
+        %% 4. External Payment Gateway (Top)
+        subgraph PaymentCluster ["Payment Gateway"]
+            Razorpay["💳 Razorpay Payment Gateway<br/>• Order Generation (paise precision)<br/>• UPI / Cards / NetBanking Modal<br/>• HMAC-SHA256 Signature Verification"]:::paymentNode
+        end
+
+        %% 5. Storage Subsystem (Left)
+        subgraph StorageCluster ["Storage 🐳 docker"]
+            direction TB
+            CloudStorage["📁 Cloud / Local Document Storage<br/>• Generated Invoice PDFs<br/>• Payment Receipt Vouchers<br/>• User Uploads & Attachments"]:::storageNode
+            PostgresDB[("🗄️ PostgreSQL 16 DB<br/><code>urban (port 5432)</code><br/>• General Ledger (<code>journal_entries</code>, <code>lines</code>)<br/>• Commercial Documents (PO, SO, Bills, Invoices)<br/>• Pre-Commitment Departmental Budgets<br/>• Deferred Triggers (Strict Balanced Check)"]:::storageNode
+            RedisCache["⚡ In-Memory Cache & Session Store<br/>• Stateless JWT Cookie Validation<br/>• Distributed Lock Coordinator<br/>• Fast Inventory Lock States"]:::storageNode
+        end
+
+        %% 6. Background Workers & Email Pipeline (Far Left)
+        subgraph WorkerCluster ["Background Services & Email Pipeline"]
+            direction TB
+            BullQueue["⏰ Asynchronous Worker Dispatch<br/>• Non-blocking Task Handling<br/>• Event-Driven Receipt Generation"]:::workerNode
+            EmailService["📧 Resend Email Service<br/><code>api.resend.com/emails</code><br/>• Transactional Email Delivery<br/>• Base64 Attached PDF Receipts<br/>• Real-time Personal Gmail Alerts"]:::workerNode
+            PdfEngine["📄 Chromium PDF Engine (Puppeteer)<br/>• A4 Print-Formatted Vouchers<br/>• Deterministic Rendering & Signatures"]:::workerNode
+        end
+
+        %% 7. Observability & Verification Subsystem (Bottom)
+        subgraph ObservabilityCluster ["Observability & Verification 🐳 docker"]
+            direction LR
+            Prometheus["⚖️ Zero-Delta Invariant Verifier<br/><code>GET /api/verify</code><br/>(Σ Debit ≡ Σ Credit = 0.00)"]:::obsNode
+            Grafana["📜 Immutable Audit Trail<br/><code>audit_log table</code><br/>(Diffs, IP, User, Timestamp)"]:::obsNode
+            Loki["🩺 Health & System Probes<br/><code>GET /api/health</code><br/>(ACID DB & Container Health)"]:::obsNode
+        end
+
+        %% Communication & Data Flows
+        Users <== "HTTP/2 (HTTPS)" ==> Gateway
+        Gateway <== "HTTP/1.1 REST (JSON)" ==> WebApp
+
+        Razorpay <== "Order & Signature Verifications" ==> WebApp
+
+        WebApp <== "Parameterized SQL (pg)" ==> PostgresDB
+        WebApp <== "Read / Write Receipts" ==> CloudStorage
+        WebApp <== "Session / Cache Lookups" ==> RedisCache
+
+        WebApp --> "Trigger Receipt Event" --> BullQueue
+        BullQueue --> "Render A4 Document" --> PdfEngine
+        PdfEngine --> "Base64 Attachment" --> EmailService
+        EmailService --> "Dispatch PDF Receipt" --> Users
+
+        WebApp -.-> "Telemetry & Log Feeds" -.-> ObservabilityCluster
+        PostgresDB -.-> "Ledger Sum Checks" -.-> Prometheus
+    end
+
+    %% Visual Styling
+    classDef actorNode fill:#1E40AF,stroke:#1D4ED8,stroke-width:2px,color:#FFFFFF,font-weight:bold;
+    classDef gatewayNode fill:#EA580C,stroke:#C2410C,stroke-width:2px,color:#FFFFFF,font-weight:bold;
+    classDef appNode fill:#991B1B,stroke:#7F1D1D,stroke-width:2px,color:#FFFFFF,font-weight:bold;
+    classDef paymentNode fill:#0369A1,stroke:#0284C7,stroke-width:2px,color:#FFFFFF,font-weight:bold;
+    classDef storageNode fill:#DC2626,stroke:#B91C1C,stroke-width:2px,color:#FFFFFF,font-weight:bold;
+    classDef workerNode fill:#B45309,stroke:#92400E,stroke-width:2px,color:#FFFFFF,font-weight:bold;
+    classDef obsNode fill:#7F1D1D,stroke:#450A0A,stroke-width:2px,color:#FFFFFF,font-weight:bold;
+```
+
+### Architecture Subsystems at a Glance
+
+| Subsystem | Key Components | Protocols & Ports | Role in Urban Furniture ERP |
+| :--- | :--- | :--- | :--- |
+| **Actors / Users** | Staff (Admin, Accountant, Sales, Warehouse) & Customer Portal Clients | Browser / HTTPS | Operational ERP management and external customer self-service invoice settlement. |
+| **Gateway & Web** | Nginx Reverse Proxy / Vite Application Server | `HTTP/2` (`:5173`, `:80`, `:443`) | SSL termination, reverse proxying, static asset caching, and route protection. |
+| **Core Web App & API** | Node.js 20, Express 5, TypeScript, Zod, Decimal.js | `HTTP/1.1 REST` (`:5000` / `:5002`) | Commercial workflows, double-entry posting engine, pre-commitment budget checks, and data scoping. |
+| **Payment Gateway** | Razorpay Payment Gateway API & Test Sandbox | HTTPS REST / Webhook | Online checkout, card/UPI tokenization, and deterministic HMAC-SHA256 signature verification. |
+| **Storage Subsystem** | PostgreSQL 16 DB, Local/Cloud Document Storage, Cache | Postgres Wire (`:5432`), Docker Volumes | Transactional ACID ledger, immutable audit trail, gapless numbering sequences, and PDF documents. |
+| **Email & PDF Pipeline** | Headless Chromium (Puppeteer) + Resend API (`api.resend.com`) | Async Queue / REST | Deterministic A4 payment receipt PDF generation and immediate delivery to client Gmail. |
+| **Observability** | Zero-Delta Invariant Verifier, Audit Trail, Health Probes | `/api/verify`, `/api/health` | Live verification of $\sum \text{Debit} \equiv \sum \text{Credit}$ down to the paisa, container health checks. |
+
+---
+
 ## Table of Contents
+
+0. [System Architecture](#%EF%B8%8F-system-architecture)
 
 1. [Project Overview](#1-project-overview)
 2. [Problem Statement](#2-problem-statement)
