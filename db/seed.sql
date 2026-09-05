@@ -69,6 +69,18 @@ INSERT INTO users (login_id, email, full_name, password_hash, role) VALUES
    'admin');
 
 -- ============================================================
+-- Customer Portal user (contact role)
+-- Password: Client@12345 — meets the >8 chars, upper/lower/special rule.
+-- Linked to contact #22 (Neha Desai)
+-- ============================================================
+
+INSERT INTO users (login_id, email, full_name, password_hash, role, contact_id) VALUES
+  ('clientuf', 'client@urbanfurniture.local', 'Neha Desai',
+   '$argon2id$v=19$m=65536,p=4,t=3$nC443DbbGqSgU2fJT/vAQA$lENDm39+Fvy3JeWZmyex7p5HWwwt2BBbi0KbATZkoEo',
+   'contact', 22)
+ON CONFLICT (login_id) DO NOTHING;
+
+-- ============================================================
 -- Opening capital entry is NOT seeded here — db/seed_data.sql (generated
 -- by gen_seed.py) posts it as journal entry #1 along with the rest of the
 -- transaction history. Seeding it twice would double-post capital and
