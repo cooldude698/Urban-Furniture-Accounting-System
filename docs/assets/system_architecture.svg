@@ -1,0 +1,295 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 684" width="1024" height="684">
+  <defs>
+    <style>
+      .title-badge { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 15px; font-weight: 600; fill: #FFFFFF; }
+      .box-badge { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; font-weight: 600; fill: #FFFFFF; }
+      .node-label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; font-weight: 600; fill: #1F2937; text-anchor: middle; }
+      .node-sub { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10px; font-weight: 500; fill: #6B7280; text-anchor: middle; }
+      .conn-label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; font-weight: 600; fill: #374151; text-anchor: middle; }
+      .arrow { stroke: #4B5563; stroke-width: 1.5; fill: none; }
+      .arrow-head { fill: #4B5563; }
+    </style>
+
+    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#4B5563" />
+    </marker>
+    <marker id="arrowhead-start" markerWidth="8" markerHeight="6" refX="1" refY="3" orient="auto">
+      <polygon points="8 0, 0 3, 8 6" fill="#4B5563" />
+    </marker>
+  </defs>
+
+  <!-- Canvas Background -->
+  <rect width="1024" height="684" fill="#F8FAFC" />
+
+  <!-- Main Surrounding Frame -->
+  <rect x="12" y="38" width="1000" height="634" rx="14" fill="#EDF5FF" stroke="#A7CFF8" stroke-width="1.8" />
+
+  <!-- Title Badge Top-Left -->
+  <rect x="12" y="10" width="150" height="28" rx="6" fill="#3B82F6" />
+  <text x="87" y="29" text-anchor="middle" class="title-badge">System Architecture</text>
+
+  <!-- ========================================== -->
+  <!-- 1. STORAGE CONTAINER (Left Box) -->
+  <!-- ========================================== -->
+  <g transform="translate(245, 105)">
+    <!-- Box Frame -->
+    <rect x="0" y="0" width="140" height="395" rx="8" fill="#FFFFFF" stroke="#1E293B" stroke-width="1.5" />
+    
+    <!-- Badge -->
+    <rect x="0" y="-12" width="68" height="24" rx="4" fill="#0F172A" />
+    <text x="34" y="4" text-anchor="middle" class="box-badge">Storage</text>
+
+    <!-- Cloud Storage -->
+    <g transform="translate(70, 45)">
+      <!-- Server Rack Icon -->
+      <rect x="-26" y="-22" width="52" height="18" rx="3" fill="#DC2626" />
+      <circle cx="-16" cy="-13" r="2.5" fill="#FEF2F2" />
+      <circle cx="-8" cy="-13" r="2.5" fill="#FEF2F2" />
+      <rect x="10" y="-15" width="10" height="4" rx="1" fill="#FEF2F2" />
+      
+      <rect x="-26" y="2" width="52" height="18" rx="3" fill="#DC2626" />
+      <circle cx="-16" cy="11" r="2.5" fill="#FEF2F2" />
+      <circle cx="-8" cy="11" r="2.5" fill="#FEF2F2" />
+      <rect x="10" y="9" width="10" height="4" rx="1" fill="#FEF2F2" />
+
+      <text x="0" y="38" class="node-label">Cloud</text>
+      <text x="0" y="52" class="node-label">Storage</text>
+    </g>
+
+    <!-- PostgresDB -->
+    <g transform="translate(70, 180)">
+      <!-- Database 3D Cylinder -->
+      <path d="M-22,-18 C-22,-24 22,-24 22,-18 C22,-12 -22,-12 -22,-18 Z" fill="#DC2626" />
+      <path d="M-22,-18 L-22,-4 C-22,2 22,2 22,-4 L22,-18 Z" fill="#B91C1C" opacity="0.9" />
+      <path d="M-22,-4 L-22,10 C-22,16 22,16 22,10 L22,-4 Z" fill="#991B1B" opacity="0.95" />
+      <path d="M-22,10 L-22,22 C-22,28 22,28 22,22 L22,10 Z" fill="#7F1D1D" />
+      
+      <!-- Docker Badge -->
+      <g transform="translate(14, -28)">
+        <rect x="0" y="0" width="30" height="18" rx="4" fill="#0284C7" />
+        <!-- Mini Whale -->
+        <path d="M4,10 C6,7 10,7 13,10 C16,7 20,7 23,10 L25,12 C25,14 22,15 16,15 C9,15 4,14 4,10 Z" fill="#FFFFFF" />
+        <rect x="8" y="5" width="2.5" height="2.5" fill="#FFFFFF" />
+        <rect x="11.5" y="5" width="2.5" height="2.5" fill="#FFFFFF" />
+        <rect x="15" y="5" width="2.5" height="2.5" fill="#FFFFFF" />
+      </g>
+
+      <text x="0" y="44" class="node-label">PostgresDB</text>
+    </g>
+
+    <!-- Redis -->
+    <g transform="translate(70, 310)">
+      <!-- Redis Layer Icon -->
+      <polygon points="0,-16 26,-4 0,8 -26,-4" fill="#DC2626" />
+      <polygon points="0,-4 26,8 0,20 -26,8" fill="#B91C1C" opacity="0.85" />
+      <polygon points="0,8 26,20 0,32 -26,20" fill="#991B1B" opacity="0.95" />
+      
+      <!-- Docker Badge -->
+      <g transform="translate(14, -28)">
+        <rect x="0" y="0" width="30" height="18" rx="4" fill="#0284C7" />
+        <path d="M4,10 C6,7 10,7 13,10 C16,7 20,7 23,10 L25,12 C25,14 22,15 16,15 C9,15 4,14 4,10 Z" fill="#FFFFFF" />
+        <rect x="8" y="5" width="2.5" height="2.5" fill="#FFFFFF" />
+        <rect x="11.5" y="5" width="2.5" height="2.5" fill="#FFFFFF" />
+        <rect x="15" y="5" width="2.5" height="2.5" fill="#FFFFFF" />
+      </g>
+
+      <text x="0" y="48" class="node-label">Redis</text>
+    </g>
+  </g>
+
+  <!-- ========================================== -->
+  <!-- 2. TASK QUEUE & EMAIL PIPELINE (Left) -->
+  <!-- ========================================== -->
+  <!-- BullMQ -->
+  <g transform="translate(58, 280)">
+    <!-- Alarm Clock Icon -->
+    <circle cx="0" cy="0" r="20" fill="#FFFFFF" stroke="#DC2626" stroke-width="4" />
+    <!-- Clock Hands -->
+    <polyline points="0,-10 0,0 7,4" stroke="#DC2626" stroke-width="3" stroke-linecap="round" fill="none" />
+    <!-- Bells -->
+    <path d="M-15,-18 L-9,-12" stroke="#DC2626" stroke-width="4" stroke-linecap="round" />
+    <path d="M15,-18 L9,-12" stroke="#DC2626" stroke-width="4" stroke-linecap="round" />
+    <!-- Legs -->
+    <path d="M-14,16 L-18,22" stroke="#DC2626" stroke-width="3" stroke-linecap="round" />
+    <path d="M14,16 L18,22" stroke="#DC2626" stroke-width="3" stroke-linecap="round" />
+    
+    <text x="0" y="38" class="node-label">BullMQ</text>
+  </g>
+
+  <!-- Down Arrow from BullMQ to Email Service -->
+  <line x1="58" y1="325" x2="58" y2="355" class="arrow" marker-end="url(#arrowhead)" />
+
+  <!-- Email Service (Resend) -->
+  <g transform="translate(58, 385)">
+    <!-- Vertical Bars / Server Icon -->
+    <rect x="-22" y="-16" width="6" height="32" rx="2" fill="#DC2626" />
+    <rect x="-11" y="-16" width="6" height="32" rx="2" fill="#DC2626" />
+    <rect x="0" y="-16" width="6" height="32" rx="2" fill="#DC2626" />
+    <rect x="11" y="-16" width="6" height="32" rx="2" fill="#DC2626" />
+    <rect x="22" y="-16" width="6" height="32" rx="2" fill="#DC2626" />
+    
+    <text x="0" y="34" class="node-label">Email</text>
+    <text x="0" y="48" class="node-label">Service</text>
+  </g>
+
+  <!-- Arrow from Email Service to Redis Workers -->
+  <line x1="86" y1="390" x2="135" y2="390" class="arrow" marker-end="url(#arrowhead)" />
+
+  <!-- Redis Workers -->
+  <g transform="translate(162, 390)">
+    <!-- Code Brackets Icon -->
+    <path d="M-18,-18 L-26,0 L-18,18" fill="none" stroke="#EA580C" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M18,-18 L26,0 L18,18" fill="none" stroke="#EA580C" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+    <circle cx="-6" cy="0" r="2.5" fill="#EA580C" />
+    <circle cx="0" cy="0" r="2.5" fill="#EA580C" />
+    <circle cx="6" cy="0" r="2.5" fill="#EA580C" />
+    
+    <text x="0" y="34" class="node-label">Redis</text>
+    <text x="0" y="48" class="node-label">Workers</text>
+  </g>
+
+  <!-- Arrow from Redis Workers to Storage:Redis -->
+  <line x1="192" y1="390" x2="245" y2="415" class="arrow" marker-end="url(#arrowhead)" />
+
+
+  <!-- ========================================== -->
+  <!-- 3. WEB APP / API SERVER (Center) -->
+  <!-- ========================================== -->
+  <g transform="translate(600, 275)">
+    <!-- App Window Frame Icon -->
+    <rect x="-35" y="-30" width="70" height="56" rx="8" fill="#FFFFFF" stroke="#991B1B" stroke-width="4" />
+    <line x1="-35" y1="-14" x2="35" y2="-14" stroke="#991B1B" stroke-width="2.5" />
+    <!-- Window buttons -->
+    <circle cx="-25" cy="-22" r="2.5" fill="#991B1B" />
+    <circle cx="-18" cy="-22" r="2.5" fill="#991B1B" />
+    <circle cx="-11" cy="-22" r="2.5" fill="#991B1B" />
+    <!-- Globe Inside -->
+    <circle cx="8" cy="10" r="16" fill="none" stroke="#991B1B" stroke-width="2.5" />
+    <ellipse cx="8" cy="10" rx="8" ry="16" fill="none" stroke="#991B1B" stroke-width="2" />
+    <line x1="-8" y1="10" x2="24" y2="10" stroke="#991B1B" stroke-width="2" />
+    
+    <text x="0" y="44" class="node-label">NextJS Web App</text>
+  </g>
+
+  <!-- ========================================== -->
+  <!-- 4. PAYMENT GATEWAY (Top) -->
+  <!-- ========================================== -->
+  <g transform="translate(600, 150)">
+    <!-- Credit Card Icon -->
+    <rect x="-28" y="-18" width="56" height="36" rx="5" fill="#DC2626" />
+    <rect x="-28" y="-10" width="56" height="8" fill="#FFFFFF" opacity="0.9" />
+    <rect x="-22" y="6" width="12" height="6" rx="1.5" fill="#FDE047" />
+    
+    <text x="0" y="32" class="node-label">Stripe Payment</text>
+  </g>
+
+  <!-- Arrow from Payment to Web App -->
+  <line x1="600" y1="188" x2="600" y2="240" class="arrow" marker-end="url(#arrowhead)" />
+
+  <!-- ========================================== -->
+  <!-- 5. NGINX GATEWAY & USERS (Right) -->
+  <!-- ========================================== -->
+  <!-- Nginx Gateway -->
+  <g transform="translate(790, 275)">
+    <!-- Network Rack / Gateway Icon -->
+    <rect x="-26" y="-22" width="52" height="44" rx="6" fill="#EA580C" />
+    <!-- Switch ports / lines -->
+    <rect x="-18" y="-14" width="8" height="8" rx="2" fill="#FFFFFF" />
+    <rect x="-4" y="-14" width="8" height="8" rx="2" fill="#FFFFFF" />
+    <rect x="10" y="-14" width="8" height="8" rx="2" fill="#FFFFFF" />
+    <line x1="-20" y1="6" x2="20" y2="6" stroke="#FFFFFF" stroke-width="3" />
+    <line x1="0" y1="6" x2="0" y2="16" stroke="#FFFFFF" stroke-width="3" />
+    <line x1="-14" y1="16" x2="14" y2="16" stroke="#FFFFFF" stroke-width="3" />
+    
+    <text x="0" y="44" class="node-label">Nginx</text>
+    <text x="0" y="58" class="node-label">Gateway</text>
+  </g>
+
+  <!-- Users -->
+  <g transform="translate(950, 275)">
+    <!-- User Avatar Icon -->
+    <!-- Head -->
+    <circle cx="0" cy="-16" r="14" fill="#2563EB" />
+    <!-- Body -->
+    <path d="M-22,18 C-22,4 -10,0 0,0 C10,0 22,4 22,18 Z" fill="#1D4ED8" />
+    <!-- Collar -->
+    <polygon points="0,0 -7,14 0,10 7,14" fill="#C7D2FE" />
+    
+    <text x="0" y="40" class="node-label">Users</text>
+  </g>
+
+  <!-- Bidirectional Arrow: Web App <===> Nginx Gateway -->
+  <line x1="645" y1="275" x2="755" y2="275" class="arrow" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
+  <rect x="675" y="265" width="50" height="18" fill="#EDF5FF" />
+  <text x="700" y="278" class="conn-label">http/1.1</text>
+
+  <!-- Bidirectional Arrow: Nginx Gateway <===> Users -->
+  <line x1="825" y1="275" x2="915" y2="275" class="arrow" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
+  <rect x="850" y="265" width="40" height="18" fill="#EDF5FF" />
+  <text x="870" y="278" class="conn-label">http2</text>
+
+  <!-- Bidirectional Arrow: Storage:PostgresDB <===> Web App -->
+  <line x1="385" y1="285" x2="560" y2="285" class="arrow" marker-end="url(#arrowhead)" marker-start="url(#arrowhead-start)" />
+
+
+  <!-- ========================================== -->
+  <!-- 6. OBSERVABILITY CONTAINER (Bottom) -->
+  <!-- ========================================== -->
+  <!-- Arrow from Web App down to Observability Box -->
+  <line x1="600" y1="310" x2="600" y2="505" class="arrow" marker-end="url(#arrowhead)" />
+
+  <g transform="translate(400, 510)">
+    <!-- Box Frame -->
+    <rect x="0" y="0" width="395" height="120" rx="8" fill="#FFFFFF" stroke="#1E293B" stroke-width="1.5" />
+    
+    <!-- Badge -->
+    <rect x="0" y="-12" width="105" height="24" rx="4" fill="#0F172A" />
+    <text x="52" y="4" text-anchor="middle" class="box-badge">Observability</text>
+
+    <!-- Top-Right Docker Whale on Observability Box -->
+    <g transform="translate(340, -18)">
+      <rect x="0" y="0" width="34" height="20" rx="4" fill="#0284C7" />
+      <path d="M5,11 C7,8 12,8 15,11 C18,8 23,8 26,11 L28,13 C28,16 25,17 18,17 C10,17 5,16 5,11 Z" fill="#FFFFFF" />
+      <rect x="10" y="5" width="3" height="3" fill="#FFFFFF" />
+      <rect x="14" y="5" width="3" height="3" fill="#FFFFFF" />
+      <rect x="18" y="5" width="3" height="3" fill="#FFFFFF" />
+      <text x="17" y="29" class="node-sub" fill="#0284C7">docker</text>
+    </g>
+
+    <!-- Prometheus -->
+    <g transform="translate(80, 50)">
+      <!-- Funnel / Sensor Icon -->
+      <rect x="-24" y="-24" width="48" height="48" rx="6" fill="#B91C1C" />
+      <!-- Inner nodes & lines -->
+      <circle cx="-8" cy="-10" r="3.5" fill="#FFFFFF" />
+      <circle cx="8" cy="-10" r="3.5" fill="#FFFFFF" />
+      <circle cx="0" cy="8" r="4" fill="#FFFFFF" />
+      <line x1="-8" y1="-10" x2="0" y2="8" stroke="#FFFFFF" stroke-width="2" />
+      <line x1="8" y1="-10" x2="0" y2="8" stroke="#FFFFFF" stroke-width="2" />
+      
+      <text x="0" y="38" class="node-label">Prometheus</text>
+    </g>
+
+    <!-- Grafana -->
+    <g transform="translate(195, 50)">
+      <!-- Hexagonal Dashboard Icon -->
+      <rect x="-24" y="-24" width="48" height="48" rx="6" fill="#B91C1C" />
+      <path d="M-10,12 L-4,-4 L6,2 L12,-12" fill="none" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+      <circle cx="12" cy="-12" r="3" fill="#FFFFFF" />
+      
+      <text x="0" y="38" class="node-label">Grafana</text>
+    </g>
+
+    <!-- Loki -->
+    <g transform="translate(310, 50)">
+      <!-- Log Stack Bars Icon -->
+      <rect x="-24" y="-24" width="48" height="48" rx="6" fill="#B91C1C" />
+      <rect x="-14" y="-12" width="28" height="4.5" rx="1.5" fill="#FFFFFF" />
+      <rect x="-14" y="-3" width="20" height="4.5" rx="1.5" fill="#FFFFFF" />
+      <rect x="-14" y="6" width="25" height="4.5" rx="1.5" fill="#FFFFFF" />
+      
+      <text x="0" y="38" class="node-label">Loki</text>
+    </g>
+  </g>
+
+</svg>

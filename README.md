@@ -14,84 +14,77 @@
 
 ## 🏛️ System Architecture
 
+<p align="center">
+  <img src="docs/assets/system_architecture.png" alt="Urban Furniture System Architecture" width="100%" />
+</p>
+
+<details open>
+<summary><b>🔍 View Component Flowchart (Mermaid)</b></summary>
+<br/>
+
 ```mermaid
 flowchart LR
-    %% Outer Architecture Frame
-    subgraph SysArch ["SYSTEM ARCHITECTURE"]
+    subgraph SysArch [SYSTEM ARCHITECTURE]
         direction LR
 
-        %% 1. Actors / Users (Right Side)
-        subgraph ActorsCluster ["Users & Clients"]
-            Users(["👤 Users & Portal Clients<br/>• Internal Staff (Admin, Accountant)<br/>• Customer Portal Users"]):::actorNode
+        subgraph ActorsCluster [Users and Clients]
+            Users[Users and Portal Clients<br/>Internal Staff and Customer Portal]
         end
 
-        %% 2. Gateway / Reverse Proxy
-        subgraph GatewayCluster ["Gateway & Reverse Proxy"]
-            Gateway["🌐 Nginx Gateway / Web App<br/><code>:5173 / :80</code><br/>• SSL / TLS Termination<br/>• Static Asset Serving<br/>• Reverse Proxy Routing"]:::gatewayNode
+        subgraph GatewayCluster [Gateway and Web]
+            Gateway[Nginx Gateway / Web App<br/>Port 5173 / 80<br/>SSL Termination and Reverse Proxy]
         end
 
-        %% 3. Core Application Tier (Center)
-        subgraph AppCluster ["Application Core 🐳 docker"]
-            WebApp["⚙️ Express REST API Server<br/><code>Node.js 20 · Express 5 · TypeScript</code><br/>• Double-Entry Posting Engine<br/>• RBAC & Data Scoping (<code>scopeFor</code>)<br/>• Commercial PO & SO Validations<br/>• Pre-Commitment Budget Engine"]:::appNode
+        subgraph AppCluster [Application Core - Docker]
+            WebApp[Express REST API Server<br/>Node.js 20 - Express 5 - TypeScript<br/>Double-Entry Posting Engine<br/>RBAC and Pre-Commitment Budgets]
         end
 
-        %% 4. External Payment Gateway (Top)
-        subgraph PaymentCluster ["Payment Gateway"]
-            Razorpay["💳 Razorpay Payment Gateway<br/>• Order Generation (paise precision)<br/>• UPI / Cards / NetBanking Modal<br/>• HMAC-SHA256 Signature Verification"]:::paymentNode
+        subgraph PaymentCluster [Payment Gateway]
+            Razorpay[Razorpay Payment Gateway<br/>Online UPI and Cards Checkout<br/>HMAC-SHA256 Signature Verification]
         end
 
-        %% 5. Storage Subsystem (Left)
-        subgraph StorageCluster ["Storage 🐳 docker"]
+        subgraph StorageCluster [Storage - Docker]
             direction TB
-            CloudStorage["📁 Cloud / Local Document Storage<br/>• Generated Invoice PDFs<br/>• Payment Receipt Vouchers<br/>• User Uploads & Attachments"]:::storageNode
-            PostgresDB[("🗄️ PostgreSQL 16 DB<br/><code>urban (port 5432)</code><br/>• General Ledger (<code>journal_entries</code>, <code>lines</code>)<br/>• Commercial Documents (PO, SO, Bills, Invoices)<br/>• Pre-Commitment Departmental Budgets<br/>• Deferred Triggers (Strict Balanced Check)"]:::storageNode
-            RedisCache["⚡ In-Memory Cache & Session Store<br/>• Stateless JWT Cookie Validation<br/>• Distributed Lock Coordinator<br/>• Fast Inventory Lock States"]:::storageNode
+            CloudStorage[Document and File Storage<br/>PDF Invoices and Receipts]
+            PostgresDB[PostgreSQL 16 DB - Port 5432<br/>General Ledger Double-Entry<br/>Commercial PO SO Bills Invoices<br/>Immutable Audit Log and Budgets]
+            RedisCache[In-Memory Cache and Session Store<br/>Stateless JWT Validation]
         end
 
-        %% 6. Background Workers & Email Pipeline (Far Left)
-        subgraph WorkerCluster ["Background Services & Email Pipeline"]
+        subgraph WorkerCluster [Background Services and Email Pipeline]
             direction TB
-            BullQueue["⏰ Asynchronous Worker Dispatch<br/>• Non-blocking Task Handling<br/>• Event-Driven Receipt Generation"]:::workerNode
-            EmailService["📧 Resend Email Service<br/><code>api.resend.com/emails</code><br/>• Transactional Email Delivery<br/>• Base64 Attached PDF Receipts<br/>• Real-time Personal Gmail Alerts"]:::workerNode
-            PdfEngine["📄 Chromium PDF Engine (Puppeteer)<br/>• A4 Print-Formatted Vouchers<br/>• Deterministic Rendering & Signatures"]:::workerNode
+            BullQueue[BullMQ Asynchronous Dispatch<br/>Event-Driven Task Handling]
+            EmailService[Resend Email Service<br/>Transactional Receipt Delivery<br/>PDF Attachment to Personal Gmail]
+            PdfEngine[Chromium PDF Engine - Puppeteer<br/>Deterministic A4 Receipts]
         end
 
-        %% 7. Observability & Verification Subsystem (Bottom)
-        subgraph ObservabilityCluster ["Observability & Verification 🐳 docker"]
+        subgraph ObservabilityCluster [Observability and Verification - Docker]
             direction LR
-            Prometheus["⚖️ Zero-Delta Invariant Verifier<br/><code>GET /api/verify</code><br/>(Σ Debit ≡ Σ Credit = 0.00)"]:::obsNode
-            Grafana["📜 Immutable Audit Trail<br/><code>audit_log table</code><br/>(Diffs, IP, User, Timestamp)"]:::obsNode
-            Loki["🩺 Health & System Probes<br/><code>GET /api/health</code><br/>(ACID DB & Container Health)"]:::obsNode
+            Prometheus[Zero-Delta Invariant Verifier<br/>GET /api/verify<br/>Total Debit = Total Credit]
+            Grafana[Immutable Audit Trail<br/>audit_log Table]
+            Loki[Health and System Probes<br/>GET /api/health]
         end
 
-        %% Communication & Data Flows
-        Users <== "HTTP/2 (HTTPS)" ==> Gateway
-        Gateway <== "HTTP/1.1 REST (JSON)" ==> WebApp
+        Users <-->|http2| Gateway
+        Gateway <-->|http/1.1| WebApp
 
-        Razorpay <== "Order & Signature Verifications" ==> WebApp
+        Razorpay -->|Order and Signatures| WebApp
 
-        WebApp <== "Parameterized SQL (pg)" ==> PostgresDB
-        WebApp <== "Read / Write Receipts" ==> CloudStorage
-        WebApp <== "Session / Cache Lookups" ==> RedisCache
+        WebApp <-->|SQL| PostgresDB
+        WebApp <-->|Files| CloudStorage
+        WebApp <-->|Cache| RedisCache
 
-        WebApp --> "Trigger Receipt Event" --> BullQueue
-        BullQueue --> "Render A4 Document" --> PdfEngine
-        PdfEngine --> "Base64 Attachment" --> EmailService
-        EmailService --> "Dispatch PDF Receipt" --> Users
+        WebApp -->|Event| BullQueue
+        BullQueue -->|Render| PdfEngine
+        PdfEngine -->|Attachment| EmailService
+        EmailService -->|Email Receipt| Users
 
-        WebApp -.-> "Telemetry & Log Feeds" -.-> ObservabilityCluster
-        PostgresDB -.-> "Ledger Sum Checks" -.-> Prometheus
+        WebApp -.->|Telemetry| ObservabilityCluster
+        PostgresDB -.->|Audit Check| Prometheus
     end
-
-    %% Visual Styling
-    classDef actorNode fill:#1E40AF,stroke:#1D4ED8,stroke-width:2px,color:#FFFFFF,font-weight:bold;
-    classDef gatewayNode fill:#EA580C,stroke:#C2410C,stroke-width:2px,color:#FFFFFF,font-weight:bold;
-    classDef appNode fill:#991B1B,stroke:#7F1D1D,stroke-width:2px,color:#FFFFFF,font-weight:bold;
-    classDef paymentNode fill:#0369A1,stroke:#0284C7,stroke-width:2px,color:#FFFFFF,font-weight:bold;
-    classDef storageNode fill:#DC2626,stroke:#B91C1C,stroke-width:2px,color:#FFFFFF,font-weight:bold;
-    classDef workerNode fill:#B45309,stroke:#92400E,stroke-width:2px,color:#FFFFFF,font-weight:bold;
-    classDef obsNode fill:#7F1D1D,stroke:#450A0A,stroke-width:2px,color:#FFFFFF,font-weight:bold;
 ```
+
+</details>
+
 
 ### Architecture Subsystems at a Glance
 
