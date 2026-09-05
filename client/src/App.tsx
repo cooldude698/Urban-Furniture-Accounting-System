@@ -8,6 +8,7 @@ import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
 import CreateUser from './pages/CreateUser';
 import KitchenSink from './pages/KitchenSink';
+import LandingPage from './pages/LandingPage';
 
 // Sales Module
 import SalesIndexPage from './pages/sales/SalesIndexPage';
@@ -85,8 +86,8 @@ export function App() {
       {/* ── Kitchen sink (no shell — full-page design system preview) ── */}
       <Route path="/kitchen-sink" element={<KitchenSink />} />
 
-      {/* ── Default entry route (render login page directly on start) ── */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      {/* ── Public Landing Page (Root Entrypoint) ── */}
+      <Route path="/" element={<LandingPage />} />
 
       {/* ── Main ERP App Shell ── */}
       <Route element={<AppShell />}>

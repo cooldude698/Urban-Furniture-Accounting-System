@@ -98,6 +98,24 @@ export default function Login() {
   return (
     <div style={styles.page}>
       <div style={{ width: '100%', maxWidth: 490 }}>
+        {/* Back to Home Link */}
+        <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center' }}>
+          <Link
+            to="/"
+            style={{
+              fontSize: 12,
+              fontFamily: 'var(--font-mono, "IBM Plex Mono", monospace)',
+              color: 'var(--brown-600, #77574A)',
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
+            &larr; Back to Urban Furniture Home
+          </Link>
+        </div>
+
         {/* Top 2-Portal Switcher Tabs */}
         <div style={styles.topPortalSwitcher}>
           <button
