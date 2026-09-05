@@ -388,6 +388,7 @@ Rules:
 2. If a field is not mentioned or unclear, use null — do not guess or invent values.
 3. Units of count (e.g. piece, pieces, pcs, pc, units, items, पीस, नग) are NOT product names. If a message contains only a quantity and a unit (e.g. "two pieces", "2 pcs", "दो पीस"), extract the qty and set product to null.
 4. If the user does NOT mention any furniture or product in the input (e.g. they only provide customer name, phone number, a number like "0", or conversational replies), return {"line_items": []}. NEVER invent, assume, or hallucinate products.
+5. Greetings, conversational pleasantries, questions, and polite phrases (e.g. "hello", "hi", "how are you", "namaste", "नमस्ते", "thanks", "help") are NOT products. Return {"line_items": []}.
 {catalog_grounding}
 Now extract from this input, following the exact same JSON shape, using null for anything not mentioned — do not guess:
 Input: {user_input}
@@ -636,6 +637,54 @@ Output:`;
     // Detect language of incoming message
     const lang = VoiceBillParser.detectLanguage(text);
     session.language = lang;
+
+    // 0a. Check for Greeting (e.g. "hello", "hi", "namaste", "नमस्ते")
+    if (VoiceBillParser.isGreeting(text)) {
+      const reply =
+        lang === 'hi'
+          ? 'नमस्ते! मैं आपका अर्बन फ़र्निचर ई-बिल सहायक हूँ। नया बिल बनाने के लिए ग्राहक का नाम, फ़ोन नंबर या उत्पाद बताएं (जैसे: "राहुल के लिए 2 टीक डेस्क कीमत 5000, फ़ोन 9876543210")।'
+          : 'Hello! Welcome to Urban Furniture e-Bill Assistant. You can tell me the customer name, phone number, or products to add (e.g. "2 Teak Desks at 5000 for Rahul, phone 9876543210").';
+
+      return {
+        reply,
+        language: lang,
+        session,
+        readyForConfirm: session.status === 'ready_for_confirm',
+        isConfirmed: session.status === 'confirmed',
+      };
+    }
+
+    // 0b. Check for Help request
+    if (VoiceBillParser.isHelp(text)) {
+      const reply =
+        lang === 'hi'
+          ? 'सहायता: आप सीधे बोलकर या लिखकर बिल बना सकते हैं।\n• उत्पाद जोड़ें: "2 टीक डेस्क कीमत 5000"\n• ग्राहक विवरण: "ग्राहक राहुल फ़ोन 9876543210"\n• मात्रा बदलें: "मात्रा 3 कर दो" या "हटा दो"\n• रीसेट: "नया बिल" या "clear"'
+          : 'Help: You can speak or type to generate bills effortlessly.\n• Add Product: "2 Teak Desk price 5000"\n• Customer: "customer Rahul phone 9876543210"\n• Modify: "change qty to 3" or "remove chair"\n• Reset: "new bill" or "clear"';
+
+      return {
+        reply,
+        language: lang,
+        session,
+        readyForConfirm: session.status === 'ready_for_confirm',
+        isConfirmed: session.status === 'confirmed',
+      };
+    }
+
+    // 0c. Check for Thanks / Gratitude
+    if (VoiceBillParser.isThanks(text)) {
+      const reply =
+        lang === 'hi'
+          ? 'आपका स्वागत है! यदि आपको किसी और चीज़ में सहायता चाहिए तो बताएं।'
+          : "You're very welcome! Let me know if you need to add or change anything else.";
+
+      return {
+        reply,
+        language: lang,
+        session,
+        readyForConfirm: session.status === 'ready_for_confirm',
+        isConfirmed: session.status === 'confirmed',
+      };
+    }
 
     // Check for clear / reset command
     const lowerText = text.trim().toLowerCase();

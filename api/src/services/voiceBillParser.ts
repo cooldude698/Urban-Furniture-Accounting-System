@@ -152,6 +152,36 @@ export class VoiceBillParser {
   }
 
   /**
+   * Identifies polite greetings without product billing intent
+   */
+  static isGreeting(text: string): boolean {
+    const clean = text.trim().toLowerCase();
+    // Common furniture words to ensure "hi 2 chairs" is not treated as a pure greeting
+    const furnitureWords = /(?:desk|chair|table|sofa|planks|plank|wood|bed|cabinet|shelf|price|qty|quantity|phone|mobile|डेस्क|कुर्सी|टेबल|सोफा|तख्ता|खाट|अलमारी|कीमत|मात्रा|फ़ोन)/i;
+    if (furnitureWords.test(clean) || /\d+/.test(clean)) {
+      return false;
+    }
+    const greetingPattern = /^(?:hello|hi|hey|hey there|hi there|namaste|namaskar|pranam|good morning|good afternoon|good evening|how are you|howdy|greetings|नमस्ते|नमस्कार|प्रणाम|हेलो|हाय|सुप्रभात|शुभ संध्या|केम छो|kem cho)[\s!,.]*$/i;
+    return greetingPattern.test(clean);
+  }
+
+  /**
+   * Identifies help requests
+   */
+  static isHelp(text: string): boolean {
+    const clean = text.trim().toLowerCase();
+    return /^(?:help|assist|info|support|guide|how to use|how does this work|मदद|सहायता|गाइड|कैसे करें|क्या कर सकते हो)[\s!?.]*$/i.test(clean);
+  }
+
+  /**
+   * Identifies thank you / gratitude expressions
+   */
+  static isThanks(text: string): boolean {
+    const clean = text.trim().toLowerCase();
+    return /^(?:thank you|thanks|thank you so much|thx|धन्यवाद|शुक्रिया|बहुत धन्यवाद|shukriya|dhanyawad)[\s!,.]*$/i.test(clean);
+  }
+
+  /**
    * Converts word tokens or digits into a numeric value
    */
   static parseNumberToken(token: string): number | null {
@@ -452,10 +482,13 @@ export class VoiceBillParser {
       trimmedInput.split(/\s+/).length <= 4 &&
       !/^\d+$/.test(trimmedInput)
     ) {
-      // Check if it's not a conversational filler or quantity/price token
+      // Check if it's not a conversational filler, greeting, or quantity/price token
       const filler = [
         'yes', 'no', 'ok', 'okay', 'confirm', 'cancel', 'haan', 'ha', 'theek hai', 'done',
-        'pieces', 'pcs', 'piece', 'पीस', 'नग', 'मात्रा', 'qty', 'रुपये', 'rupees', 'rs'
+        'pieces', 'pcs', 'piece', 'पीस', 'नग', 'मात्रा', 'qty', 'रुपये', 'rupees', 'rs',
+        'hello', 'hi', 'hey', 'namaste', 'namaskar', 'pranam', 'help', 'thanks', 'thank you',
+        'shukriya', 'dhanyawad', 'good morning', 'good evening', 'how are you',
+        'नमस्ते', 'नमस्कार', 'प्रणाम', 'हेलो', 'हाय', 'धन्यवाद', 'शुक्रिया', 'मदद', 'सहायता'
       ];
       if (!filler.some(f => trimmedInput.toLowerCase().includes(f))) {
         slots.productName = trimmedInput;
@@ -545,10 +578,10 @@ export class VoiceBillParser {
       workingText = workingText.replace(new RegExp(`(?:^|(?<=[\\s,.:;]))${slots.discountPercent}%?`, 'g'), ' ');
     }
 
-    // Strip common filler and anchor keywords
+    // Strip common filler, greetings, and anchor keywords
     workingText = workingText
-      .replace(/\b(for|to|at|with|and|ko|hai|he|ke|liye|chahiye|dalo|jodo|add|customer|client|name|naam|phone|mobile|number|qty|quantity|price|rate|discount)\b/gi, ' ')
-      .replace(/(?:के\s*लिए|को|है|चाहिए|डालो|जोड़ो|ग्राहक|नाम|फ़ोन|फोन|मोबाइल|नंबर|मात्रा|कीमत|दाम|छूट)/g, ' ');
+      .replace(/\b(for|to|at|with|and|ko|hai|he|ke|liye|chahiye|dalo|jodo|add|customer|client|name|naam|phone|mobile|number|qty|quantity|price|rate|discount|hello|hi|hey|namaste|namaskar|help|thanks|thank|you|shukriya|dhanyawad)\b/gi, ' ')
+      .replace(/(?:के\s*लिए|को|है|चाहिए|डालो|जोड़ो|ग्राहक|नाम|फ़ोन|फोन|मोबाइल|नंबर|मात्रा|कीमत|दाम|छूट|नमस्ते|नमस्कार|हेलो|हाय|धन्यवाद|शुक्रिया|मदद|सहायता)/g, ' ');
 
     // --- STEP 1: Phone (10-digit regex) ---
     if (!slots.phone) {
