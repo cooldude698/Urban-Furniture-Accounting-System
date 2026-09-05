@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
 import api from '../lib/axios';
 import { ChairIcon } from '../components/ui/BrandLogo';
+import PasswordStrengthMeter, { calculatePasswordStrength } from '../components/PasswordStrengthMeter';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -16,46 +17,53 @@ export default function Signup() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [btnHover, setBtnHover] = useState(false);
 
-  const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+  const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setError('');
     setForm(f => ({ ...f, [key]: e.target.value }));
+  };
 
-  // Validation rules directly from wireframe:
-  // 1. Login Id between 6-12 chars
-  const isLoginIdValid = form.loginId.length >= 6 && form.loginId.length <= 12;
-  // 2. Email valid format
+  // Real-time criteria evaluations
+  const loginIdLen = form.loginId.length;
+  const isLoginIdValid = loginIdLen >= 6 && loginIdLen <= 12;
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
-  // 3. Password > 8 characters, lowercase, uppercase, and special character
-  const hasLower = /[a-z]/.test(form.password);
-  const hasUpper = /[A-Z]/.test(form.password);
-  const hasSpecial = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(form.password);
-  const isLengthValid = form.password.length > 8;
-  const isPasswordValid = hasLower && hasUpper && hasSpecial && isLengthValid;
-  // Passwords match
+  const passwordStrength = calculatePasswordStrength(form.password);
   const doPasswordsMatch = form.password.length > 0 && form.password === form.confirmPassword;
-
-  const isFormValid =
-    isLoginIdValid &&
-    isEmailValid &&
-    isPasswordValid &&
-    doPasswordsMatch;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
 
+    if (!form.loginId.trim()) {
+      setError('Please enter a Login Id.');
+      return;
+    }
     if (!isLoginIdValid) {
-      setError('Login Id must be between 6 and 12 characters.');
+      setError(`Login Id must be between 6 and 12 characters (currently ${loginIdLen}).`);
+      return;
+    }
+    if (!form.email.trim()) {
+      setError('Please enter an Email Id.');
       return;
     }
     if (!isEmailValid) {
-      setError('Please provide a valid Email Id.');
+      setError('Please provide a valid Email Id (e.g. user@example.com).');
       return;
     }
-    if (!isPasswordValid) {
-      setError('Password must be greater than 8 characters and contain a lowercase, uppercase, and special character.');
+    if (!form.password) {
+      setError('Please enter a Password.');
+      return;
+    }
+    if (!passwordStrength.isValid) {
+      setError('Password must be greater than 8 characters and contain at least one lowercase letter, one uppercase letter, and one special character.');
+      return;
+    }
+    if (!form.confirmPassword) {
+      setError('Please re-enter your password to confirm.');
       return;
     }
     if (!doPasswordsMatch) {
@@ -72,8 +80,12 @@ export default function Signup() {
         password: form.password,
         full_name: form.loginId.trim(),
         name: form.loginId.trim(),
+        role: 'accountant',
       });
-      navigate('/login');
+      setSuccess('Account created successfully! Redirecting to login…');
+      setTimeout(() => {
+        navigate('/login', { state: { prefilledLoginId: form.loginId.trim() } });
+      }, 1200);
     } catch (err: unknown) {
       const errObj = (err as { response?: { data?: { error?: { message?: string; fields?: Record<string, string> } } } })?.response?.data?.error;
       const fieldError = errObj?.fields ? Object.values(errObj.fields)[0] : null;
@@ -85,7 +97,7 @@ export default function Signup() {
 
   return (
     <div style={styles.page}>
-      <div style={{ width: '100%', maxWidth: 480 }}>
+      <div style={{ width: '100%', maxWidth: 490 }}>
         <h2 style={styles.pageTitle}>Sign Up Page</h2>
 
         <div style={styles.card}>
@@ -102,96 +114,158 @@ export default function Signup() {
 
           <form onSubmit={handleSubmit} style={styles.form} noValidate>
             {/* Enter Login Id - */}
-            <div style={styles.row}>
-              <label htmlFor="loginId" style={styles.rowLabel}>
-                Enter Login Id -
-              </label>
-              <div style={styles.inputContainer}>
-                <input
-                  id="loginId"
-                  type="text"
-                  autoComplete="username"
-                  value={form.loginId}
-                  onChange={set('loginId')}
-                  required
-                  minLength={6}
-                  maxLength={12}
-                  style={styles.lineInput}
-                />
+            <div style={styles.fieldBlock}>
+              <div style={styles.row}>
+                <label htmlFor="loginId" style={styles.rowLabel}>
+                  Enter Login Id -
+                </label>
+                <div style={styles.inputContainer}>
+                  <input
+                    id="loginId"
+                    type="text"
+                    autoComplete="username"
+                    value={form.loginId}
+                    onChange={set('loginId')}
+                    required
+                    minLength={6}
+                    maxLength={12}
+                    placeholder="6 to 12 characters"
+                    style={styles.lineInput}
+                  />
+                </div>
               </div>
+              {form.loginId.length > 0 && (
+                <div style={styles.fieldHelper}>
+                  <span
+                    style={{
+                      color: isLoginIdValid ? '#16A34A' : '#DC2626',
+                      fontWeight: 500,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    {isLoginIdValid ? (
+                      <>
+                        <CheckCircle2 size={12} /> Valid Login Id ({loginIdLen}/12)
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle size={12} /> {loginIdLen < 6 ? `Need ${6 - loginIdLen} more characters (min 6)` : 'Max 12 characters'}
+                      </>
+                    )}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Enter Email Id - */}
-            <div style={styles.row}>
-              <label htmlFor="email" style={styles.rowLabel}>
-                Enter Email Id -
-              </label>
-              <div style={styles.inputContainer}>
-                <input
-                  id="email"
-                  type="email"
-                  autoComplete="email"
-                  value={form.email}
-                  onChange={set('email')}
-                  required
-                  style={styles.lineInput}
-                />
+            <div style={styles.fieldBlock}>
+              <div style={styles.row}>
+                <label htmlFor="email" style={styles.rowLabel}>
+                  Enter Email Id -
+                </label>
+                <div style={styles.inputContainer}>
+                  <input
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    value={form.email}
+                    onChange={set('email')}
+                    required
+                    placeholder="email@example.com"
+                    style={styles.lineInput}
+                  />
+                </div>
               </div>
             </div>
 
             {/* Enter Password - */}
-            <div style={styles.row}>
-              <label htmlFor="password" style={styles.rowLabel}>
-                Enter Password -
-              </label>
-              <div style={styles.inputContainer}>
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  value={form.password}
-                  onChange={set('password')}
-                  required
-                  minLength={8}
-                  style={styles.lineInput}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={styles.toggleBtn}
-                  tabIndex={-1}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
+            <div style={styles.fieldBlock}>
+              <div style={styles.row}>
+                <label htmlFor="password" style={styles.rowLabel}>
+                  Enter Password -
+                </label>
+                <div style={styles.inputContainer}>
+                  <input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    value={form.password}
+                    onChange={set('password')}
+                    required
+                    placeholder="> 8 chars, A-Z, a-z, special"
+                    style={styles.lineInput}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={styles.toggleBtn}
+                    tabIndex={-1}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
               </div>
+
+              {/* Live Password Strength Meter & Animation */}
+              {form.password.length > 0 && (
+                <PasswordStrengthMeter password={form.password} showChecklist={true} />
+              )}
             </div>
 
             {/* Re-Enter Password - */}
-            <div style={styles.row}>
-              <label htmlFor="confirmPassword" style={styles.rowLabel}>
-                Re-Enter Password -
-              </label>
-              <div style={styles.inputContainer}>
-                <input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  autoComplete="new-password"
-                  value={form.confirmPassword}
-                  onChange={set('confirmPassword')}
-                  required
-                  style={styles.lineInput}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  style={styles.toggleBtn}
-                  tabIndex={-1}
-                  aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                </button>
+            <div style={styles.fieldBlock}>
+              <div style={styles.row}>
+                <label htmlFor="confirmPassword" style={styles.rowLabel}>
+                  Re-Enter Password -
+                </label>
+                <div style={styles.inputContainer}>
+                  <input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    value={form.confirmPassword}
+                    onChange={set('confirmPassword')}
+                    required
+                    placeholder="Re-type password"
+                    style={styles.lineInput}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    style={styles.toggleBtn}
+                    tabIndex={-1}
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showConfirmPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
               </div>
+              {form.confirmPassword.length > 0 && (
+                <div style={styles.fieldHelper}>
+                  <span
+                    style={{
+                      color: doPasswordsMatch ? '#16A34A' : '#DC2626',
+                      fontWeight: 500,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    {doPasswordsMatch ? (
+                      <>
+                        <CheckCircle2 size={12} /> Passwords match
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle size={12} /> Passwords do not match
+                      </>
+                    )}
+                  </span>
+                </div>
+              )}
             </div>
 
             {error && (
@@ -200,30 +274,44 @@ export default function Signup() {
               </div>
             )}
 
-            {/* Wireframe Centered Button: SIGN OUT */}
+            {success && (
+              <div role="status" style={styles.successBox}>
+                <p style={styles.successText}>{success}</p>
+              </div>
+            )}
+
+            {/* Wireframe Centered Button: SIGN UP */}
             <div style={styles.btnWrapper}>
               <button
                 type="submit"
-                disabled={loading || !isFormValid}
+                disabled={loading}
                 onMouseEnter={() => setBtnHover(true)}
                 onMouseLeave={() => setBtnHover(false)}
                 style={{
                   ...styles.wireframeBtn,
                   background: btnHover ? 'var(--brown-900, #4A3A34)' : 'transparent',
                   color: btnHover ? 'var(--cream, #F9F2E4)' : 'var(--brown-900, #4A3A34)',
-                  opacity: loading || !isFormValid ? 0.6 : 1,
-                  cursor: loading || !isFormValid ? 'not-allowed' : 'pointer',
+                  opacity: loading ? 0.7 : 1,
+                  cursor: loading ? 'not-allowed' : 'pointer',
                 }}
               >
-                {loading ? 'SUBMITTING…' : 'SIGN OUT'}
+                {loading ? 'CREATING ACCOUNT…' : 'SIGN UP'}
               </button>
             </div>
 
-            {/* Forgot Password | Sign Up footer matching exact wireframe */}
+            {/* Wireframe footer links */}
             <div style={styles.linksRow}>
-              <Link to="/forgot-password" style={styles.link}>Forgot Password</Link>
+              <Link to="/forgot-password" style={styles.link}>
+                Forgot Password
+              </Link>
               <span style={styles.linkDivider}>|</span>
-              <Link to="/signup" style={styles.link}>Sign Up</Link>
+              <Link to="/login" style={styles.link}>
+                Sign In
+              </Link>
+              <span style={styles.linkDivider}>|</span>
+              <Link to="/create-user" style={styles.link}>
+                Create User
+              </Link>
             </div>
           </form>
         </div>
@@ -257,12 +345,12 @@ const styles = {
     boxShadow: '0 8px 28px rgba(74, 58, 52, 0.08)',
     padding: '36px 40px 32px 40px',
     width: '100%',
-    maxWidth: 480,
+    maxWidth: 490,
   } as React.CSSProperties,
   appLogoBox: {
     width: 175,
     height: 56,
-    margin: '0 auto 36px auto',
+    margin: '0 auto 30px auto',
     border: '1.5px solid var(--brown-700, #77574A)',
     borderRadius: 14,
     display: 'flex',
@@ -304,7 +392,11 @@ const styles = {
   form: {
     display: 'flex',
     flexDirection: 'column' as const,
-    gap: 22,
+    gap: 18,
+  },
+  fieldBlock: {
+    display: 'flex',
+    flexDirection: 'column' as const,
   },
   row: {
     display: 'flex',
@@ -339,6 +431,13 @@ const styles = {
     outline: 'none',
     transition: 'border-color 150ms ease',
   } as React.CSSProperties,
+  fieldHelper: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    fontSize: '0.72rem',
+    marginTop: 4,
+    paddingRight: 4,
+  } as React.CSSProperties,
   toggleBtn: {
     position: 'absolute' as const,
     right: 2,
@@ -355,15 +454,30 @@ const styles = {
     background: 'var(--danger-bg, #F8EAE6)',
     border: '1px solid var(--danger, #9E4A38)',
     borderRadius: 8,
-    padding: '8px 12px',
-    marginTop: -4,
+    padding: '10px 14px',
+    marginTop: 2,
   } as React.CSSProperties,
   errorText: {
     fontFamily: 'var(--font-body, "DM Sans", sans-serif)',
     fontSize: 12,
     color: 'var(--danger, #9E4A38)',
     margin: 0,
-    fontWeight: 500,
+    fontWeight: 600,
+    lineHeight: 1.4,
+  } as React.CSSProperties,
+  successBox: {
+    background: '#ECFDF5',
+    border: '1px solid #10B981',
+    borderRadius: 8,
+    padding: '10px 14px',
+    marginTop: 2,
+  } as React.CSSProperties,
+  successText: {
+    fontFamily: 'var(--font-body, "DM Sans", sans-serif)',
+    fontSize: 12,
+    color: '#047857',
+    margin: 0,
+    fontWeight: 600,
   } as React.CSSProperties,
   btnWrapper: {
     display: 'flex',
@@ -371,8 +485,8 @@ const styles = {
     marginTop: 8,
   } as React.CSSProperties,
   wireframeBtn: {
-    minWidth: 150,
-    padding: '9px 24px',
+    minWidth: 160,
+    padding: '10px 28px',
     border: '1.5px solid var(--brown-900, #4A3A34)',
     borderRadius: 12,
     fontFamily: 'var(--font-display, "Montserrat", sans-serif)',
@@ -387,7 +501,7 @@ const styles = {
     justifyContent: 'center',
     alignItems: 'center',
     gap: 12,
-    marginTop: 6,
+    marginTop: 8,
     fontSize: 13,
   } as React.CSSProperties,
   link: {

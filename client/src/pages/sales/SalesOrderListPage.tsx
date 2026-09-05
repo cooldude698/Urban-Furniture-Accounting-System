@@ -38,6 +38,8 @@ export const SalesOrderListPage: React.FC<SalesOrderListPageProps> = ({ onSelect
   const tableData = filtered.map(order => ({
     ...order,
     customer: order.customerName || `Customer #${order.customerId}`,
+    taxAmount: order.taxAmount ?? (order as any).taxTotal ?? '0.00',
+    totalAmount: order.totalAmount ?? (order as any).total ?? '0.00',
   }));
 
   const columns: ListColumn<typeof tableData[0]>[] = [

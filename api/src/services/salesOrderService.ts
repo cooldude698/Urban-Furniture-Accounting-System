@@ -44,7 +44,9 @@ export interface SalesOrderDTO {
   status: 'draft' | 'confirmed' | 'cancelled';
   subtotal: string;
   taxTotal: string;
+  taxAmount: string;
   total: string;
+  totalAmount: string;
   lines: SalesOrderLineDTO[];
   createdAt: string;
 }
@@ -322,6 +324,10 @@ export class SalesOrderService {
       [soId]
     );
 
+    const subtotal = String(so.subtotal ?? '0.00');
+    const taxTotal = String(so.tax_total ?? '0.00');
+    const total = String(so.total ?? '0.00');
+
     return {
       id: so.id,
       number: so.number,
@@ -329,9 +335,11 @@ export class SalesOrderService {
       customerName: so.customer_name,
       orderDate: so.order_date ? new Date(so.order_date).toISOString().split('T')[0] : '',
       status: so.status,
-      subtotal: String(so.subtotal),
-      taxTotal: String(so.tax_total),
-      total: String(so.total),
+      subtotal,
+      taxTotal,
+      taxAmount: taxTotal,
+      total,
+      totalAmount: total,
       lines: linesRes.rows.map(r => ({
         id: r.id,
         soId: r.so_id,
@@ -356,7 +364,10 @@ export class SalesOrderService {
    * List Sales Orders
    */
   static async listSalesOrders(filters?: { status?: string; customerId?: number }): Promise<SalesOrderDTO[]> {
-    let q = `SELECT so.*, c.name as customer_name
+    let q = `SELECT so.*, c.name as customer_name,
+             COALESCE(NULLIF(so.subtotal, 0), (SELECT COALESCE(SUM(subtotal), 0) FROM sales_order_lines sol WHERE sol.so_id = so.id), 0) as computed_subtotal,
+             COALESCE(NULLIF(so.tax_total, 0), (SELECT COALESCE(SUM(tax_amount), 0) FROM sales_order_lines sol WHERE sol.so_id = so.id), 0) as computed_tax_total,
+             COALESCE(NULLIF(so.total, 0), (SELECT COALESCE(SUM(total), 0) FROM sales_order_lines sol WHERE sol.so_id = so.id), 0) as computed_total
              FROM sales_orders so
              JOIN contacts c ON c.id = so.customer_id
              WHERE 1=1`;
@@ -374,18 +385,25 @@ export class SalesOrderService {
     q += ` ORDER BY so.id DESC`;
 
     const res = await pool.query(q, params);
-    return res.rows.map(so => ({
-      id: so.id,
-      number: so.number,
-      customerId: so.customer_id,
-      customerName: so.customer_name,
-      orderDate: so.order_date ? new Date(so.order_date).toISOString().split('T')[0] : '',
-      status: so.status,
-      subtotal: String(so.subtotal),
-      taxTotal: String(so.tax_total),
-      total: String(so.total),
-      lines: [],
-      createdAt: so.created_at ? new Date(so.created_at).toISOString() : '',
-    }));
+    return res.rows.map(so => {
+      const subtotal = String(so.computed_subtotal ?? so.subtotal ?? '0.00');
+      const tax = String(so.computed_tax_total ?? so.tax_total ?? '0.00');
+      const total = String(so.computed_total ?? so.total ?? '0.00');
+      return {
+        id: so.id,
+        number: so.number,
+        customerId: so.customer_id,
+        customerName: so.customer_name,
+        orderDate: so.order_date ? new Date(so.order_date).toISOString().split('T')[0] : '',
+        status: so.status,
+        subtotal,
+        taxTotal: tax,
+        taxAmount: tax,
+        total,
+        totalAmount: total,
+        lines: [],
+        createdAt: so.created_at ? new Date(so.created_at).toISOString() : '',
+      };
+    });
   }
 }

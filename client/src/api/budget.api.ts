@@ -200,219 +200,82 @@ const INITIAL_DOCS: BudgetDocumentItem[] = [
   },
 ];
 
-const STORAGE_KEY = 'uf_budgets_store_v2';
-
-function loadLocalBudgets(): Budget[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
-  } catch {
-    // fallback
-  }
-  saveLocalBudgets(INITIAL_BUDGETS);
-  return INITIAL_BUDGETS;
-}
-
-function saveLocalBudgets(budgets: Budget[]) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(budgets));
-  } catch {
-    // ignore
-  }
-}
-
 export const BudgetApi = {
   getAll: async (): Promise<Budget[]> => {
-    try {
-      const res = await api.get<{ data: Budget[]; error: any }>('/api/budgets');
-      if (res.data?.data && Array.isArray(res.data.data)) {
-        return res.data.data;
-      }
-    } catch {
-      // Offline fallback
-    }
-    return loadLocalBudgets();
+    const res = await api.get<{ data: Budget[]; error: any }>('/api/budgets');
+    if (res.data?.error) throw new Error(res.data.error.message || 'Failed to fetch budgets');
+    return res.data?.data || [];
   },
 
   getById: async (id: number): Promise<Budget | null> => {
-    try {
-      const res = await api.get<{ data: Budget; error: any }>(`/api/budgets/${id}`);
-      if (res.data?.data) {
-        return res.data.data;
-      }
-    } catch {
-      // Offline fallback
-    }
-    const all = loadLocalBudgets();
-    const item = all.find((b) => b.id === id) || null;
-    if (item) {
-      if (item.revised_of_id) {
-        const parent = all.find((b) => b.id === item.revised_of_id);
-        item.revised_of_name = parent ? parent.name : null;
-      }
-      if (item.revised_by_id) {
-        const child = all.find((b) => b.id === item.revised_by_id);
-        item.revised_by_name = child ? child.name : null;
-      }
-    }
-    return item;
+    const res = await api.get<{ data: Budget; error: any }>(`/api/budgets/${id}`);
+    if (res.data?.error) throw new Error(res.data.error.message || 'Failed to fetch budget');
+    return res.data?.data || null;
   },
 
   create: async (data: CreateBudgetInput): Promise<Budget> => {
-    try {
-      const res = await api.post<{ data: Budget; error: any }>('/api/budgets', data);
-      if (res.data?.data) return res.data.data;
-    } catch {
-      // Offline fallback
-    }
+    const res = await api.post<{ data: Budget; error: any }>('/api/budgets', data);
+    if (res.data?.error) throw new Error(res.data.error.message || 'Failed to create budget');
+    return res.data.data;
+  },
 
-    const all = loadLocalBudgets();
-    const nextId = all.length > 0 ? Math.max(...all.map((b) => b.id)) + 1 : 1;
-
-    const lines: BudgetLine[] = data.lines.map((l, index) => {
-      const comm = new Decimal(l.committed_amount || '0.00');
-      const ach = new Decimal('0.00');
-      const toAchieve = comm.minus(ach);
-      return {
-        id: nextId * 100 + index + 1,
-        budget_id: nextId,
-        analytic_account_id: l.analytic_account_id,
-        analytic_account_name: l.analytic_account_name || 'Showroom Operations',
-        analytic_type: l.analytic_type,
-        committed_amount: comm.toFixed(2),
-        achieved_amount: '0.00',
-        achieved_pct: 0,
-        amount_to_achieve: toAchieve.toFixed(2),
-      };
-    });
-
-    const newBudget: Budget = {
-      id: nextId,
-      name: data.name,
-      period_start: data.period_start,
-      period_end: data.period_end,
-      responsible_user_id: data.responsible_user_id || 1,
-      responsible_name: data.responsible_name || 'Administrator',
-      status: 'draft',
-      revised_of_id: null,
-      revised_by_id: null,
-      created_at: new Date().toISOString(),
-      lines,
-    };
-
-    all.push(newBudget);
-    saveLocalBudgets(all);
-    return newBudget;
+  update: async (id: number, data: Partial<CreateBudgetInput>): Promise<Budget> => {
+    const res = await api.put<{ data: Budget; error: any }>(`/api/budgets/${id}`, data);
+    if (res.data?.error) throw new Error(res.data.error.message || 'Failed to update budget');
+    return res.data.data;
   },
 
   confirm: async (id: number): Promise<Budget> => {
-    try {
-      const res = await api.post<{ data: Budget; error: any }>(`/api/budgets/${id}/confirm`);
-      if (res.data?.data) return res.data.data;
-    } catch {
-      // Offline fallback
-    }
-
-    const all = loadLocalBudgets();
-    const idx = all.findIndex((b) => b.id === id);
-    if (idx === -1) throw new Error('Budget not found');
-
-    all[idx].status = 'confirmed';
-    saveLocalBudgets(all);
-    return all[idx];
+    const res = await api.post<{ data: Budget; error: any }>(`/api/budgets/${id}/confirm`);
+    if (res.data?.error) throw new Error(res.data.error.message || 'Failed to confirm budget');
+    return res.data.data;
   },
 
   cancel: async (id: number): Promise<Budget> => {
-    try {
-      const res = await api.post<{ data: Budget; error: any }>(`/api/budgets/${id}/cancel`);
-      if (res.data?.data) return res.data.data;
-    } catch {
-      // Offline fallback
-    }
-
-    const all = loadLocalBudgets();
-    const idx = all.findIndex((b) => b.id === id);
-    if (idx === -1) throw new Error('Budget not found');
-
-    all[idx].status = 'cancelled';
-    saveLocalBudgets(all);
-    return all[idx];
+    const res = await api.post<{ data: Budget; error: any }>(`/api/budgets/${id}/cancel`);
+    if (res.data?.error) throw new Error(res.data.error.message || 'Failed to cancel budget');
+    return res.data.data;
   },
 
   /**
-   * Revise flow: creates a new budget, original moves to Revised.
-   * Links BOTH ways — original page links to the revision, revision links back.
-   * New budget name = original name + " Revised".
+   * Revise flow: creates a new budget, original moves to Revised in PostgreSQL.
    */
   revise: async (id: number): Promise<{ original: Budget; revised: Budget }> => {
-    try {
-      const res = await api.post<{ data: { original: Budget; revised: Budget }; error: any }>(
-        `/api/budgets/${id}/revise`
-      );
-      if (res.data?.data) return res.data.data;
-    } catch {
-      // Offline fallback
-    }
-
-    const all = loadLocalBudgets();
-    const idx = all.findIndex((b) => b.id === id);
-    if (idx === -1) throw new Error('Budget not found');
-
-    const original = all[idx];
-    if (original.status !== 'confirmed') {
-      throw new Error('Only confirmed budgets can be revised.');
-    }
-
-    const nextId = Math.max(...all.map((b) => b.id)) + 1;
-    const newName = `${original.name} Revised`;
-
-    // Mark original as revised
-    original.status = 'revised';
-    original.revised_by_id = nextId;
-    original.revised_by_name = newName;
-
-    // Create revised copy
-    const newLines: BudgetLine[] = original.lines.map((l, lIdx) => ({
-      ...l,
-      id: nextId * 100 + lIdx + 1,
-      budget_id: nextId,
-    }));
-
-    const revisedBudget: Budget = {
-      id: nextId,
-      name: newName,
-      period_start: original.period_start,
-      period_end: original.period_end,
-      responsible_user_id: original.responsible_user_id,
-      responsible_name: original.responsible_name,
-      status: 'confirmed',
-      revised_of_id: original.id,
-      revised_of_name: original.name,
-      revised_by_id: null,
-      created_at: new Date().toISOString(),
-      lines: newLines,
-    };
-
-    all.push(revisedBudget);
-    saveLocalBudgets(all);
-
-    return { original, revised: revisedBudget };
+    const res = await api.post<{ data: { original: Budget; revised: Budget }; error: any }>(
+      `/api/budgets/${id}/revise`
+    );
+    if (res.data?.error) throw new Error(res.data.error.message || 'Failed to revise budget');
+    return res.data.data;
   },
 
   /**
    * Achieved Amount drill-down documents:
    * GET invoices/bills matching the analytic account in the budget period
    */
-  getAchievedDocuments: async (analyticAccountId: number): Promise<BudgetDocumentItem[]> => {
+  getAchievedDocuments: async (analyticAccountId: number, lineId?: number): Promise<BudgetDocumentItem[]> => {
     try {
-      const res = await api.get<{ data: BudgetDocumentItem[]; error: any }>(
-        `/api/reports/budget/${analyticAccountId}/documents`
+      const targetId = lineId || analyticAccountId;
+      const res = await api.get<{ data: any; error: any }>(
+        `/api/reports/budget/${targetId}/documents`
       );
-      if (res.data?.data) return res.data.data;
+      if (res.data?.data) {
+        const rawDocs = Array.isArray(res.data.data)
+          ? res.data.data
+          : res.data.data.documents || [];
+        return rawDocs.map((d: any) => ({
+          id: d.document_id || d.id,
+          type: (d.document_type === 'customer_invoice' ? 'invoice' : 'bill') as 'invoice' | 'bill',
+          number: d.number,
+          date: d.date instanceof Date ? d.date.toISOString().split('T')[0] : String(d.date),
+          partner: d.partner_name || d.partner || '—',
+          analytic_account_id: analyticAccountId,
+          amount: d.line_amount || d.amount || '0.00',
+          status: 'confirmed',
+        }));
+      }
     } catch {
-      // Offline fallback
+      // return empty if none
     }
-
-    return INITIAL_DOCS.filter((d) => d.analytic_account_id === analyticAccountId);
+    return [];
   },
 };

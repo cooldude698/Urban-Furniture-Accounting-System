@@ -260,14 +260,16 @@ export const JournalEntryFormPage: React.FC<JournalEntryFormPageProps> = ({
             <button
               type="button"
               onClick={handlePost}
-              disabled={loading}
+              disabled={loading || !isBalanced}
               onMouseEnter={() => setHoveredBtn('post')}
               onMouseLeave={() => setHoveredBtn(null)}
               style={{
                 ...styles.postBtn,
-                ...(hoveredBtn === 'post' ? styles.postBtnHover : {}),
-                opacity: loading ? 0.7 : 1,
+                ...(hoveredBtn === 'post' && isBalanced && !loading ? styles.postBtnHover : {}),
+                opacity: loading || !isBalanced ? 0.55 : 1,
+                cursor: loading || !isBalanced ? 'not-allowed' : 'pointer',
               }}
+              title={!isBalanced ? 'Debit and credit must match to post' : 'Post journal entry'}
             >
               {loading ? 'Posting...' : 'Post'}
             </button>
@@ -408,12 +410,18 @@ export const JournalEntryFormPage: React.FC<JournalEntryFormPageProps> = ({
 
                     {/* Debit Input */}
                     <td style={styles.td}>
-                      <div style={styles.amountInputWrap}>
-                        <span style={styles.currencyPrefix}>Rs.</span>
+                      <div
+                        style={{
+                          ...styles.amountInputWrap,
+                          background: line.debit ? '#FFFFFF' : 'rgba(255, 255, 255, 0.7)',
+                          borderColor: line.debit ? '#77574A' : '#D2B79F',
+                        }}
+                      >
+                        {line.debit ? <span style={styles.currencyPrefix}>Rs.</span> : null}
                         <input
                           type="number"
                           step="0.01"
-                          placeholder="0.00"
+                          placeholder=""
                           value={line.debit}
                           onChange={e => handleLineChange(idx, 'debit', e.target.value)}
                           style={styles.tableAmountInput}
@@ -423,12 +431,18 @@ export const JournalEntryFormPage: React.FC<JournalEntryFormPageProps> = ({
 
                     {/* Credit Input */}
                     <td style={styles.td}>
-                      <div style={styles.amountInputWrap}>
-                        <span style={styles.currencyPrefix}>Rs.</span>
+                      <div
+                        style={{
+                          ...styles.amountInputWrap,
+                          background: line.credit ? '#FFFFFF' : 'rgba(255, 255, 255, 0.7)',
+                          borderColor: line.credit ? '#77574A' : '#D2B79F',
+                        }}
+                      >
+                        {line.credit ? <span style={styles.currencyPrefix}>Rs.</span> : null}
                         <input
                           type="number"
                           step="0.01"
-                          placeholder="0.00"
+                          placeholder=""
                           value={line.credit}
                           onChange={e => handleLineChange(idx, 'credit', e.target.value)}
                           style={styles.tableAmountInput}
@@ -688,6 +702,7 @@ const styles = {
 
   table: {
     width: '100%',
+    tableLayout: 'fixed' as const,
     borderCollapse: 'collapse' as const,
   } as React.CSSProperties,
 
